@@ -144,6 +144,53 @@ Repeat until zero errors remain.
 
 **Output:** Error category, narrowed file scope (from diff), and if multiple errors: the identified root error.
 
+### Project Tool Discovery (MANDATORY)
+
+<HARD-GATE>
+Before any verification, you MUST discover what tools the project already has. A project's own CLI, scripts, and utilities are the most authoritative way to verify a fix. Generic test commands are necessary but not sufficient — use the project's own tools to verify real behavior.
+</HARD-GATE>
+
+**Scan these locations for project-specific tools:**
+
+| Location | What to Look For |
+|----------|-----------------|
+| `tools/`, `scripts/`, `bin/`, `cli/` directories | Custom CLI tools, utility scripts, validators, analyzers |
+| `package.json` `scripts` section | Named commands: `build`, `lint`, `validate`, `check`, `analyze`, `migrate`, custom scripts |
+| `Makefile`, `Taskfile.yml`, `justfile` | Build/run/test/validate targets |
+| `*.sln`, `*.csproj` files | .NET projects — look for CLI projects (`*.CLI`, `*.Console`, `*.Tool`) |
+| `cmd/`, `internal/cli/` (Go) | Go CLI entry points |
+| `setup.py`, `pyproject.toml` `[project.scripts]` | Python CLI entry points |
+| `Cargo.toml` `[[bin]]` sections | Rust binary targets |
+| `docker-compose.yml` | Service definitions with health checks |
+| `README.md`, `docs/` | Usage examples, "How to run" sections, verification instructions |
+| `.implementor.json` | Custom `testCommand`, `coverageCommand`, `startCommand` |
+
+**Build a tool inventory:**
+
+```
+Project Tools Found:
+- CLI: dotnet run --project src/MyApp.CLI -- [args]
+- Validator: tools/PackageExplorer/src/... -- [file]
+- Scripts: npm run validate, npm run check-types
+- Makefile: make lint, make integration-test
+- Start: npm start (port 3000)
+```
+
+**Use these tools for verification in Phase 5.5 and Phase 6.** They test real behavior that unit tests cannot cover:
+- A converter CLI can verify that output files are valid
+- A package explorer can verify internal consistency
+- A migration tool can verify data integrity
+- A linter can verify code quality after changes
+- A build command can verify nothing is broken
+
+**If the project has a CLI that processes input → output:**
+1. Run the CLI with a representative input file
+2. Verify the output is valid using the project's own validation tools
+3. Compare output before and after the fix if possible
+4. Check edge cases with different inputs
+
+**Tool discovery happens ONCE during triage, then tools are used throughout debugging.**
+
 ## Phase 1: Reproduce
 
 Before anything else, reproduce the error reliably:
@@ -298,10 +345,18 @@ If the test passes both with and without the fix, the test is wrong. It doesn't 
 
 ### Layer 2: Runtime Verification (When Applicable)
 
-After the unit test proves the fix at the code level, verify it works in the running application. Detect the app type and verify accordingly:
+After the unit test proves the fix at the code level, verify it works in the running application. **Use the project tools discovered in Phase 0** — they are the most authoritative verification method.
+
+**Project-specific tools (ALWAYS check first):**
+1. Refer to the tool inventory built during Phase 0 Triage
+2. Run the project's own CLI/validators/analyzers against real input
+3. If the project has a converter/processor: run it on a representative input and verify output
+4. If the project has a validator/explorer: run it on the output to check integrity
+5. If the project has custom scripts (`npm run validate`, `make check`): run them
+6. Compare output before and after the fix when possible
 
 **Web applications (Playwright MCP):**
-1. Start the application
+1. Start the application (use discovered `startCommand` or `npm start`)
 2. Navigate to the affected page/flow
 3. Reproduce the user action that triggered the bug
 4. Use `browser_snapshot` to verify correct state
@@ -317,10 +372,11 @@ After the unit test proves the fix at the code level, verify it works in the run
 5. Capture response bodies as evidence
 
 **CLI applications (Shell):**
-1. Run the command that triggered the bug
+1. Run the project's CLI with the input that triggered the bug
 2. Verify stdout, stderr, and exit code
-3. Run edge-case variations
-4. Capture all output as evidence
+3. Run edge-case variations with different inputs
+4. If the project has output validators — run them on the output
+5. Capture all output as evidence
 
 **Libraries (Import and call):**
 1. Write an integration test that uses the library as a consumer would
@@ -559,9 +615,14 @@ Agent tool (general-purpose):
     ## What Was Attempted
     [What the previous subagent was trying to do]
 
+    ## Project Tools Available
+    [List any project-specific CLIs, validators, scripts discovered by the caller.
+     If not provided, you MUST discover them yourself — scan: tools/, scripts/, bin/,
+     package.json scripts, Makefile, *.sln/*.csproj CLI projects, README.md usage sections]
+
     ## Your Job
     Follow the auto-debug process:
-    0. Triage: classify the error type, check git diff for recent changes, cascade-analyze if multiple errors
+    0. Triage: classify error type, discover project tools, check git diff, cascade-analyze if multiple errors
     1. Reproduce the error (run exact command, capture full output)
     2. Isolate to specific file/function/line (use log injection with [DEBUG:auto-debug] prefix if needed)
     3. Trace root cause (ask "why?" 3+ times, use git bisect if regression suspected)
@@ -569,10 +630,11 @@ Agent tool (general-purpose):
     5. Apply minimal fix
     6. Prove the fix (MANDATORY):
        a. Write regression unit test that FAILS without fix, PASSES with fix
-       b. If app has UI: use Playwright MCP (browser_navigate, browser_snapshot, browser_take_screenshot) to verify
-       c. If app has API: send HTTP requests to verify correct responses
-       d. If app has CLI: run commands and verify stdout/stderr/exit code
-       e. If fix touches shared code: run tests for all consumers
+       b. Run project's own CLI/validators/analyzers on real input to verify output correctness
+       c. If app has UI: use Playwright MCP (browser_navigate, browser_snapshot, browser_take_screenshot) to verify
+       d. If app has API: send HTTP requests to verify correct responses
+       e. If app has CLI: run the CLI with representative input and verify output with project validators
+       f. If fix touches shared code: run tests for all consumers
     7. Run full test suite — no regressions
     8. Clean up: remove ALL [DEBUG:auto-debug] log lines, run git bisect reset if used
 
@@ -581,6 +643,7 @@ Agent tool (general-purpose):
     - **Root cause:** [one sentence]
     - **Fix:** [what was changed and why]
     - **Regression test:** [test name, file path, and proof it fails without fix]
+    - **Project tool verification:** [which project tools were used, commands run, output summary]
     - **Runtime verification:** [what was verified and how — Playwright/HTTP/CLI evidence]
     - **Full suite result:** [pass/fail count, any new failures]
     - **Files changed:** [list]
