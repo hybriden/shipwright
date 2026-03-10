@@ -14,7 +14,7 @@
       "author": {
         "name": "hybriden"
       },
-      "source": ".",
+      "source": "./",
       "category": "development",
       "homepage": "https://github.com/hybriden/implementor"
     }
