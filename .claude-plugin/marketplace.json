@@ -1,0 +1,22 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "hybriden-implementor",
+  "description": "Autonomous development pipeline plugin",
+  "owner": {
+    "name": "hybriden",
+    "email": "hybriden@users.noreply.github.com"
+  },
+  "plugins": [
+    {
+      "name": "implementor",
+      "description": "Autonomous development pipeline: plan, implement, test, review, and verify any task to production-grade quality",
+      "version": "1.0.0",
+      "author": {
+        "name": "hybriden"
+      },
+      "source": ".",
+      "category": "development",
+      "homepage": "https://github.com/hybriden/implementor"
+    }
+  ]
+}
