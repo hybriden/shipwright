@@ -5,6 +5,7 @@ A Claude Code plugin providing an autonomous development pipeline.
 ## Plugin Structure
 
 - `skills/run/` - Master orchestrator (entry point)
+- `skills/auto-setup/` - Environment and dependency setup
 - `skills/auto-plan/` - Autonomous task planning
 - `skills/auto-impl/` - Subagent-driven implementation
 - `skills/auto-test/` - Unit and integration testing
@@ -14,7 +15,7 @@ A Claude Code plugin providing an autonomous development pipeline.
 
 ## Usage
 
-Invoke `implementor:run` with a task description. The system handles everything autonomously: planning, implementation, unit testing, E2E user testing, code review, and production readiness verification.
+Invoke `implementor:run` with a task description. The system handles everything autonomously: branch isolation, environment setup, planning, implementation, unit testing, E2E user testing, code review, and production readiness verification. Customize behavior with `.implementor.json` in the project root.
 
 ## Philosophy
 
