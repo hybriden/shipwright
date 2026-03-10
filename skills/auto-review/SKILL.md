@@ -40,7 +40,8 @@ digraph auto_review {
     "Quality cycle < 3?" [shape=diamond];
     "Review complete: APPROVED" [shape=doublecircle];
     "Review complete: APPROVED_WITH_NOTES" [shape=doublecircle];
-    "Flag unresolved issues in report" [shape=box];
+    "Review complete: NEEDS_ATTENTION" [shape=doublecircle];
+    "Flag unresolved spec issues" [shape=box];
 
     "Gather: plan, implementation report, git diff" -> "Stage 1: Dispatch spec reviewer (./spec-reviewer-prompt.md)";
     "Stage 1: Dispatch spec reviewer (./spec-reviewer-prompt.md)" -> "Spec compliant?";
@@ -48,14 +49,14 @@ digraph auto_review {
     "Spec compliant?" -> "Dispatch implementer to fix spec gaps" [label="no"];
     "Dispatch implementer to fix spec gaps" -> "Review cycle < 3?";
     "Review cycle < 3?" -> "Stage 1: Dispatch spec reviewer (./spec-reviewer-prompt.md)" [label="yes"];
-    "Review cycle < 3?" -> "Flag unresolved issues in report" [label="no - max cycles"];
+    "Review cycle < 3?" -> "Flag unresolved spec issues" [label="no - max cycles"];
+    "Flag unresolved spec issues" -> "Review complete: NEEDS_ATTENTION" [label="spec not met"];
     "Stage 2: Dispatch quality reviewer (./quality-reviewer-prompt.md)" -> "Quality approved?";
     "Quality approved?" -> "Review complete: APPROVED" [label="yes"];
     "Quality approved?" -> "Dispatch implementer to fix quality issues" [label="no"];
     "Dispatch implementer to fix quality issues" -> "Quality cycle < 3?";
     "Quality cycle < 3?" -> "Stage 2: Dispatch quality reviewer (./quality-reviewer-prompt.md)" [label="yes"];
-    "Quality cycle < 3?" -> "Review complete: APPROVED_WITH_NOTES" [label="no - max cycles"];
-    "Flag unresolved issues in report" -> "Review complete: APPROVED_WITH_NOTES";
+    "Quality cycle < 3?" -> "Review complete: APPROVED_WITH_NOTES" [label="no - max quality cycles"];
 }
 ```
 
@@ -143,6 +144,13 @@ After both stages complete:
 - Letting the implementer self-review replace actual review
 - Proceeding when spec reviewer found missing requirements
 - Dispatching reviewers without full context (plan + diff + report)
+
+## Dispatching Fix Subagents
+
+When reviewers find issues, dispatch an implementer subagent to fix them. Use the prompt template from `implementor:auto-impl` (`./implementer-prompt.md` in that skill's directory). Provide:
+- The specific issues found by the reviewer (with file:line references)
+- The original task context
+- Instruction to fix only the identified issues, nothing more
 
 ## Prompt Templates
 

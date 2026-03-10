@@ -55,6 +55,7 @@ Every gate must pass. If a gate cannot be evaluated (e.g., load testing a librar
 - No console errors or failed network requests (web apps)
 - All API endpoints return correct status codes
 - All CLI commands produce expected output
+- **Libraries:** Mark N/A with justification (libraries have no user-facing entry point)
 
 ### Gate 4: Code Review Approved
 

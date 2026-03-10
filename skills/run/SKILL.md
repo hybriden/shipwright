@@ -63,9 +63,11 @@ digraph run_pipeline {
     "Phase 4: Unit Test (implementor:auto-test)" -> "Phase failed?" [style=dashed];
     "Phase 5: E2E Test (implementor:auto-e2e)" -> "Phase failed?" [style=dashed];
     "Phase 6: Review (implementor:auto-review)" -> "Phase failed?" [style=dashed];
+    "Phase 7: Production Readiness (implementor:production-readiness)" -> "Phase failed?" [style=dashed];
     "Phase failed?" -> "Attempt recovery (1 retry)";
     "Attempt recovery (1 retry)" -> "Recovery succeeded?";
-    "Recovery succeeded?" -> "Phase 2: Plan (implementor:auto-plan)" [label="yes - resume pipeline" style=dashed];
+    "Recovery succeeded?" -> "Resume at failed phase" [label="yes" style=dashed];
+    "Resume at failed phase" -> "Commit and report to user" [label="pipeline completes" style=dashed];
     "Recovery succeeded?" -> "Report failure with evidence" [label="no"];
 }
 ```
@@ -96,6 +98,10 @@ Before anything else, understand the battlefield:
 7. **Entry points:** Find main files, server start commands, CLI entry points
 
 **Output:** Mental model of the project. Used to inform all subsequent phases.
+
+## Invoking Sub-Skills
+
+Use the `Skill` tool to invoke each sub-skill. This ensures proper context isolation. Do NOT read sub-skill SKILL.md files and follow them inline — invoke them as skills.
 
 ## Phase 2: Plan
 

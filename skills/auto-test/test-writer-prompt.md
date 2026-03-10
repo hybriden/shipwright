@@ -61,7 +61,7 @@ Agent tool (general-purpose):
     ## Report Format
 
     When done, report:
-    - **Status:** DONE | NEEDS_CONTEXT | BLOCKED
+    - **Status:** DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED
     - Tests written (count and names)
     - Coverage before and after (line %, branch %)
     - Files changed

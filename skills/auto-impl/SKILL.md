@@ -37,6 +37,8 @@ digraph auto_impl {
     "Run full test suite" [shape=box];
     "Tests pass?" [shape=diamond];
     "Dispatch fix subagent" [shape=box];
+    "Fix attempts < 3?" [shape=diamond];
+    "Mark task FAILED, continue" [shape=box];
     "Auto re-plan blocked task" [shape=box];
     "More tasks?" [shape=diamond];
     "Implementation complete" [shape=doublecircle];
@@ -51,9 +53,12 @@ digraph auto_impl {
     "Auto re-plan blocked task" -> "Dispatch implementer subagent (./implementer-prompt.md)";
     "Run full test suite" -> "Tests pass?";
     "Tests pass?" -> "Mark task complete" [label="yes"];
-    "Tests pass?" -> "Dispatch fix subagent" [label="no"];
+    "Tests pass?" -> "Fix attempts < 3?" [label="no"];
+    "Fix attempts < 3?" -> "Dispatch fix subagent" [label="yes"];
+    "Fix attempts < 3?" -> "Mark task FAILED, continue" [label="no - max retries"];
     "Dispatch fix subagent" -> "Run full test suite";
     "Mark task complete" -> "More tasks?";
+    "Mark task FAILED, continue" -> "More tasks?";
     "More tasks?" -> "Dispatch implementer subagent (./implementer-prompt.md)" [label="yes"];
     "More tasks?" -> "Implementation complete" [label="no"];
 }
@@ -110,12 +115,14 @@ Use the least powerful model that can handle each task:
 
 ## Red Flags - STOP
 
-- Dispatching multiple implementer subagents in parallel (causes conflicts)
-- Proceeding to next task while tests are failing
-- Retrying the same prompt without changes
-- Ignoring BLOCKED status
-- Making the subagent read the plan file instead of providing full text
-- Skipping the test suite between tasks
+| Thought | Reality |
+|---------|---------|
+| "I'll dispatch implementers in parallel" | Parallel implementers cause file conflicts. One at a time. |
+| "Tests are failing but I'll fix it in the next task" | Failing tests are a hard gate. Fix before proceeding. |
+| "Let me retry the same prompt" | Same input = same output. Change something first. |
+| "The subagent is BLOCKED but I'll proceed" | BLOCKED means the task isn't done. Resolve or re-plan. |
+| "The subagent can read the plan file" | Never. Provide full task text. Subagent context is precious. |
+| "I'll skip the test suite, nothing changed" | Something always changed. Run the suite. |
 
 ## Prompt Template
 

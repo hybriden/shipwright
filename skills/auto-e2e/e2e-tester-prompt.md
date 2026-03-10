@@ -83,7 +83,7 @@ Agent tool (general-purpose):
     ## Report Format
 
     When done, report:
-    - **Status:** DONE | BLOCKED
+    - **Status:** DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED
     - Scenarios tested: [count]
     - Passed: [count]
     - Failed: [count with details]

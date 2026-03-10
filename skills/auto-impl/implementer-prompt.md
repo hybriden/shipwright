@@ -28,13 +28,12 @@ Agent tool (general-purpose):
 
     ## Before You Begin
 
-    If you have questions about:
+    If anything is unclear about:
     - The requirements or acceptance criteria
     - The approach or implementation strategy
     - Dependencies or assumptions
-    - Anything unclear in the task description
 
-    **Ask them now.** Raise concerns before starting work.
+    **Report NEEDS_CONTEXT** with your specific questions. Do not guess or assume.
 
     ## Your Job
 
@@ -49,8 +48,8 @@ Agent tool (general-purpose):
     8. Self-review (see below)
     9. Report back
 
-    **While you work:** If you encounter something unexpected or unclear, **ask questions**.
-    It's always OK to pause and clarify. Don't guess or make assumptions.
+    **While you work:** If you encounter something unexpected or unclear, report
+    NEEDS_CONTEXT with specifics. Don't guess or make assumptions.
 
     ## TDD Discipline
 

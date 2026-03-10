@@ -8,7 +8,7 @@ A Claude Code plugin providing an autonomous development pipeline.
 - `skills/auto-plan/` - Autonomous task planning
 - `skills/auto-impl/` - Subagent-driven implementation
 - `skills/auto-test/` - Unit and integration testing
-- `skills/auto-e2e/` - Browser/CLI/API end-to-end testing
+- `skills/auto-e2e/` - End-to-end testing (Playwright for web, HTTP for APIs, shell for CLIs)
 - `skills/auto-review/` - Two-stage code review (spec + quality)
 - `skills/production-readiness/` - Final verification gate
 
