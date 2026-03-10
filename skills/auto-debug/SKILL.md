@@ -39,21 +39,37 @@ digraph auto_debug {
     rankdir=TB;
 
     "Receive error context" [shape=box];
+    "Phase 0: Triage" [shape=box];
+    "Multiple errors?" [shape=diamond];
+    "Cascade analysis: find root error" [shape=box];
+    "Recent code changes?" [shape=diamond];
+    "Diff-narrow to changed files" [shape=box];
     "Phase 1: Reproduce" [shape=box];
     "Reproducible?" [shape=diamond];
     "Phase 2: Isolate" [shape=box];
     "Phase 3: Trace Root Cause" [shape=box];
     "Root cause found?" [shape=diamond];
+    "Use git bisect?" [shape=diamond];
+    "Git bisect to find breaking commit" [shape=box];
     "Phase 4: Hypothesize and Test" [shape=box];
     "Hypothesis confirmed?" [shape=diamond];
     "Phase 5: Fix" [shape=box];
+    "Phase 5.5: Prove Fix" [shape=box];
     "Phase 6: Verify" [shape=box];
     "Fix verified?" [shape=diamond];
     "Widen investigation" [shape=box];
     "Mark UNRESOLVED with evidence" [shape=box];
+    "Clean up debug artifacts" [shape=box];
     "Debug complete" [shape=doublecircle];
 
-    "Receive error context" -> "Phase 1: Reproduce";
+    "Receive error context" -> "Phase 0: Triage";
+    "Phase 0: Triage" -> "Multiple errors?";
+    "Multiple errors?" -> "Cascade analysis: find root error" [label="yes"];
+    "Multiple errors?" -> "Recent code changes?" [label="no"];
+    "Cascade analysis: find root error" -> "Recent code changes?";
+    "Recent code changes?" -> "Diff-narrow to changed files" [label="yes"];
+    "Recent code changes?" -> "Phase 1: Reproduce" [label="no"];
+    "Diff-narrow to changed files" -> "Phase 1: Reproduce";
     "Phase 1: Reproduce" -> "Reproducible?";
     "Reproducible?" -> "Phase 2: Isolate" [label="yes"];
     "Reproducible?" -> "Widen investigation" [label="no (intermittent)"];
@@ -61,17 +77,72 @@ digraph auto_debug {
     "Phase 2: Isolate" -> "Phase 3: Trace Root Cause";
     "Phase 3: Trace Root Cause" -> "Root cause found?";
     "Root cause found?" -> "Phase 4: Hypothesize and Test" [label="yes"];
-    "Root cause found?" -> "Mark UNRESOLVED with evidence" [label="no, after 3 attempts"];
+    "Root cause found?" -> "Use git bisect?" [label="no"];
+    "Use git bisect?" -> "Git bisect to find breaking commit" [label="regression suspected"];
+    "Use git bisect?" -> "Mark UNRESOLVED with evidence" [label="no, after 3 attempts"];
+    "Git bisect to find breaking commit" -> "Phase 3: Trace Root Cause";
     "Phase 4: Hypothesize and Test" -> "Hypothesis confirmed?";
     "Hypothesis confirmed?" -> "Phase 5: Fix" [label="yes"];
     "Hypothesis confirmed?" -> "Phase 3: Trace Root Cause" [label="no, new hypothesis"];
-    "Phase 5: Fix" -> "Phase 6: Verify";
+    "Phase 5: Fix" -> "Phase 5.5: Prove Fix";
+    "Phase 5.5: Prove Fix" -> "Phase 6: Verify";
     "Phase 6: Verify" -> "Fix verified?";
-    "Fix verified?" -> "Debug complete" [label="yes"];
+    "Fix verified?" -> "Clean up debug artifacts" [label="yes"];
     "Fix verified?" -> "Phase 3: Trace Root Cause" [label="no, fix was wrong"];
-    "Mark UNRESOLVED with evidence" -> "Debug complete";
+    "Clean up debug artifacts" -> "Debug complete";
+    "Mark UNRESOLVED with evidence" -> "Clean up debug artifacts";
 }
 ```
+
+## Phase 0: Triage (Before Reproduction)
+
+When receiving error context, classify and prioritize before diving in:
+
+### Error Classification
+
+Auto-detect the error category from the error output and apply the specialized strategy:
+
+| Error Pattern | Category | Fast-Path Strategy |
+|--------------|----------|-------------------|
+| `TypeError`, `ReferenceError`, `undefined is not a function` | Type/Reference | Read the exact line, check variable scope and types |
+| `ENOENT`, `MODULE_NOT_FOUND`, `Cannot find module` | Missing File/Module | Trace the import chain, check paths and package.json |
+| `ECONNREFUSED`, `ETIMEDOUT`, `fetch failed` | Network/Connection | Check if service is running, verify URLs and ports |
+| `SyntaxError`, `Unexpected token` | Parse Error | Check the file for syntax issues, often a bad merge |
+| `ENOMEM`, `heap out of memory`, `Maximum call stack` | Resource Exhaustion | Look for infinite recursion, unbounded loops, memory leaks |
+| `EACCES`, `Permission denied` | Permission | Check file permissions, user context, sudo requirements |
+| `Timeout`, `exceeded`, `took too long` | Timeout/Hang | See Timeout Debugging section below |
+| `race condition`, flaky pass/fail pattern | Concurrency | See Concurrency Debugging section below |
+| `version`, `peer dep`, `conflicting` | Dependency Conflict | See Dependency Conflict Resolution section below |
+| Multiple unrelated errors in output | Cascade | See Cascade Analysis section below |
+| `BREAKING CHANGE`, `deprecated`, `not a function` | API Migration | Check changelog of updated dependency, find migration guide |
+
+### Diff-Based Narrowing
+
+**Before investigating broadly, check what changed recently:**
+
+1. Run `git diff HEAD~5` (or since last known-good state) to see recent changes
+2. Cross-reference changed files with the error's stack trace
+3. If a changed file appears in the stack trace — that's your starting point
+4. If no overlap — the bug may be in an unchanged dependency or environment
+
+**This eliminates 80% of investigation time.** Most bugs are in recently changed code.
+
+### Cascade Analysis (Multiple Errors)
+
+When the error output contains multiple failures:
+
+1. **Don't fix them all.** Find the root error that causes the cascade
+2. **Sort errors by dependency order** — earlier failures often cause later ones
+3. **Look for the first error chronologically** — not the loudest one
+4. **Group errors by file** — if 10 tests in the same file fail, the file (not the tests) is broken
+5. **Check for setup/teardown failures** — a broken `beforeAll` cascades to every test in the suite
+
+```
+Rule: Fix ONE error. Re-run. Count how many others disappear.
+Repeat until zero errors remain.
+```
+
+**Output:** Error category, narrowed file scope (from diff), and if multiple errors: the identified root error.
 
 ## Phase 1: Reproduce
 
@@ -98,9 +169,45 @@ Narrow down where the error originates:
 **Isolation techniques:**
 - For test failures: run the single failing test in isolation
 - For build errors: check the specific file that fails to compile
-- For runtime errors: add strategic logging or use the debugger
+- For runtime errors: inject strategic logging (see Log Injection below)
 - For import errors: trace the dependency chain
-- For timeout errors: identify what's blocking
+- For timeout errors: identify what's blocking (see Timeout Debugging below)
+- For flaky tests: check for shared mutable state between tests (see Concurrency Debugging below)
+
+### Log Injection (Tracing Execution Flow)
+
+When the error is opaque (no clear stack trace, wrong output but no crash):
+
+1. **Identify the code path** from input to the point of failure
+2. **Add temporary `console.log`/`print` statements** at each decision point:
+   ```
+   console.log('[DEBUG:auto-debug] functionName entered, args:', JSON.stringify(args))
+   console.log('[DEBUG:auto-debug] branch taken: else-clause at line 42')
+   console.log('[DEBUG:auto-debug] value at checkpoint:', variable)
+   ```
+3. **Use the `[DEBUG:auto-debug]` prefix** so logs are easy to find and remove
+4. **Run the failing scenario** and read the log output to trace the actual execution path
+5. **Compare actual path vs expected path** — the divergence point is the bug
+6. **MANDATORY: Remove all `[DEBUG:auto-debug]` log lines after debugging.** Search the codebase for the prefix and delete every one. Debug logging must never be committed.
+
+### Git Bisect (Finding the Breaking Commit)
+
+When the error is a regression (something that used to work):
+
+1. Identify the last known-good commit (or estimate: `HEAD~10`, last release tag)
+2. Run git bisect:
+   ```bash
+   git bisect start
+   git bisect bad HEAD
+   git bisect good <known-good-commit>
+   # For each commit git checks out:
+   # Run the failing test, then: git bisect good OR git bisect bad
+   ```
+3. Git bisect will identify the exact commit that introduced the regression
+4. Read that commit's diff — the bug is in those changes
+5. **Always run `git bisect reset` when done** to restore the working tree
+
+**When to use:** When you can't tell from the current code why something broke, and the git history is available. Bisect turns an O(n) search into O(log n).
 
 **Output:** The specific file, function, and line where the error originates, plus the error category.
 
@@ -284,6 +391,132 @@ After fix is proven:
 
 **If verification fails:** The fix was wrong or incomplete. Go back to Phase 3, not Phase 5. The root cause needs re-investigation, not a bigger patch.
 
+## Advanced Debugging Techniques
+
+### Concurrency Debugging (Race Conditions, Flaky Tests)
+
+**Symptoms:** Test passes sometimes, fails sometimes. Or fails only when run with other tests but passes in isolation.
+
+**Investigation:**
+
+1. **Shared mutable state:** Look for global variables, singletons, module-level caches, or database state that isn't reset between tests
+2. **Timing dependencies:** Look for `setTimeout`, `setInterval`, unresolved promises, or missing `await`
+3. **Resource contention:** Look for tests that use the same port, file, or database table
+4. **Order dependency:** Run the failing test in isolation. If it passes alone, another test is leaking state
+
+**Techniques:**
+- Run the test suite with `--randomize` or `--shuffle` flag to expose order dependencies
+- Add `beforeEach`/`afterEach` cleanup to reset shared state
+- For async issues: check every `async` function has a matching `await` at the call site
+- For timer issues: use fake timers (`jest.useFakeTimers()`, `sinon.useFakeTimers()`)
+- For promise issues: look for fire-and-forget promises (missing `await` or `.catch`)
+
+**Root cause pattern:** "Test A mutates [shared resource] and test B reads it without reset."
+
+### Timeout and Hang Debugging
+
+**Symptoms:** Process hangs, test times out, command never completes.
+
+**Investigation:**
+
+1. **Identify what's blocking:**
+   - Unresolved promise? Missing callback? Deadlocked async operation?
+   - Waiting for network that will never respond? (Missing mock, wrong URL, service down)
+   - Infinite loop? (Add a counter log to suspect loops)
+   - Waiting for stdin/user input? (Process expects interaction that isn't coming)
+
+2. **Narrowing technique:**
+   - Add timeout logging: log a message before and after each suspect async operation
+   - The last "before" log without a matching "after" is the hang point
+   - For Node.js: use `--inspect` flag and check for pending async operations
+   - For tests: reduce the timeout to fail fast (`jest --testTimeout=5000`)
+
+3. **Common causes:**
+   | Hang Pattern | Cause | Fix |
+   |-------------|-------|-----|
+   | Test hangs after all assertions pass | Open handle (server, DB connection, timer) | Close/dispose in `afterAll` |
+   | Hangs on import | Circular dependency with side effects | Break the circular import |
+   | Hangs on network call | No mock, real service not running | Add mock or start service |
+   | Hangs intermittently | Race condition in async setup | Add proper await/synchronization |
+
+### Dependency Conflict Resolution
+
+**Symptoms:** `peer dep` warnings, version mismatch errors, `Cannot find module`, or subtle runtime errors after `npm install`.
+
+**Investigation:**
+
+1. **Check the dependency tree:**
+   ```bash
+   npm ls <package-name>        # Show all versions of a specific package
+   npm ls --all | grep "WARN"   # Find peer dep warnings
+   ```
+2. **Check for version conflicts:**
+   - Two packages requiring incompatible versions of the same dependency
+   - A package using `require()` expecting CJS but getting ESM (or vice versa)
+   - Lock file drift: `package-lock.json` doesn't match `package.json`
+
+3. **Resolution strategies:**
+   | Conflict Type | Fix |
+   |--------------|-----|
+   | Peer dep mismatch | Align to the version range that satisfies both peers |
+   | Duplicate packages | Add `overrides` (npm) or `resolutions` (yarn) in package.json |
+   | CJS/ESM mismatch | Check the package's `exports` field, use correct import syntax |
+   | Lock file drift | Delete lock file + `node_modules`, reinstall from scratch |
+   | Type version mismatch | Align `@types/` package version with the runtime package version |
+
+### Environment Fingerprinting
+
+**Symptoms:** "Works on my machine" or "Works locally but fails in CI" or "Worked yesterday."
+
+**Capture this environment fingerprint when the error seems environment-related:**
+
+```bash
+# Runtime versions
+node --version && npm --version       # Node.js
+python --version && pip --version     # Python
+go version                            # Go
+rustc --version && cargo --version    # Rust
+
+# OS and shell
+uname -a || ver                       # OS info
+echo $SHELL $BASH_VERSION             # Shell info
+
+# Key env vars (DO NOT log secrets)
+env | grep -E '^(NODE_ENV|PATH|HOME|CI|DATABASE_URL|PORT)='
+
+# Disk and memory
+df -h . && free -h                    # Space and memory (Linux)
+
+# Package state
+npm ls --depth=0 2>&1 | head -30     # Installed packages
+```
+
+**Compare fingerprints** between the working and broken environments. Differences in versions, env vars, or paths are likely the cause.
+
+**Common environment causes:**
+- `NODE_ENV=production` vs `development` (changes which dependencies load)
+- Different Node/Python versions (syntax or API differences)
+- Missing env vars (`.env` file not copied, secret not set in CI)
+- Different OS (path separators, case sensitivity, line endings)
+- Stale `node_modules` (delete and reinstall)
+
+### Error Message Decoding
+
+Don't take error messages at face value. Common misreadings:
+
+| Error Says | Often Actually Means |
+|-----------|---------------------|
+| `Cannot find module 'X'` | X exists but has a broken export, or a transitive dep is missing |
+| `X is not a function` | X was imported but is `undefined` — check the export name |
+| `Maximum call stack exceeded` | Infinite recursion, often from circular references |
+| `ECONNREFUSED 127.0.0.1:3000` | The server isn't running, not a network issue |
+| `Unexpected token '<'` | Server returned HTML (error page) instead of JSON |
+| `Cannot read property 'X' of undefined` | The PARENT object is undefined — investigate one level up |
+| `EPERM: operation not permitted` | File is locked by another process, or antivirus blocking |
+| `ERR_MODULE_NOT_FOUND` | ESM/CJS mismatch — file exists but wrong module system |
+| `Jest encountered an unexpected token` | Missing transform for file type (JSX, TS, ESM) |
+| `ENOMEM` | Not always out of memory — can be too many open files or processes |
+
 ## Integration with Pipeline
 
 Auto-debug is called by other implementor skills when they encounter failures:
@@ -328,9 +561,10 @@ Agent tool (general-purpose):
 
     ## Your Job
     Follow the auto-debug process:
-    1. Reproduce the error
-    2. Isolate to specific file/function/line
-    3. Trace root cause (ask "why?" 3+ times)
+    0. Triage: classify the error type, check git diff for recent changes, cascade-analyze if multiple errors
+    1. Reproduce the error (run exact command, capture full output)
+    2. Isolate to specific file/function/line (use log injection with [DEBUG:auto-debug] prefix if needed)
+    3. Trace root cause (ask "why?" 3+ times, use git bisect if regression suspected)
     4. Hypothesize and predict outcome
     5. Apply minimal fix
     6. Prove the fix (MANDATORY):
@@ -340,6 +574,7 @@ Agent tool (general-purpose):
        d. If app has CLI: run commands and verify stdout/stderr/exit code
        e. If fix touches shared code: run tests for all consumers
     7. Run full test suite — no regressions
+    8. Clean up: remove ALL [DEBUG:auto-debug] log lines, run git bisect reset if used
 
     Report:
     - **Status:** RESOLVED | UNRESOLVED
@@ -350,6 +585,20 @@ Agent tool (general-purpose):
     - **Full suite result:** [pass/fail count, any new failures]
     - **Files changed:** [list]
     - **Side effects:** [any other tests/behavior affected]
+```
+
+## Cleanup (MANDATORY)
+
+Before declaring debug complete, clean up all debug artifacts:
+
+1. **Remove all `[DEBUG:auto-debug]` log lines** — search the entire codebase for this prefix
+2. **Run `git bisect reset`** if git bisect was used
+3. **Remove any temporary test files** created during investigation
+4. **Revert any temporary config changes** made for debugging (port changes, mock overrides, etc.)
+5. **Verify the working tree is clean** except for the actual fix and regression test
+
+```
+Debug artifacts in committed code = tech debt. Always clean up.
 ```
 
 ## Red Flags - STOP
