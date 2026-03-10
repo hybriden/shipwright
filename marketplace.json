@@ -1,0 +1,10 @@
+{
+  "plugins": [
+    {
+      "name": "implementor",
+      "description": "Autonomous development pipeline: plan, implement, test, review, and verify any task to production-grade quality",
+      "version": "1.0.0",
+      "path": "."
+    }
+  ]
+}
