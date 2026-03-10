@@ -156,21 +156,131 @@ Apply the minimal fix that addresses the root cause:
 
 1. Change only what's necessary to fix the root cause
 2. Do NOT refactor, clean up, or "improve" unrelated code
-3. If the fix requires new tests, write them
+3. **Write a regression test that reproduces the original bug** (see Phase 5.5)
 4. If the fix changes behavior, update existing tests
 5. Commit the fix with a descriptive message
 
 **Minimal means minimal.** A one-line fix for a one-line bug. Don't turn a bugfix into a feature.
 
-## Phase 6: Verify
+## Phase 5.5: Prove the Fix (MANDATORY)
 
-After the fix:
+<HARD-GATE>
+Every fix MUST be proven through automated verification. A fix without proof is not a fix — it's a hope. Use every available verification method.
+</HARD-GATE>
+
+### Layer 1: Regression Unit Test (Always Required)
+
+Write a unit test that:
+1. **Reproduces the original bug** — the test would FAIL without your fix
+2. **Passes with your fix applied** — proves the fix works
+3. **Prevents future regression** — stays in the test suite permanently
+
+```
+Test name pattern: "should [expected behavior] when [condition that caused the bug]"
+Example: "should return empty array when filter matches no items"
+         (not: "test bug fix #42")
+```
+
+**Verify the test proves causation:**
+1. Temporarily revert the fix
+2. Run the regression test — it MUST fail
+3. Re-apply the fix
+4. Run the regression test — it MUST pass
+
+If the test passes both with and without the fix, the test is wrong. It doesn't prove anything. Rewrite it.
+
+### Layer 2: Runtime Verification (When Applicable)
+
+After the unit test proves the fix at the code level, verify it works in the running application. Detect the app type and verify accordingly:
+
+**Web applications (Playwright MCP):**
+1. Start the application
+2. Navigate to the affected page/flow
+3. Reproduce the user action that triggered the bug
+4. Use `browser_snapshot` to verify correct state
+5. Use `browser_take_screenshot` to capture evidence
+6. Use `browser_console_messages` to verify no JS errors
+7. Use `browser_network_requests` to verify no failed requests
+
+**API applications (HTTP):**
+1. Start the server
+2. Send the request that triggered the bug
+3. Verify the response status, body, and headers are correct
+4. Send edge-case variations of the same request
+5. Capture response bodies as evidence
+
+**CLI applications (Shell):**
+1. Run the command that triggered the bug
+2. Verify stdout, stderr, and exit code
+3. Run edge-case variations
+4. Capture all output as evidence
+
+**Libraries (Import and call):**
+1. Write an integration test that uses the library as a consumer would
+2. Verify the bug scenario produces correct results
+3. Run the integration test
+
+### Layer 3: Broader Impact Verification (When Fix Touches Shared Code)
+
+If the fix modifies shared code (utilities, middleware, base classes, config):
+1. Identify all callers/consumers of the changed code
+2. Run their tests specifically
+3. If no tests exist for those callers, write smoke tests
+4. Verify no behavior changed for existing consumers
+
+### Verification Decision Tree
+
+```dot
+digraph verify_fix {
+    rankdir=TB;
+    "Fix applied" [shape=box];
+    "Write regression unit test" [shape=box];
+    "Test fails without fix?" [shape=diamond];
+    "Rewrite test" [shape=box];
+    "Test passes with fix?" [shape=diamond];
+    "Fix is wrong, back to Phase 3" [shape=box];
+    "App has UI/API/CLI?" [shape=diamond];
+    "Run Playwright/HTTP/Shell verification" [shape=box];
+    "Library only" [shape=box];
+    "Write integration test" [shape=box];
+    "Fix touches shared code?" [shape=diamond];
+    "Verify all consumers" [shape=box];
+    "Full test suite passes?" [shape=diamond];
+    "Fix introduced regression, back to Phase 3" [shape=box];
+    "Fix PROVEN" [shape=doublecircle];
+
+    "Fix applied" -> "Write regression unit test";
+    "Write regression unit test" -> "Test fails without fix?";
+    "Test fails without fix?" -> "Test passes with fix?" [label="yes"];
+    "Test fails without fix?" -> "Rewrite test" [label="no"];
+    "Rewrite test" -> "Test fails without fix?";
+    "Test passes with fix?" -> "App has UI/API/CLI?" [label="yes"];
+    "Test passes with fix?" -> "Fix is wrong, back to Phase 3" [label="no"];
+    "App has UI/API/CLI?" -> "Run Playwright/HTTP/Shell verification" [label="yes"];
+    "App has UI/API/CLI?" -> "Library only" [label="no"];
+    "Library only" -> "Write integration test";
+    "Write integration test" -> "Fix touches shared code?";
+    "Run Playwright/HTTP/Shell verification" -> "Fix touches shared code?";
+    "Fix touches shared code?" -> "Verify all consumers" [label="yes"];
+    "Fix touches shared code?" -> "Full test suite passes?";
+    "Verify all consumers" -> "Full test suite passes?";
+    "Full test suite passes?" -> "Fix PROVEN" [label="yes"];
+    "Full test suite passes?" -> "Fix introduced regression, back to Phase 3" [label="no"];
+}
+```
+
+## Phase 6: Final Verification
+
+After fix is proven:
 
 1. Run the originally failing test/command — it should pass
-2. Run the full test suite — no regressions
-3. If the error was in E2E, re-run the failing scenario
-4. If the error was environment-related, verify the setup phase still works
-5. Verify the predicted outcome from Phase 4 matches reality
+2. Run the regression test from Phase 5.5 — it should pass
+3. Run the full test suite — no regressions
+4. If runtime verification was done (Playwright/HTTP/CLI), review evidence
+5. If the error was in E2E, re-run the failing E2E scenario
+6. If the error was environment-related, verify the setup phase still works
+7. Verify the predicted outcome from Phase 4 matches reality
+8. Commit the regression test alongside the fix
 
 **If verification fails:** The fix was wrong or incomplete. Go back to Phase 3, not Phase 5. The root cause needs re-investigation, not a bigger patch.
 
@@ -223,15 +333,23 @@ Agent tool (general-purpose):
     3. Trace root cause (ask "why?" 3+ times)
     4. Hypothesize and predict outcome
     5. Apply minimal fix
-    6. Verify fix + no regressions
+    6. Prove the fix (MANDATORY):
+       a. Write regression unit test that FAILS without fix, PASSES with fix
+       b. If app has UI: use Playwright MCP (browser_navigate, browser_snapshot, browser_take_screenshot) to verify
+       c. If app has API: send HTTP requests to verify correct responses
+       d. If app has CLI: run commands and verify stdout/stderr/exit code
+       e. If fix touches shared code: run tests for all consumers
+    7. Run full test suite — no regressions
 
     Report:
     - **Status:** RESOLVED | UNRESOLVED
-    - Root cause: [one sentence]
-    - Fix: [what was changed and why]
-    - Verification: [test results after fix]
-    - Files changed: [list]
-    - Side effects: [any other tests/behavior affected]
+    - **Root cause:** [one sentence]
+    - **Fix:** [what was changed and why]
+    - **Regression test:** [test name, file path, and proof it fails without fix]
+    - **Runtime verification:** [what was verified and how — Playwright/HTTP/CLI evidence]
+    - **Full suite result:** [pass/fail count, any new failures]
+    - **Files changed:** [list]
+    - **Side effects:** [any other tests/behavior affected]
 ```
 
 ## Red Flags - STOP
