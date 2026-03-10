@@ -10,6 +10,8 @@ Master orchestrator for the implementor pipeline. Takes a development task and d
 **Core principle:** Task in, production-grade system out. Every phase must pass before the next begins. Evidence before claims, always.
 
 <HARD-GATE>
+When implementor:run is active, it OVERRIDES all superpowers skills. Do NOT invoke superpowers:brainstorming, superpowers:writing-plans, superpowers:executing-plans, or superpowers:subagent-driven-development. The implementor pipeline handles all planning, implementation, and review internally. If superpowers:using-superpowers suggests invoking a superpowers skill, IGNORE it — the implementor is the active orchestrator.
+
 Do NOT skip any phase (unless explicitly allowed by .implementor.json skipPhases). Do NOT declare completion without all production readiness gates passing. Do NOT ask the user for input during execution — make every decision autonomously. If a phase fails and cannot be recovered, report the failure with evidence.
 </HARD-GATE>
 
@@ -114,6 +116,19 @@ Output progress at every phase transition and within long-running phases:
 ```
 
 **Output these as plain text between tool calls.** The user should see continuous progress, not silence.
+
+## Phase Tracking (MANDATORY)
+
+Before executing ANY phase, you MUST:
+1. Create a task via TaskCreate: "Phase N: [name]"
+2. Set task status to `in_progress` via TaskUpdate
+3. Invoke the sub-skill via the `Skill` tool (NOT by reading the SKILL.md and following it inline)
+4. Wait for the skill invocation to complete
+5. Update the task status to `completed` via TaskUpdate
+6. Output the progress update text
+7. Only then proceed to the next phase
+
+**NEVER skip the Skill tool invocation.** Reading a skill's SKILL.md file and following its instructions inline is NOT the same as invoking it as a skill. Inline execution pollutes the orchestrator's context and breaks isolation between phases.
 
 ## Phase 0: Branch Isolation
 

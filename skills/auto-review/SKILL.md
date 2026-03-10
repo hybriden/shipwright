@@ -9,6 +9,10 @@ Two-stage code review: first verify the code matches the spec (nothing missing, 
 
 **Core principle:** Spec compliance and code quality are orthogonal concerns. Checking them separately catches issues that combined review misses.
 
+<HARD-GATE>
+This skill is part of the implementor pipeline. Do NOT invoke superpowers:requesting-code-review or any other superpowers skill. The implementor handles code review internally.
+</HARD-GATE>
+
 ## Iron Law
 
 ```

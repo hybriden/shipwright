@@ -9,6 +9,10 @@ Final verification gate. Runs every check required to declare code production-gr
 
 **Core principle:** Production is unforgiving. Every gate exists because skipping it has caused an outage. Pass all gates or don't ship.
 
+<HARD-GATE>
+This skill is part of the implementor pipeline. Do NOT invoke superpowers:verification-before-completion, superpowers:finishing-a-development-branch, or any other superpowers skill. The implementor handles verification internally.
+</HARD-GATE>
+
 ## Iron Law
 
 ```

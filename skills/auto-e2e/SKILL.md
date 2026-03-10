@@ -9,6 +9,10 @@ Verify the complete user experience through end-to-end testing. Detects app type
 
 **Core principle:** Unit tests prove components work. E2E tests prove the system works for users. Both are required.
 
+<HARD-GATE>
+This skill is part of the implementor pipeline. Do NOT invoke any superpowers orchestration skill. The implementor handles E2E testing internally.
+</HARD-GATE>
+
 ## Iron Law
 
 ```

@@ -9,6 +9,10 @@ Autonomously analyze a codebase and decompose a development task into an ordered
 
 **Core principle:** Understand everything before touching anything. Read first, plan second, implement never (that's auto-impl's job).
 
+<HARD-GATE>
+This skill is part of the implementor pipeline. Do NOT invoke superpowers:brainstorming, superpowers:writing-plans, or any other superpowers orchestration skill. The implementor handles planning internally.
+</HARD-GATE>
+
 ## Iron Law
 
 ```

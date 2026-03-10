@@ -9,6 +9,10 @@ Analyze implementation for test coverage gaps and write comprehensive tests to m
 
 **Core principle:** Tests are the proof that code works. No proof, no confidence. No confidence, no production.
 
+<HARD-GATE>
+This skill is part of the implementor pipeline. Do NOT invoke superpowers:test-driven-development or any other superpowers skill. The implementor enforces TDD internally via subagent prompts.
+</HARD-GATE>
+
 ## Iron Law
 
 ```

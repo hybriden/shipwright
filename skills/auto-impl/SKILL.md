@@ -9,6 +9,10 @@ Execute an implementation plan by dispatching a fresh subagent per task, with au
 
 **Core principle:** Fresh subagent per task (no context pollution) + autonomous error handling (no human escalation) = reliable execution at scale.
 
+<HARD-GATE>
+This skill is part of the implementor pipeline. Do NOT invoke superpowers:subagent-driven-development, superpowers:executing-plans, or any other superpowers orchestration skill. The implementor handles implementation internally.
+</HARD-GATE>
+
 ## Iron Law
 
 ```

@@ -9,6 +9,10 @@ Detect and execute environment setup: install dependencies, configure environmen
 
 **Core principle:** A project that can't build can't be tested. A project that can't be tested can't be verified. Setup is the foundation.
 
+<HARD-GATE>
+This skill is part of the implementor pipeline. Do NOT invoke any superpowers orchestration skill. The implementor handles setup internally.
+</HARD-GATE>
+
 ## Iron Law
 
 ```
