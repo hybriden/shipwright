@@ -108,11 +108,13 @@ Run the full suite again. If coverage target met, complete. If not, repeat Phase
 
 ## Coverage Targets
 
-| Metric | Default Target | Configurable |
-|--------|---------------|-------------|
-| Line coverage | 80% | Via plan |
-| Branch coverage | 80% | Via plan |
-| Function coverage | 90% | Via plan |
+| Metric | Default Target | Config Key |
+|--------|---------------|-----------|
+| Line coverage | 80% | `coverage.line` |
+| Branch coverage | 80% | `coverage.branch` |
+| Function coverage | 90% | `coverage.function` |
+
+**Configuration:** Read `.implementor.json` in the project root for overrides. See `implementor:auto-setup` (`./implementor-config.md`) for the full config reference. Also honors `testCommand` and `coverageCommand` fields.
 
 ## Anti-Patterns
 

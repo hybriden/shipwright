@@ -27,6 +27,8 @@ No exceptions. Not for "low-risk changes." Not for "it's just a config update." 
 
 Every gate must pass. If a gate cannot be evaluated (e.g., load testing a library), mark it N/A with justification.
 
+**Configuration:** Read `.implementor.json` in the project root for overrides to coverage targets, load test parameters, and skippable phases. See `implementor:auto-setup` (`./implementor-config.md`) for the full config reference.
+
 ### Gate 1: Unit Tests Pass
 
 ```bash

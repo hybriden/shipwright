@@ -58,10 +58,12 @@ digraph app_type {
 
 ### Phase 1: App Analysis
 
-1. Detect app type (see detection above)
-2. Find the start command (`npm start`, `python app.py`, `go run .`, etc.)
-3. Identify the entry URL/port/command
-4. Read the original task description to understand what user flows exist
+1. Read `.implementor.json` if present — check `e2eType` (overrides auto-detection) and `startCommand`
+2. If `skipPhases` includes `"e2e"`, skip this entire skill with documented justification
+3. Detect app type (see detection above, unless overridden by config)
+4. Find the start command (`npm start`, `python app.py`, `go run .`, etc.)
+5. Identify the entry URL/port/command
+6. Read the original task description to understand what user flows exist
 
 ### Phase 2: Scenario Generation
 

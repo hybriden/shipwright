@@ -1,0 +1,97 @@
+# .implementor.json Configuration Reference
+
+All implementor skills check for `.implementor.json` in the project root. Every field is optional — sensible defaults apply when absent.
+
+## Full Schema
+
+```json
+{
+  "coverage": {
+    "line": 80,
+    "branch": 80,
+    "function": 90
+  },
+  "skipPhases": [],
+  "testCommand": "npm test",
+  "coverageCommand": "npx vitest run --coverage",
+  "buildCommand": "npm run build",
+  "startCommand": "npm start",
+  "setupCommand": "npm run db:seed",
+  "envFile": ".env",
+  "loadTest": {
+    "enabled": true,
+    "users": 100,
+    "duration": "60s",
+    "p99": 500,
+    "errorRate": 0.01
+  },
+  "e2eType": "auto",
+  "branch": {
+    "prefix": "implementor",
+    "autoMerge": false
+  }
+}
+```
+
+## Field Reference
+
+### Coverage
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `coverage.line` | number | 80 | Minimum line coverage % |
+| `coverage.branch` | number | 80 | Minimum branch coverage % |
+| `coverage.function` | number | 90 | Minimum function coverage % |
+
+### Commands
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `testCommand` | string | auto-detect | Command to run tests |
+| `coverageCommand` | string | auto-detect | Command to run tests with coverage |
+| `buildCommand` | string | auto-detect | Command to build the project |
+| `startCommand` | string | auto-detect | Command to start the app (for E2E) |
+| `setupCommand` | string | none | Extra setup command after dependency install |
+| `envFile` | string | `.env` | Environment file name |
+
+### Phases
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `skipPhases` | string[] | [] | Phases to skip: `"e2e"`, `"loadTest"`, `"setup"` |
+
+Only these phases can be skipped. Plan, implement, test, review, and production-readiness cannot be skipped.
+
+### Load Testing
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `loadTest.enabled` | boolean | true (for servers) | Whether to run load tests |
+| `loadTest.users` | number | 100 | Virtual users |
+| `loadTest.duration` | string | `"60s"` | Test duration |
+| `loadTest.p99` | number | 500 | Max p99 latency in ms |
+| `loadTest.errorRate` | number | 0.01 | Max error rate (0-1) |
+
+### E2E
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `e2eType` | string | `"auto"` | Force app type: `"web"`, `"api"`, `"cli"`, `"library"`, `"auto"` |
+
+### Branch
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `branch.prefix` | string | `"implementor"` | Feature branch prefix |
+| `branch.autoMerge` | boolean | false | Auto-merge on success (vs offer choice) |
+
+## Which Skills Read Config
+
+| Skill | Fields Used |
+|-------|------------|
+| `auto-setup` | `setupCommand`, `buildCommand`, `testCommand`, `envFile` |
+| `auto-test` | `testCommand`, `coverageCommand`, `coverage.*` |
+| `auto-e2e` | `startCommand`, `e2eType`, `skipPhases` |
+| `auto-review` | (none — uses defaults) |
+| `production-readiness` | `coverage.*`, `loadTest.*`, `skipPhases` |
+| `run` | `skipPhases`, `branch.*`, all (passes to sub-skills) |
