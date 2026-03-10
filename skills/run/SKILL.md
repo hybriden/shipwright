@@ -245,20 +245,23 @@ Invoke `implementor:production-readiness` to:
 
 ## Error Recovery
 
-If any phase fails:
-1. Analyze the failure
-2. Attempt one recovery:
+If any phase fails, invoke `implementor:auto-debug` to diagnose and resolve:
+
+1. Pass the full error context to auto-debug (command, output, stack trace, files)
+2. Auto-debug executes its 6-phase process: reproduce, isolate, trace, hypothesize, fix, verify
+3. If auto-debug reports RESOLVED: resume the pipeline from the failed phase
+4. If auto-debug reports UNRESOLVED: attempt one manual recovery:
    - Setup phase: try alternative install commands, check prerequisites
    - Plan phase: re-analyze with broader context
    - Impl phase: re-plan the failed task(s) and retry
-   - Test phase: fix failing tests or implementation bugs
+   - Test phase: investigate test assumptions
    - E2E phase: fix app startup or interaction issues
    - Review phase: fix identified issues and re-review
    - Readiness phase: address failing gates
-3. If recovery succeeds, resume the pipeline from the recovered phase
-4. If recovery fails, generate a failure report with:
+5. If recovery fails, generate a failure report with:
    - What was accomplished before failure
-   - Exact failure details with evidence
+   - Auto-debug investigation evidence (root cause analysis, hypotheses tested)
+   - Exact failure details
    - What would need to change for success
    - All work done so far (committed to the feature branch)
    - The feature branch name for inspection
@@ -344,6 +347,7 @@ This skill is the entry point. It invokes:
 - **implementor:auto-e2e** — Phase 5
 - **implementor:auto-review** — Phase 6
 - **implementor:production-readiness** — Phase 7
+- **implementor:auto-debug** — Error recovery (any phase)
 
 Each sub-skill is independently usable but designed to chain in this order.
 

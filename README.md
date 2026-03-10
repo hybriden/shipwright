@@ -67,6 +67,7 @@ Each skill is independently usable:
 | `implementor:auto-test` | Unit and integration test coverage |
 | `implementor:auto-e2e` | End-to-end user testing |
 | `implementor:auto-review` | Two-stage code review |
+| `implementor:auto-debug` | Systematic root cause analysis and resolution |
 | `implementor:production-readiness` | Final verification gate |
 
 ## Requirements

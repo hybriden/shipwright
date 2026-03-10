@@ -96,7 +96,7 @@ Use the least powerful model that can handle each task:
 
 ## Handling Subagent Status
 
-**DONE:** Run full test suite. If tests pass, mark task complete. If tests fail, dispatch fix subagent with failure details.
+**DONE:** Run full test suite. If tests pass, mark task complete. If tests fail, invoke `implementor:auto-debug` with the failure context (test command, output, stack trace). Auto-debug will investigate root cause and apply a fix.
 
 **DONE_WITH_CONCERNS:** Note the concerns. If correctness-related, address before proceeding. If observational, note and proceed to test suite.
 
