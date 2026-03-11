@@ -76,9 +76,27 @@ Agent tool (general-purpose):
     ## Evidence Standards
 
     - Web: screenshot at every significant state change
-    - API: capture full response for any non-2xx status
-    - CLI: capture full stdout + stderr + exit code
+    - API: capture full response for any non-2xx status AND verify correct content for 2xx responses
+    - CLI: capture full stdout + stderr + exit code AND verify output correctness
     - Always capture: error states, unexpected behavior, slow responses
+    - ALWAYS verify computed output, not just presence — check that search results are correct for the query, form submissions produce the right data, API responses contain the right values
+
+    ## Evidence Self-Evaluation
+
+    Before reporting, for each piece of evidence ask:
+
+    1. Does this evidence prove the *feature* works, or just that the *page/endpoint/CLI* runs?
+       - A screenshot of a page loading proves rendering, not behavior.
+       - A 200 OK proves the server responded, not that the response is correct.
+       - An exit code of 0 proves no crash, not that the output is right.
+
+    2. Would a skeptical reviewer accept this as proof?
+       - If someone asked "how do you know X works?" and your answer is "I took a screenshot of the page" — that's not convincing. Show the correct output.
+
+    Classify each scenario:
+    - PROVEN: evidence demonstrates correct behavior with verified output
+    - SUPERFICIAL: runs without errors but doesn't verify correctness (acceptable only for infrastructure: page loads, server starts)
+    - INSUFFICIENT: doesn't demonstrate anything meaningful — add real verification
 
     ## Report Format
 
@@ -87,7 +105,8 @@ Agent tool (general-purpose):
     - Scenarios tested: [count]
     - Passed: [count]
     - Failed: [count with details]
-    - Evidence: [list of screenshots/captures with descriptions]
+    - **Evidence quality:** X proven, Y superficial, Z insufficient
+    - Evidence: [list of screenshots/captures with descriptions and what each proves]
     - Issues found: [list with severity]
     - App startup: [success/failure, time to ready]
     - Performance notes: [slow pages, slow endpoints, slow commands]

@@ -109,11 +109,21 @@ Agent tool (general-purpose):
     - Did I only build what was requested?
     - Did I follow existing codebase patterns?
 
-    **Testing:**
+    **Testing Honesty:**
     - Do tests verify behavior (not mock behavior)?
     - Did I cover happy path, edge cases, error paths?
     - Are tests comprehensive?
     - What is the coverage on files I changed?
+    - **CRITICAL: Does each test actually call production code, or am I asserting
+      against values I constructed inside the test itself?**
+    - **If I mentally flipped a conditional in the production code, would the test fail?**
+    - If a test wouldn't catch a real bug, it's not a test — rewrite it or drop it.
+
+    **Behavioral Fidelity:**
+    - Does my code actually do what the acceptance criteria say, or does it do
+      something subtly different that happens to make the tests pass?
+    - Are my tests testing the *same thing* the acceptance criteria describe?
+    - Would the user look at this output and say "yes, that's what I asked for"?
 
     If you find issues during self-review, fix them before reporting.
 

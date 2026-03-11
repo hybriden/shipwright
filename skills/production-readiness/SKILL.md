@@ -27,9 +27,33 @@ No exceptions. Not for "low-risk changes." Not for "it's just a config update." 
 - When invoked by `implementor:run` as the final phase
 - When you need to verify production readiness of any codebase
 
+## Gate Relevance Scoring
+
+Before running gates, classify the project type and score each gate's relevance. This prevents wasting cycles on gates that don't apply while ensuring relevant gates get full rigor.
+
+| Gate | Web Server | API Server | CLI Tool | Library | Script |
+|------|-----------|-----------|---------|---------|--------|
+| 1: Unit Tests | FULL | FULL | FULL | FULL | FULL |
+| 2: Coverage | FULL | FULL | FULL | FULL | LIGHT |
+| 3: E2E Tests | FULL | FULL | FULL | N/A | N/A |
+| 4: Code Review | FULL | FULL | FULL | FULL | FULL |
+| 5: Security | FULL | FULL | LIGHT | LIGHT | LIGHT |
+| 6: Error Handling | FULL | FULL | FULL | FULL | LIGHT |
+| 7: Load Test | FULL | FULL | N/A | N/A | N/A |
+| 8: Code Hygiene | FULL | FULL | FULL | FULL | FULL |
+| 9: Logging | FULL | FULL | LIGHT | N/A | N/A |
+| 10: Degradation | FULL | FULL | LIGHT | N/A | N/A |
+| 11: Definition of Done | FULL | FULL | FULL | FULL | FULL |
+
+- **FULL:** Execute the gate thoroughly with all checks.
+- **LIGHT:** Spot-check the most relevant items. Don't skip but don't exhaustively verify.
+- **N/A:** Skip with justification.
+
+**Gate 11 is always FULL.** It's the only gate that checks intent. Never skip or lighten it.
+
 ## Gates Checklist
 
-Every gate must pass. If a gate cannot be evaluated (e.g., load testing a library), mark it N/A with justification.
+Every FULL gate must pass. LIGHT gates must not have critical findings. N/A gates need documented justification.
 
 **Configuration:** Read `.implementor.json` in the project root for overrides to coverage targets, load test parameters, and skippable phases. See `implementor:auto-setup` (`./implementor-config.md`) for the full config reference.
 
@@ -193,6 +217,39 @@ For production services:
 - [ ] Application starts up and shuts down cleanly
 - [ ] No resource leaks (connections, file handles, memory)
 
+### Gate 11: Definition of Done — Does This Actually Solve the Problem?
+
+**This is the gate that catches pipeline-level dishonesty.** All prior gates verify *technical* properties: tests pass, code is clean, coverage is high. This gate verifies *intent*: did we build the right thing?
+
+**Step 1: Re-read the original task description.** Not the plan. Not the implementation report. The *original words the user typed.* Copy them into this gate's output verbatim.
+
+**Step 2: Sentence-by-sentence verification.** For each distinct requirement in the task description, fill in this table:
+
+| Requirement (user's words) | Implemented? | Evidence | Confidence |
+|----------------------------|-------------|----------|------------|
+| "add user search" | Yes | `src/search.ts`, E2E scenario 3 screenshot showing search results | HIGH — verified through E2E with correct results |
+| "results should be paginated" | Partial | Pagination exists but only tested with <10 results | MEDIUM — works for small sets, untested at scale |
+| "search should be fast" | Unknown | No load test for search endpoint | LOW — functional but no performance evidence |
+
+**Confidence levels:**
+- **HIGH:** Feature demonstrated working through E2E evidence with verified correct output, or through multiple unit tests that exercise real behavior.
+- **MEDIUM:** Feature exists and tests pass, but evidence is limited (only happy path tested, only small inputs, only in isolation).
+- **LOW:** Feature exists but no real evidence of correctness. Tests are shape-only or evidence is superficial.
+- **NONE:** Feature is missing or broken.
+
+**Step 3: Check for implicit requirements.** Things the user expects but didn't explicitly state:
+- Error messages: Are they helpful or generic?
+- Performance: Is it fast enough for real use?
+- Edge cases: Does it handle empty states, long strings, special characters?
+- UX: If it has a UI, does it look finished or scaffolded?
+
+**Step 4: Verdict.**
+- **SOLVED:** Every requirement has HIGH or MEDIUM confidence. No NONE entries. Implicit requirements are reasonable.
+- **PARTIALLY_SOLVED:** Core requirements are HIGH/MEDIUM but some requirements are LOW or missing. List specifically what's missing.
+- **WRONG_PROBLEM:** Implementation is technically sound but the requirements table shows a fundamental mismatch between user intent and what was built. This is a plan failure.
+
+**If WRONG_PROBLEM:** This is a pipeline failure. The final report must explain what happened and why.
+
 ## Generating the Final Report
 
 After evaluating all gates:
@@ -218,13 +275,14 @@ After evaluating all gates:
 | Unit Tests | PASS/FAIL | X passed, Y failed |
 | Coverage | PASS/FAIL | Line: X%, Branch: Y% |
 | E2E Tests | PASS/FAIL/N/A | X scenarios, Y passed |
-| Code Review | PASS/FAIL | Spec: ✅, Quality: ✅ |
+| Code Review | PASS/FAIL | Spec: ✅, Fidelity: ✅, Quality: ✅ |
 | Security | PASS/FAIL | [findings] |
 | Error Handling | PASS/FAIL | [findings] |
 | Load Test | PASS/FAIL/N/A | p99: Xms, errors: Y% |
 | Code Hygiene | PASS/FAIL | [findings] |
 | Logging | PASS/FAIL/N/A | [findings] |
 | Graceful Degradation | PASS/FAIL/N/A | [findings] |
+| Definition of Done | SOLVED/PARTIALLY_SOLVED/WRONG_PROBLEM | [original task vs. what was built] |
 
 ## Evidence
 - Test output: [summary]
@@ -244,10 +302,13 @@ After evaluating all gates:
 
 | Thought | Reality |
 |---------|---------|
-| "All tests pass, ship it" | Tests are gate 1 of 10. Keep going. |
+| "All tests pass, ship it" | Tests are gate 1 of 11. Keep going. |
 | "Load testing is overkill" | Every production outage thought that. Test it. |
 | "Security review is for the security team" | You ARE the security review. Check OWASP. |
 | "It's just a small change" | Small changes cause big outages. All gates. |
 | "We can monitor and fix" | Monitor AFTER shipping quality. Not instead of. |
 | "The deadline is tight" | Shipping broken code costs more than missing a deadline. |
 | "N/A for everything" | If most gates are N/A, you're skipping verification. Justify each. |
+| "All gates pass, we're done" | Did you check Gate 11? Does it actually solve the user's problem? |
+| "The plan said X, we built X" | The plan is an intermediary. The user's words are the spec. Go back to the original. |
+| "Technically correct is the best kind of correct" | Not in production. Correct for the *user* is the only kind that matters. |

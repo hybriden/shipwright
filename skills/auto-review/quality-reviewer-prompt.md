@@ -73,6 +73,14 @@ Agent tool (general-purpose):
     - Is test setup clean (arrange-act-assert)?
     - Are mocks used appropriately (not excessively)?
     - Do tests cover error paths, not just happy paths?
+    - Are any tests self-referential (asserting against values the test constructed)?
+    - Would each test catch a real bug if one were introduced in the production code?
+
+    **Behavioral Fidelity (spot-check 2-3 key functions):**
+    - Read the test assertion. Read the code. Are they testing the same thing?
+    - Does the code silently return defaults, truncate input, or swallow errors
+      in ways the tests don't exercise?
+    - Do tests and code agree on boundary conditions (off-by-one, max values)?
 
     ## Issue Severity
 

@@ -191,6 +191,17 @@ Project Tools Found:
 
 **Tool discovery happens ONCE during triage, then tools are used throughout debugging.**
 
+## Debug Budget
+
+Debugging can consume unlimited time and context. Set a budget before starting:
+
+- **Max 3 hypotheses.** If three root cause theories fail, mark UNRESOLVED. (Already enforced.)
+- **Max 3 log injection rounds.** If three rounds of strategic logging don't reveal the execution path, the bug is deeper than trace-level debugging can reach. Escalate to a different technique (git bisect, environment comparison).
+- **Max 15 minutes equivalent of investigation** before you must have a hypothesis. If you're still in "I have no idea" territory after reading the stack trace, the failing code, the test, the recent diff, and injecting one round of logs — stop widening the search and formulate your best guess. A wrong hypothesis that can be tested is better than infinite exploration.
+- **Context budget:** If your debug investigation has consumed more tool calls than the original implementation task, something is wrong. Either the bug is environmental (not a code fix), the plan was fundamentally flawed, or you're chasing a symptom. Step back, re-triage from Phase 0, and consider marking UNRESOLVED with evidence.
+
+**The budget exists because debugging has diminishing returns.** The first 5 minutes find 80% of bugs. The next 20 minutes find 15%. The last 5% require a fundamentally different approach — and marking UNRESOLVED with good evidence is more valuable than an exhausted agent with no answer.
+
 ## Phase 1: Reproduce
 
 Before anything else, reproduce the error reliably:
@@ -432,9 +443,35 @@ digraph verify_fix {
 }
 ```
 
+## Phase 5.75: Symptomatic Fix Detector
+
+Before final verification, honestly assess whether you fixed the root cause or just the symptom:
+
+1. **"Did I fix where the bug manifests, or where it originates?"**
+   - If your fix adds a null check at the crash site, the root cause might be: why is the value null in the first place?
+   - If your fix adds a try/catch around the failing line, ask: why does it throw? Catching is not fixing.
+   - If your fix changes a test assertion to match the actual output, ask: was the test wrong, or is the code wrong?
+
+2. **"Would this bug class recur in similar code?"**
+   - If the bug was a missing null check, are there other call sites with the same missing check?
+   - If the bug was an off-by-one, is the same pattern used elsewhere?
+   - If yes — the fix should address the pattern, not just the instance. (Don't go on a refactoring spree, but note the other locations in the report.)
+
+3. **"Am I treating the disease or the fever?"**
+
+| Fix Type | Symptom Fix | Root Cause Fix |
+|----------|-------------|----------------|
+| Null crash | Add null check at crash site | Fix the producer that emits null |
+| Wrong output | Adjust the transform at the output | Fix the logic that computes the wrong value |
+| Test failure | Change the assertion | Fix the code the assertion tests |
+| Import error | Add a missing export | Fix the module structure that caused the gap |
+| Timeout | Increase the timeout value | Fix the operation that's too slow |
+
+**If you detect a symptomatic fix:** You don't necessarily need to redo it — sometimes a symptomatic fix is the right pragmatic choice (e.g., defensive null check is good practice). But you MUST document it in the report: "This fix addresses the symptom at [location]. The root cause is [X] at [location]. A deeper fix would involve [Y]."
+
 ## Phase 6: Final Verification
 
-After fix is proven:
+After fix is proven and symptomatic-fix check is done:
 
 1. Run the originally failing test/command — it should pass
 2. Run the regression test from Phase 5.5 — it should pass

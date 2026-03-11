@@ -25,6 +25,7 @@ All implementor skills check for `.implementor.json` in the project root. Every 
     "p99": 500,
     "errorRate": 0.01
   },
+  "refactorForTestability": false,
   "e2eType": "auto",
   "branch": {
     "prefix": "implementor",
@@ -72,6 +73,12 @@ Only these phases can be skipped. Plan, implement, test, review, and production-
 | `loadTest.p99` | number | 500 | Max p99 latency in ms |
 | `loadTest.errorRate` | number | 0.01 | Max error rate (0-1) |
 
+### Testing
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `refactorForTestability` | boolean | false | Allow auto-test to refactor production code for testability (visibility changes, extract pure functions, add mocking libs) |
+
 ### E2E
 
 | Field | Type | Default | Description |
@@ -90,7 +97,7 @@ Only these phases can be skipped. Plan, implement, test, review, and production-
 | Skill | Fields Used |
 |-------|------------|
 | `auto-setup` | `setupCommand`, `buildCommand`, `testCommand`, `envFile` |
-| `auto-test` | `testCommand`, `coverageCommand`, `coverage.*` |
+| `auto-test` | `testCommand`, `coverageCommand`, `coverage.*`, `refactorForTestability` |
 | `auto-e2e` | `startCommand`, `e2eType`, `skipPhases` |
 | `auto-review` | (none — uses defaults) |
 | `production-readiness` | `coverage.*`, `loadTest.*`, `skipPhases` |

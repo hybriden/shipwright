@@ -130,6 +130,45 @@ Before executing ANY phase, you MUST:
 
 **NEVER skip the Skill tool invocation.** Reading a skill's SKILL.md file and following its instructions inline is NOT the same as invoking it as a skill. Inline execution pollutes the orchestrator's context and breaks isolation between phases.
 
+## Pipeline Adaptation
+
+The pipeline runs all phases every time, but the *depth* of each phase adapts to the task size:
+
+| Signal | Small Task (1-3 files) | Medium Task (4-10 files) | Large Task (10+ files) |
+|--------|----------------------|------------------------|----------------------|
+| Plan tasks | 1-3 | 3-8 | 8+ |
+| Impl model default | sonnet | default | opus for architecture tasks |
+| Test coverage iterations | Max 2 | Max 3 | Max 3 |
+| E2E scenarios | 2-3 focused | 5-8 with adversarial | 10+ with stateful journeys |
+| Review fidelity scope | Top 2 functions | Top 5 functions | Top 5 + all public APIs |
+| Load testing | Skip (unless server) | Light (20 users, 30s) | Full (100 users, 60s) |
+| Gate 11 depth | Quick sentence check | Full requirement table | Full table + implicit requirements |
+
+**Detection:** Estimate task size from the plan's file count and task count. If the plan has 2 tasks touching 2 files, it's small. If it has 12 tasks touching 15 files, it's large.
+
+**This is not about skipping gates.** Every gate still runs. But a 1-file bug fix doesn't need 10 E2E scenarios and a load test. Adapt the depth, not the breadth.
+
+## Cross-Phase Signal Propagation
+
+Each phase produces signals that downstream phases should use. The orchestrator is responsible for passing these signals forward:
+
+| Source Phase | Signal | Consuming Phase | How Used |
+|-------------|--------|----------------|----------|
+| Setup | Environment fingerprint | Debug | Distinguishes code bugs from env bugs |
+| Setup | Task-specific pre-flight findings | Plan, Impl | Informs task decomposition, reveals constraints |
+| Plan | Plan retrospective from previous runs | Plan | Avoids repeating past mistakes |
+| Plan | Task viability verdicts | Impl | Flagged tasks get more context or stronger models |
+| Impl | Inter-task learning log | Impl (next task) | Real interfaces, patterns, and surprises |
+| Impl | Cascading breakage incidents | Review (plan feedback) | Indicates wrong decomposition |
+| Test | Testability audit results | Review | Reviewer knows which code was untestable and why |
+| Test | Honesty check results | Review, Prod Readiness | Downstream knows which tests are shape-only |
+| Test | Dropped dishonest tests | Prod Readiness | Coverage gap is explained, not mysterious |
+| E2E | Evidence evaluation verdicts | Prod Readiness | Gate 3 knows which evidence is proven vs superficial |
+| Review | Behavioral fidelity findings | Prod Readiness | Gate 11 knows if code/test agreement was verified |
+| Review | Plan retrospective | Plan (next run) | Written to retrospective file for future use |
+
+**Implementation:** After each phase completes, extract the signals listed above and include them in the context for the next phase's skill invocation. Don't just invoke skills blindly — pass what was learned.
+
 ## Phase 0: Branch Isolation
 
 Before any work begins, isolate the changes:
@@ -277,6 +316,60 @@ When faced with decisions, apply these defaults:
 - **Logging:** Structured JSON for services, simple for CLIs
 - **File organization:** One responsibility per file, group by feature not by type
 
+## Pipeline Integrity Reflection
+
+After all phases complete but before generating the final report, perform one honest self-assessment:
+
+1. **"Did this pipeline produce real quality, or did it just check boxes?"**
+   - Did any phase rubber-stamp its output? (e.g., review approved on first pass with zero findings — either the code was perfect or the review was shallow)
+   - Did the test suite catch any real bugs during the pipeline, or did everything pass on the first try? (If everything passed first try, either the implementation was flawless or the tests aren't testing hard enough)
+   - Did E2E evidence actually prove features work, or just prove pages load?
+
+2. **"Where did the pipeline struggle, and what does that mean?"**
+   - If auto-debug was invoked multiple times, the plan may have been wrong
+   - If review found many issues, the implementer subagent may have been underpowered
+   - If coverage was hard to achieve, the code may have testability problems
+   - Document these signals — they make future pipeline runs better
+
+3. **"Would I ship this with my name on it?"**
+   - Read the git diff one more time. Not for individual issues (review already covered that) — for overall coherence.
+   - Does the code feel like one person wrote it, or like it was assembled by committee?
+   - Is the overall approach something a senior engineer would approve, or would they say "this works but I'd do it differently"?
+
+**This reflection is included in the final report as a "Pipeline Quality" section.** It's not a gate — it doesn't block shipping. But it's honest documentation that improves the pipeline over time.
+
+## Retrospective File (Feedback Loop)
+
+After the pipeline completes (success or failure), append learnings to `.implementor-retrospective.md` in the project root. This file is read by `auto-plan` in future runs.
+
+**Format:**
+
+```markdown
+## Run: YYYY-MM-DD — [task slug]
+
+**Status:** COMPLETE | PARTIAL | FAILED
+**Task size:** small | medium | large
+
+### What went well
+- [Phase] — [what worked]
+
+### What went wrong
+- [Phase] — [what failed and why]
+
+### Plan quality
+- [From auto-review's Plan Retrospective section]
+
+### Signals for future runs
+- [Concrete lessons: "tasks touching src/utils always conflict", "this codebase needs mocking library for testability", "API endpoints need auth context in every subagent prompt"]
+```
+
+**Rules:**
+- Append, never overwrite. The file is a growing log.
+- Keep each entry concise (10-15 lines max).
+- Only record *actionable* lessons — things that would change how a future run is planned or executed.
+- If the file exceeds 100 entries, summarize the oldest 50 into a "Historical Summary" section and remove the individual entries.
+- Do not record session-specific details (exact error messages, specific file contents). Record patterns.
+
 ## Report Format
 
 After all phases complete, output:
@@ -319,6 +412,16 @@ After all phases complete, output:
 ## Evidence
 [Test output, coverage numbers, screenshots, load test results]
 
+## Pipeline Quality
+- Phases that flagged issues: [list — indicates the pipeline is actually catching things]
+- Phases that passed first try: [list — either quality was high or the phase wasn't rigorous enough]
+- Model escalations: [count and which tasks]
+- Dishonest tests dropped: [count, if any]
+- Behavioral fidelity concerns found: [count, if any]
+- Plan retrospective highlights: [key learnings]
+- Symptomatic fixes applied: [count, locations, and deeper fix suggestions]
+- Definition of Done verdict: [SOLVED / PARTIALLY_SOLVED / WRONG_PROBLEM]
+
 ## Commits
 [List of commits made during implementation]
 ```
@@ -336,6 +439,9 @@ After all phases complete, output:
 | "This gate doesn't apply" | Mark N/A with justification. Don't skip silently. |
 | "I'll work on the main branch" | Never. Create a feature branch first. |
 | "Setup isn't needed, it probably works" | Verify. Don't assume. Run setup. |
+| "Every phase passed first try" | Either the code is perfect or the pipeline isn't probing hard enough. Reflect on which. |
+| "The pipeline is done, skip the reflection" | The reflection is how the pipeline gets better. Write it. |
+| "All gates green means quality" | Green gates mean the gates passed. Quality means the user's problem is solved. Check Gate 11. |
 
 ## Integration
 
