@@ -454,6 +454,7 @@ This skill is the entry point. It invokes:
 - **implementor:auto-review** — Phase 6
 - **implementor:production-readiness** — Phase 7
 - **implementor:auto-debug** — Error recovery (any phase)
+- **implementor:auto-verify** — Iterative runtime verification (standalone, invoke when task involves external system integration)
 
 Each sub-skill is independently usable but designed to chain in this order.
 

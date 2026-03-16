@@ -12,6 +12,7 @@ A Claude Code plugin providing an autonomous development pipeline.
 - `skills/auto-e2e/` - End-to-end testing (Playwright for web, HTTP for APIs, shell for CLIs)
 - `skills/auto-review/` - Two-stage code review (spec + quality)
 - `skills/auto-debug/` - Systematic root cause analysis and resolution
+- `skills/auto-verify/` - Iterative runtime verification against real systems
 - `skills/production-readiness/` - Final verification gate
 
 ## Usage
