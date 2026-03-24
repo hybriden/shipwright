@@ -13,13 +13,14 @@ Execute an implementation plan by dispatching a fresh subagent per task, with au
 This skill is part of the implementor pipeline. Do NOT invoke superpowers:subagent-driven-development, superpowers:executing-plans, or any other superpowers orchestration skill. The implementor handles implementation internally.
 </HARD-GATE>
 
-## Iron Law
+## Iron Laws
 
 ```
 NO TASK PROCEEDS UNTIL THE PREVIOUS TASK'S TESTS PASS
+NO TASK PROCEEDS UNTIL THE PROJECT BUILDS CLEAN
 ```
 
-Violating the letter of this rule is violating the spirit. A green bar is the gate to the next task.
+Violating the letter of these rules is violating the spirit. A green bar AND a clean build are the gates to the next task.
 
 ## When to Use
 
@@ -72,13 +73,42 @@ digraph auto_impl {
 
 **Always provide the full task text** to the subagent. Never make the subagent read the plan file.
 
-**Context to include:**
+**Context to include (in priority order — see context budget):**
 - Full task description from plan (copy-paste, not reference)
+- **Task lens from architecture map** (max 150 lines — the subagent's structural understanding of the codebase)
 - Scene-setting: where this task fits in the overall plan
 - What previous tasks have built (files created/modified)
 - **Inter-task learning context** (see below)
 - The project's test command and conventions
 - The working directory
+
+### Architecture Map Context
+
+**If `docs/architecture-map.md` exists**, generate a task-focused lens for each subagent:
+
+1. Identify which modules the task touches (from the plan's file paths)
+2. Extract those modules' details from the map (interfaces, responsibilities)
+3. Include 1-hop neighbor modules' interfaces (what the task's modules interact with)
+4. Include relevant hot spots and patterns
+5. Cap at 150 lines
+
+**Pass the lens, not the full map.** The full map (up to 400 lines) is for planning and architecture tasks. Individual implementer subagents get the lens — their context is precious.
+
+**For hot spot tasks** (touching modules flagged in the map's hot spot section): include the full dependency chain and recommend a stronger model.
+
+### Context Budget
+
+Follow this budget when assembling subagent context:
+
+| Context Type | Priority | Max Lines | Always Include? |
+|-------------|----------|-----------|----------------|
+| Task description | 1 (highest) | unlimited | Yes |
+| Task lens (from auto-map) | 2 | 150 | Yes, if map exists |
+| Inter-task learning log | 3 | 50 | Yes |
+| Previous task interfaces | 4 | 30 | Yes, if tasks depend |
+| Full architecture map | 5 (lowest) | 400 | Only for architecture/judgment tasks |
+
+**Total context (excluding task description): max 600 lines.** If over budget, compress the lens or omit the full map.
 
 **Use `./implementer-prompt.md` as the prompt template.**
 
@@ -150,18 +180,72 @@ After a subagent reports DONE, do NOT blindly trust it. Before running the test 
 
 **This is a 1-minute sanity check, not a full review.** The goal is to catch obvious misses before wasting a test suite run on fundamentally wrong code. If the integrity check fails, provide feedback and re-dispatch — do NOT just run the tests hoping they'll catch it.
 
-### Cascading Breakage Detection
+### Cascading Breakage Detection (Net-Positive Gate)
 
-After each task's tests pass, verify that *previous tasks' tests still pass too*:
+After each task's tests pass, verify that *previous tasks' tests still pass too* using a formal baseline comparison:
 
-1. Run the full test suite (not just the new task's tests)
-2. If a previously-passing test now fails, Task N broke Task N-K
-3. **Do NOT proceed to Task N+1.** Fix the regression first:
-   - If it's a simple interface change: fix in-place
+1. **Before dispatching each task**, record the full test suite state as a baseline (passing count, failing count, test names)
+2. **After the task completes**, run the full test suite (not just the new task's tests)
+3. **Compare against baseline:**
+   - All previously-passing tests MUST still pass
+   - The task's new tests MUST pass
+   - Total passing count must be >= baseline (net-positive)
+4. **If a previously-passing test now fails** (regression detected):
+   - **Do NOT proceed to Task N+1**
+   - **Do NOT attempt to "also fix" the regression** — that leads to circular fixing
+   - First, check if the regression is in a module that depends on the changed module (use the architecture map's dependency graph)
+   - If it's a simple interface mismatch: fix in the current task's scope
    - If it's a design conflict: the plan decomposed along wrong seams. Re-plan the conflicting tasks as a single task and re-dispatch
-4. Record the breakage in the inter-task log — this informs the Plan Retrospective later
+   - If the fix for the regression itself causes another regression: STOP. Revert the entire task and re-plan it
+5. Record the breakage and resolution in the inter-task log — this informs the Plan Retrospective later
 
 **Why this matters:** Without cascading detection, you can finish all 8 tasks with each passing its own tests, then discover in auto-test that tasks 3 and 5 are incompatible. Catching it immediately saves a full debug cycle.
+
+**Anti-circle rule:** If Task N's fix breaks Task N-K, and fixing that breaks Task N again, you're in a circle. Revert Task N entirely, merge it with Task N-K in the plan, and re-dispatch as a single task. Two tasks that can't exist independently must be implemented together.
+
+### Build Verification Gate
+
+After each task completes and before running the test suite, verify the project builds:
+
+1. **Run the build command** (`buildCommand` from `.implementor.json`, or auto-detected: `dotnet build`, `npm run build`, `cargo build`, `go build ./...`, etc.)
+2. **If the build fails:**
+   - The task introduced a compilation/type error
+   - Do NOT proceed to the test suite — build errors cascade into meaningless test failures
+   - Check if the task modified a shared interface, data model, or upstream module without updating downstream consumers
+   - If the task is part of an atomic change group (from the plan), check if the group was incorrectly split
+   - Dispatch a fix subagent with the build error + architecture map context showing the build dependency chain
+3. **If the build succeeds:** Proceed to test suite
+
+**Why this matters:** In compiled languages and large multi-project solutions, a task that changes an interface in a core library will break the build for every project that depends on it. Running the test suite on a broken build produces hundreds of cascading errors that are impossible to diagnose. Build verification catches this immediately.
+
+### Checkpoint System
+
+After each task passes (build + tests), create a checkpoint:
+
+```bash
+git tag "implementor/checkpoint-task-N" -m "Checkpoint after task N: [task name]"
+```
+
+**Checkpoints enable:**
+- **Rollback to last known-good state** — if task N+1 fails catastrophically and can't be fixed in 3 attempts, roll back to task N's checkpoint instead of losing all progress
+- **Resume from checkpoint** — if the pipeline is interrupted (context limit, timeout), it can resume from the last checkpoint
+- **Regression isolation** — if task N+3 reveals a subtle issue introduced by task N+1, you can diff between checkpoints to narrow the investigation
+
+**Rollback procedure:**
+```bash
+# Roll back to checkpoint after task N
+git reset --hard implementor/checkpoint-task-N
+```
+
+**When to rollback:**
+- Task has failed 3 attempts (original + 2 retries) AND the failures are getting worse (more tests failing each attempt)
+- Task's fix broke more tests than it fixed (net-negative, detected by cascading breakage detection)
+- Circular fixing detected between this task and a previous task
+
+**Cleanup:** After the pipeline completes successfully, remove checkpoint tags:
+```bash
+git tag -l "implementor/checkpoint-*" | xargs git tag -d
+```
 
 ## Model Escalation
 

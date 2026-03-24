@@ -38,6 +38,7 @@ digraph run_pipeline {
     "Receive task description" [shape=box];
     "Phase 0: Branch Isolation" [shape=box];
     "Phase 1: Gather Context + Config" [shape=box];
+    "Phase 1.25: Map (implementor:auto-map)" [shape=box];
     "Phase 1.5: Setup (implementor:auto-setup)" [shape=box];
     "Phase 2: Plan (implementor:auto-plan)" [shape=box];
     "Phase 3: Implement (implementor:auto-impl)" [shape=box];
@@ -54,7 +55,8 @@ digraph run_pipeline {
 
     "Receive task description" -> "Phase 0: Branch Isolation";
     "Phase 0: Branch Isolation" -> "Phase 1: Gather Context + Config";
-    "Phase 1: Gather Context + Config" -> "Phase 1.5: Setup (implementor:auto-setup)";
+    "Phase 1: Gather Context + Config" -> "Phase 1.25: Map (implementor:auto-map)";
+    "Phase 1.25: Map (implementor:auto-map)" -> "Phase 1.5: Setup (implementor:auto-setup)";
     "Phase 1.5: Setup (implementor:auto-setup)" -> "Phase 2: Plan (implementor:auto-plan)";
     "Phase 2: Plan (implementor:auto-plan)" -> "Phase 3: Implement (implementor:auto-impl)";
     "Phase 3: Implement (implementor:auto-impl)" -> "Phase 4: Unit Test (implementor:auto-test)";
@@ -64,6 +66,7 @@ digraph run_pipeline {
     "Phase 7: Production Readiness (implementor:production-readiness)" -> "Generate final report";
     "Generate final report" -> "Offer merge or keep branch";
 
+    "Phase 1.25: Map (implementor:auto-map)" -> "Phase failed?" [style=dashed];
     "Phase 1.5: Setup (implementor:auto-setup)" -> "Phase failed?" [style=dashed];
     "Phase 2: Plan (implementor:auto-plan)" -> "Phase failed?" [style=dashed];
     "Phase 3: Implement (implementor:auto-impl)" -> "Phase failed?" [style=dashed];
@@ -85,14 +88,15 @@ You MUST create a task for each phase and complete them in order:
 
 1. **Branch isolation** — create feature branch, note original branch
 2. **Gather context** — scan codebase, detect tech stack, read .implementor.json
-3. **Setup** — invoke auto-setup for dependencies, env, build verification
-4. **Plan** — invoke auto-plan to decompose task
-5. **Implement** — invoke auto-impl to execute plan via subagents
-6. **Unit test** — invoke auto-test to verify and improve coverage
-7. **E2E test** — invoke auto-e2e for user-facing verification
-8. **Review** — invoke auto-review for two-stage code review
-9. **Production readiness** — invoke production-readiness for final gate
-10. **Report** — generate report, offer merge/keep branch
+3. **Map** — invoke auto-map to generate architecture map with task-focused lens
+4. **Setup** — invoke auto-setup for dependencies, env, build verification
+5. **Plan** — invoke auto-plan to decompose task (consumes architecture map)
+6. **Implement** — invoke auto-impl to execute plan via subagents (consumes task lenses from map)
+7. **Unit test** — invoke auto-test to verify and improve coverage
+8. **E2E test** — invoke auto-e2e for user-facing verification
+9. **Review** — invoke auto-review for two-stage code review
+10. **Production readiness** — invoke production-readiness for final gate
+11. **Report** — generate report, offer merge/keep branch
 
 ## Progress Updates
 
@@ -100,18 +104,19 @@ Output progress at every phase transition and within long-running phases:
 
 ```
 [implementor] Phase 0/9: Creating branch implementor/add-user-auth
-[implementor] Phase 1/9: Gathering context (detected: Node.js + Vitest + Express)
-[implementor] Phase 1.5/9: Setting up environment (npm ci)
-[implementor] Phase 2/9: Planning (decomposed into 5 tasks)
-[implementor] Phase 3/9: Implementing task 1/5 — UserModel
-[implementor] Phase 3/9: Implementing task 2/5 — AuthService
-[implementor] Phase 3/9: Implementing task 3/5 — AuthController
-[implementor] Phase 3/9: Implementing task 4/5 — AuthMiddleware
-[implementor] Phase 3/9: Implementing task 5/5 — Routes
-[implementor] Phase 4/9: Testing (coverage: 62% -> 84%)
-[implementor] Phase 5/9: E2E testing (web app detected, 8 scenarios)
-[implementor] Phase 6/9: Reviewing (spec: ✅, quality: cycle 1/3)
-[implementor] Phase 7/9: Production readiness (8/10 gates passed, fixing...)
+[implementor] Phase 1/10: Gathering context (detected: Node.js + Vitest + Express)
+[implementor] Phase 1.25/10: Mapping architecture (12 modules, 3 hot spots, task lens: 120 lines)
+[implementor] Phase 1.5/10: Setting up environment (npm ci)
+[implementor] Phase 2/10: Planning (decomposed into 5 tasks)
+[implementor] Phase 3/10: Implementing task 1/5 — UserModel
+[implementor] Phase 3/10: Implementing task 2/5 — AuthService
+[implementor] Phase 3/10: Implementing task 3/5 — AuthController
+[implementor] Phase 3/10: Implementing task 4/5 — AuthMiddleware
+[implementor] Phase 3/10: Implementing task 5/5 — Routes
+[implementor] Phase 4/10: Testing (coverage: 62% -> 84%)
+[implementor] Phase 5/10: E2E testing (web app detected, 8 scenarios)
+[implementor] Phase 6/10: Reviewing (spec: ✅, quality: cycle 1/3)
+[implementor] Phase 7/10: Production readiness (8/10 gates passed, fixing...)
 [implementor] COMPLETE: All gates passed. Branch: implementor/add-user-auth
 ```
 
@@ -125,8 +130,9 @@ Before executing ANY phase, you MUST:
 3. Invoke the sub-skill via the `Skill` tool (NOT by reading the SKILL.md and following it inline)
 4. Wait for the skill invocation to complete
 5. Update the task status to `completed` via TaskUpdate
-6. Output the progress update text
-7. Only then proceed to the next phase
+6. **Create a checkpoint:** `git tag "implementor/phase-N-[name]"` — so the pipeline can roll back or resume if a later phase fails
+7. Output the progress update text
+8. Only then proceed to the next phase
 
 **NEVER skip the Skill tool invocation.** Reading a skill's SKILL.md file and following its instructions inline is NOT the same as invoking it as a skill. Inline execution pollutes the orchestrator's context and breaks isolation between phases.
 
@@ -154,6 +160,14 @@ Each phase produces signals that downstream phases should use. The orchestrator 
 
 | Source Phase | Signal | Consuming Phase | How Used |
 |-------------|--------|----------------|----------|
+| Map | Architecture map (full) | Plan, Review, Test | Module boundaries, dependency graph, patterns, hot spots |
+| Map | Task-focused lens | Impl (per subagent), Debug, Verify | Compressed context for subagent consumption (max 150 lines) |
+| Map | Hot spot warnings | Plan, Impl, Review | Flag high-risk modules for stronger models and extra review |
+| Map | Dependency graph (code + build) | Debug, Verify, Plan, Impl | Trace root causes, order tasks by build deps, verify compilation between tasks |
+| Map | Data models + consumers | Plan, Debug, Review, Test | Detect atomic change groups, assess change blast radius, write contract tests |
+| Map | Test classification | Debug, Test | Distinguish unit/integration/contract/e2e for targeted verification |
+| Map | Shared configuration | Plan, Debug, Review, Verify | Detect shared config conflicts, assess config change impact |
+| Map | Contract test gaps | Test | Write missing contract tests at module boundaries |
 | Setup | Environment fingerprint | Debug | Distinguishes code bugs from env bugs |
 | Setup | Task-specific pre-flight findings | Plan, Impl | Informs task decomposition, reveals constraints |
 | Plan | Plan retrospective from previous runs | Plan | Avoids repeating past mistakes |
@@ -168,6 +182,57 @@ Each phase produces signals that downstream phases should use. The orchestrator 
 | Review | Plan retrospective | Plan (next run) | Written to retrospective file for future use |
 
 **Implementation:** After each phase completes, extract the signals listed above and include them in the context for the next phase's skill invocation. Don't just invoke skills blindly — pass what was learned.
+
+## Pipeline Checkpoint System
+
+After each phase completes successfully, create a checkpoint. Checkpoints enable rollback to the last known-good state and resumption after interruption.
+
+### Creating Checkpoints
+
+After each phase passes its gate:
+
+```bash
+git tag "implementor/phase-N-[phase-name]" -m "Phase N complete: [summary]"
+```
+
+Example checkpoint sequence:
+```
+implementor/phase-1.25-map
+implementor/phase-1.5-setup
+implementor/phase-2-plan
+implementor/phase-3-impl
+implementor/phase-4-test
+implementor/phase-5-e2e
+implementor/phase-6-review
+implementor/phase-7-readiness
+```
+
+### Rollback to Checkpoint
+
+When a phase fails and recovery also fails:
+
+1. Identify the last successful checkpoint: `git tag -l "implementor/phase-*" | tail -1`
+2. Roll back: `git reset --hard [checkpoint-tag]`
+3. Report what was lost and why
+4. If the failure is in a late phase (review, readiness), the rollback preserves all implementation work — only the failing phase's changes are lost
+
+### Resume from Checkpoint
+
+If the pipeline is interrupted (context limit, timeout, crash):
+
+1. On restart, check for existing checkpoint tags: `git tag -l "implementor/phase-*"`
+2. If checkpoints exist, identify the last completed phase
+3. Resume from the next phase — don't re-run completed phases
+4. Re-read the plan from `docs/plans/` and the architecture map from `docs/architecture-map.md` to restore context
+
+### Cleanup
+
+After pipeline completes (success or failure):
+```bash
+git tag -l "implementor/phase-*" | xargs git tag -d
+```
+
+Checkpoint tags are internal bookkeeping — they should not persist after the pipeline run.
 
 ## Phase 0: Branch Isolation
 
@@ -202,6 +267,18 @@ Before anything else, understand the battlefield:
 
 **Output:** Mental model of the project + parsed config. Used to inform all subsequent phases.
 
+## Phase 1.25: Map
+
+Invoke `implementor:auto-map` with:
+- The original task description (for task-scoped lens generation)
+- Project context from Phase 1 (tech stack, conventions)
+
+**Output:** Architecture map saved to `docs/architecture-map.md` + task-focused lens for subagent consumption.
+
+**Progress:** `[implementor] Phase 1.25/10: Mapping architecture (N modules, N hot spots, task lens: N lines)`
+
+**The map is passed to every downstream phase.** It is the compressed structural understanding that keeps subagents oriented in large codebases.
+
 ## Phase 1.5: Setup
 
 Invoke `implementor:auto-setup` to:
@@ -234,7 +311,7 @@ Invoke `implementor:auto-impl` with:
 - The plan from Phase 2
 - Project context from Phase 1
 
-**Output progress per task:** `[implementor] Phase 3/9: Implementing task N/M — TaskName`
+**Output progress per task:** `[implementor] Phase 3/10: Implementing task N/M — TaskName`
 
 **Output:** Working implementation with initial tests, committed to git.
 
@@ -246,7 +323,7 @@ Invoke `implementor:auto-test` to:
 - Write additional tests to meet coverage target
 - Verify all tests pass
 
-**Output progress:** `[implementor] Phase 4/9: Testing (coverage: X% -> Y%)`
+**Output progress:** `[implementor] Phase 4/10: Testing (coverage: X% -> Y%)`
 
 **Output:** Comprehensive test suite meeting coverage targets.
 
@@ -269,7 +346,7 @@ Invoke `implementor:auto-review` to:
 - Stage 2: Verify code quality
 - Fix any issues found (max 3 cycles per stage)
 
-**Output progress:** `[implementor] Phase 6/9: Reviewing (spec: ✅, quality: cycle N/3)`
+**Output progress:** `[implementor] Phase 6/10: Reviewing (spec: ✅, quality: cycle N/3)`
 
 **Output:** Review report (APPROVED / APPROVED_WITH_NOTES).
 
@@ -297,13 +374,16 @@ If any phase fails, invoke `implementor:auto-debug` to diagnose and resolve:
    - E2E phase: fix app startup or interaction issues
    - Review phase: fix identified issues and re-review
    - Readiness phase: address failing gates
-5. If recovery fails, generate a failure report with:
-   - What was accomplished before failure
-   - Auto-debug investigation evidence (root cause analysis, hypotheses tested)
-   - Exact failure details
-   - What would need to change for success
-   - All work done so far (committed to the feature branch)
-   - The feature branch name for inspection
+5. If recovery fails:
+   - **Roll back to the last successful checkpoint:** `git reset --hard [last-checkpoint-tag]` — this preserves all work from completed phases while removing the failed phase's broken changes
+   - Generate a failure report with:
+     - What was accomplished before failure (list completed phases with checkpoint tags)
+     - Auto-debug investigation evidence (root cause analysis, hypotheses tested)
+     - Exact failure details
+     - What would need to change for success
+     - All work done so far (committed to the feature branch, rolled back to last good checkpoint)
+     - The feature branch name for inspection
+     - Which checkpoint the branch is rolled back to
 
 ## Autonomous Decision Making
 
@@ -398,12 +478,13 @@ After all phases complete, output:
 
 | Phase | Status | Details |
 |-------|--------|---------|
+| Map | ✅ | [module count] modules, [data model count] models, [hot spot count] hot spots, [contract gap count] contract gaps |
 | Setup | ✅ | [dependencies installed, build verified] |
-| Plan | ✅ | [task count] tasks in plan |
-| Implement | ✅ | [task count] tasks completed |
-| Unit Tests | ✅ | [X] tests, [Y]% line coverage |
+| Plan | ✅ | [task count] tasks, [atomic group count] atomic groups, [shared resource conflict count] conflicts resolved |
+| Implement | ✅ | [task count] tasks completed, [checkpoint count] checkpoints, [build verification count] builds verified |
+| Unit Tests | ✅ | [X] tests, [Y]% line coverage, [Z] contract tests written |
 | E2E Tests | ✅/N/A | [X] scenarios passed |
-| Code Review | ✅ | Spec: ✅, Quality: ✅ |
+| Code Review | ✅ | Spec: ✅, Fidelity: ✅, Architecture: ✅, Quality: ✅ |
 | Prod Readiness | ✅ | [X]/[Y] gates passed |
 
 ## Production Readiness Gates
@@ -446,6 +527,7 @@ After all phases complete, output:
 ## Integration
 
 This skill is the entry point. It invokes:
+- **implementor:auto-map** — Phase 1.25
 - **implementor:auto-setup** — Phase 1.5
 - **implementor:auto-plan** — Phase 2
 - **implementor:auto-impl** — Phase 3

@@ -12,6 +12,15 @@ Agent tool (general-purpose):
 
     [FULL TEXT of task from plan - paste it here, don't make subagent read file]
 
+    ## Architecture Context (Task Lens)
+
+    [Task-focused lens from the architecture map — max 150 lines. Includes:
+     - Modules this task touches (with interfaces and responsibilities)
+     - Neighbor module interfaces (what this task's code interacts with)
+     - Relevant dependency chain
+     - Relevant patterns (error handling, data access, naming conventions)
+     - Hot spot warnings (if this task touches high-risk modules)]
+
     ## Context
 
     [Scene-setting: where this fits in the overall plan]

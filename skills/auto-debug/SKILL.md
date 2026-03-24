@@ -53,9 +53,14 @@ digraph auto_debug {
     "Git bisect to find breaking commit" [shape=box];
     "Phase 4: Hypothesize and Test" [shape=box];
     "Hypothesis confirmed?" [shape=diamond];
-    "Phase 5: Fix" [shape=box];
-    "Phase 5.5: Prove Fix" [shape=box];
-    "Phase 6: Verify" [shape=box];
+    "Phase 4.5: Baseline Capture" [shape=box];
+    "Phase 4.75: Fix Impact Analysis" [shape=box];
+    "Phase 5: Fix (no commit)" [shape=box];
+    "Phase 5.5: Net-Positive Gate + Prove Fix" [shape=box];
+    "Net-positive?" [shape=diamond];
+    "Rollback fix, record regression info" [shape=box];
+    "Circle detected?" [shape=diamond];
+    "Phase 6: Final Verify + Commit" [shape=box];
     "Fix verified?" [shape=diamond];
     "Widen investigation" [shape=box];
     "Mark UNRESOLVED with evidence" [shape=box];
@@ -82,13 +87,20 @@ digraph auto_debug {
     "Use git bisect?" -> "Mark UNRESOLVED with evidence" [label="no, after 3 attempts"];
     "Git bisect to find breaking commit" -> "Phase 3: Trace Root Cause";
     "Phase 4: Hypothesize and Test" -> "Hypothesis confirmed?";
-    "Hypothesis confirmed?" -> "Phase 5: Fix" [label="yes"];
+    "Hypothesis confirmed?" -> "Phase 4.5: Baseline Capture" [label="yes"];
     "Hypothesis confirmed?" -> "Phase 3: Trace Root Cause" [label="no, new hypothesis"];
-    "Phase 5: Fix" -> "Phase 5.5: Prove Fix";
-    "Phase 5.5: Prove Fix" -> "Phase 6: Verify";
-    "Phase 6: Verify" -> "Fix verified?";
+    "Phase 4.5: Baseline Capture" -> "Phase 4.75: Fix Impact Analysis";
+    "Phase 4.75: Fix Impact Analysis" -> "Phase 5: Fix (no commit)";
+    "Phase 5: Fix (no commit)" -> "Phase 5.5: Net-Positive Gate + Prove Fix";
+    "Phase 5.5: Net-Positive Gate + Prove Fix" -> "Net-positive?";
+    "Net-positive?" -> "Phase 6: Final Verify + Commit" [label="yes — zero regressions"];
+    "Net-positive?" -> "Rollback fix, record regression info" [label="no — regressions detected"];
+    "Rollback fix, record regression info" -> "Circle detected?";
+    "Circle detected?" -> "Mark UNRESOLVED with evidence" [label="yes — same files/tests cycling"];
+    "Circle detected?" -> "Phase 3: Trace Root Cause" [label="no — try different approach"];
+    "Phase 6: Final Verify + Commit" -> "Fix verified?";
     "Fix verified?" -> "Clean up debug artifacts" [label="yes"];
-    "Fix verified?" -> "Phase 3: Trace Root Cause" [label="no, fix was wrong"];
+    "Fix verified?" -> "Rollback fix, record regression info" [label="no"];
     "Clean up debug artifacts" -> "Debug complete";
     "Mark UNRESOLVED with evidence" -> "Clean up debug artifacts";
 }
@@ -115,6 +127,20 @@ Auto-detect the error category from the error output and apply the specialized s
 | `version`, `peer dep`, `conflicting` | Dependency Conflict | See Dependency Conflict Resolution section below |
 | Multiple unrelated errors in output | Cascade | See Cascade Analysis section below |
 | `BREAKING CHANGE`, `deprecated`, `not a function` | API Migration | Check changelog of updated dependency, find migration guide |
+
+### Architecture Map Consumption
+
+**Before investigating broadly, read the architecture map.** Check `docs/architecture-map.md` — if it exists:
+
+1. **Locate the error in the module inventory** — which module does the stack trace point to?
+2. **Check the dependency graph** — what feeds data/control to this module? The root cause is often in an upstream dependency, not the failing module itself
+3. **Check hot spots** — if the error involves a hot spot module, the fix has high blast radius. Be extra careful with broader impact verification (Phase 5.5 Layer 3)
+4. **Check interface contracts** — is the failing module receiving input that violates its expected interface? If so, trace backward through the dependency chain
+5. **Check patterns** — does the error violate an established pattern? (e.g., error not following the project's AppError hierarchy, data access not using the repository pattern)
+
+**This replaces blind grepping for root cause tracing.** Instead of searching the entire codebase, follow the dependency chain from the error's module backward to the source. In a large codebase, this reduces investigation scope dramatically.
+
+**If no map exists:** Proceed with manual investigation as described below.
 
 ### Diff-Based Narrowing
 
@@ -190,6 +216,48 @@ Project Tools Found:
 4. Check edge cases with different inputs
 
 **Tool discovery happens ONCE during triage, then tools are used throughout debugging.**
+
+## Anti-Circle Detection
+
+<HARD-GATE>
+Circular fixing — where fix A breaks B, fix B breaks A — is the most dangerous failure mode in complex codebases. It wastes context, time, and can leave the codebase in a worse state than it started. Detect and break the cycle early.
+</HARD-GATE>
+
+### Fix History Tracking
+
+Maintain a **fix history log** across all debug invocations within a pipeline run. After every fix attempt (successful or rolled back), record:
+
+```
+Fix History:
+  Attempt 1: [files changed] → [result: passed / rolled back because X]
+  Attempt 2: [files changed] → [result: passed / rolled back because X]
+  Attempt 3: [files changed] → [result: passed / rolled back because X]
+```
+
+### Circle Detection Rules
+
+Before applying any fix, check the fix history:
+
+| Signal | Detection | Action |
+|--------|-----------|--------|
+| **Same file modified twice** | Fix N touches `src/utils/serialize.ts`, fix M also touches it | STOP. The first fix was likely wrong or incomplete. Don't patch a patch — revert to before fix N and find the real root cause. |
+| **Regression is a previously-fixed test** | Fix N fixed test A. Fix M breaks test A again. | STOP. Fixes N and M are in conflict. They can't both be right. Revert both and investigate the shared dependency. |
+| **Oscillating test results** | Test A: pass → fail → pass → fail across fix attempts | STOP. Something structural is wrong. The individual fixes are treating symptoms of a deeper issue. |
+| **Fix count exceeds 3 for same error class** | Three different fixes attempted for the same type of failure | STOP. Mark UNRESOLVED. The root cause is not what you think it is. |
+| **Net test count not improving** | After 2+ fixes, the total passing test count hasn't increased | STOP. You're trading problems, not solving them. |
+
+### Breaking the Cycle
+
+When circular fixing is detected:
+
+1. **Revert ALL fixes in the cycle** — go back to the last known-good state (before the first fix in the cycle)
+2. **Re-read the full error context** with fresh eyes — what are ALL the tests that fail, not just the one you were focused on?
+3. **Look for the shared dependency** — circular fixes almost always mean two things depend on the same code in incompatible ways. Find that shared code.
+4. **Consider a different approach entirely:**
+   - If fixes keep conflicting in a utility module, the module's interface may need to change (not just its implementation)
+   - If fixes keep oscillating in a data format, the format specification may be ambiguous — clarify it before fixing
+   - If fixes in module A keep breaking module B, the architecture map's dependency graph may reveal a hidden coupling that needs explicit resolution
+5. **If still stuck after one revert-and-rethink cycle:** Mark UNRESOLVED with the full fix history as evidence. The fix history is extremely valuable diagnostic information for a human or a future agent with fresh context.
 
 ## Debug Budget
 
@@ -290,6 +358,12 @@ digraph root_cause {
 
 **The Five Whys:** Ask "why?" at least 3 times. The first answer is rarely the root cause.
 
+**Dependency-graph-guided tracing (if architecture map exists):**
+1. Identify which module the error manifests in
+2. Walk backward through the dependency chain — at each hop, check if the interface contract is being violated
+3. The root cause is at the module boundary where the contract breaks
+4. This is faster and more reliable than grepping — especially in large codebases where the same keywords appear in dozens of files
+
 **Common root cause categories:**
 
 | Category | Examples | Fix Approach |
@@ -315,6 +389,85 @@ Before writing any fix:
 
 **Max 3 hypotheses.** If three hypotheses fail, the root cause analysis was wrong. Start over from Phase 2 with a wider scope.
 
+## Phase 4.5: Pre-Fix Baseline Capture (MANDATORY)
+
+<HARD-GATE>
+Before writing ANY fix code, capture a baseline of the current test state. A fix that solves 1 problem but breaks 2 others is a net negative. The baseline is how you detect this.
+</HARD-GATE>
+
+### Capture the Baseline
+
+1. **Run the full test suite** and record the results:
+   ```
+   Baseline captured before fix:
+   - Total tests: [N]
+   - Passing: [N] — [list test names or file:test pairs]
+   - Failing: [N] — [list test names or file:test pairs]
+   - Skipped: [N]
+   ```
+2. **Save the passing test list.** These are the tests that MUST still pass after the fix. Any previously-passing test that fails after the fix is a **regression introduced by the fix**.
+3. **Note the specific tests that are failing** — these are the ones the fix should address.
+
+### Why This Matters
+
+Without a baseline, you can't distinguish between:
+- "This test was already failing" (not your problem)
+- "This test was passing and my fix broke it" (your problem — rollback)
+- "This test is new and it fails" (investigate)
+
+**The baseline takes 30 seconds to capture and prevents hours of circular fixing.**
+
+## Phase 4.75: Fix Impact Analysis (MANDATORY)
+
+<HARD-GATE>
+Before writing ANY fix code, analyze the blast radius of the planned change using the architecture map's dependency graph. Understand what you might break BEFORE you break it.
+</HARD-GATE>
+
+### Analyze Impact
+
+1. **Identify the files you plan to change** — list them explicitly
+2. **Map files to modules** — which modules do these files belong to? (from the architecture map)
+3. **Classify the change surface:**
+
+   | Change Type | Detection | Blast Radius |
+   |------------|-----------|-------------|
+   | **Public API change** | Modifying an exported function signature, public class interface, or API endpoint contract | ALL consumers must be checked — every module that imports this interface |
+   | **Data model change** | Modifying fields on a shared model/entity/DTO (from map's Data Models section) | VERY HIGH — every consumer + database + serialization formats. Check if model is persisted AND serialized. |
+   | **Shared config change** | Modifying a config file listed in map's Shared Configuration | ALL readers of that config must be checked |
+   | **Internal implementation change** | Modifying private/internal function bodies without changing signatures | LOW — only the changed module's own tests |
+   | **Build file change** | Modifying project/package/build configuration | All downstream build dependents must rebuild |
+
+4. **Find all dependents** — using the dependency graph, identify every module that depends on the modules you're changing. For data model changes, also check the map's Data Models section for consumer count.
+5. **Identify consumer tests by type** (from the map's Test Infrastructure Classification):
+   - Unit tests for the changed module (always run)
+   - Integration tests that cross the changed module's boundary (run for any API/model change)
+   - Contract tests at the changed module's boundary (run for any interface/model change)
+   - For internal-only changes: unit tests are sufficient
+6. **Record the impact scope:**
+   ```
+   Fix Impact Analysis:
+   - Files to change: [list]
+   - Change type: [public API | data model | shared config | internal | build file]
+   - Modules affected: [list]
+   - Dependent modules: [list from dependency graph]
+   - Data models affected: [list any shared models being changed, with consumer count]
+   - Consumer test files: [list — these MUST pass after the fix]
+   - Contract tests at boundary: [list — critical for API/model changes]
+   - Hot spots touched: [list any — extra caution required]
+   ```
+
+### Impact-Based Decision
+
+| Impact Scope | Approach |
+|-------------|----------|
+| Internal change, 1 file, no shared models | Apply fix, verify baseline (unit tests sufficient) |
+| Public API change, < 3 dependents | Apply fix, verify baseline + run all dependent tests + contract tests explicitly |
+| Data model change (any persisted + serialized model) | CAUTION. Check every consumer. Run contract tests. Verify serialization format hasn't broken. If model has > 5 consumers, consider if there's a way to fix without changing the model. |
+| Shared config change | Apply fix, verify ALL modules that read the config still work |
+| Fix touches hot spot with 5+ dependents | Apply fix, verify baseline + run ALL integration and contract tests in the solution |
+| Fix requires changes across multiple modules | STOP. Consider if the root cause analysis is correct. Multi-module fixes for a single bug often indicate a symptomatic fix, not a root cause fix. Re-investigate. |
+| Fix requires data model change + code changes in 3+ consumers | STOP. This is an atomic change group. All changes must be made together. If the fix is this broad, the bug may be architectural, not local. |
+
 ## Phase 5: Fix
 
 Apply the minimal fix that addresses the root cause:
@@ -323,7 +476,7 @@ Apply the minimal fix that addresses the root cause:
 2. Do NOT refactor, clean up, or "improve" unrelated code
 3. **Write a regression test that reproduces the original bug** (see Phase 5.5)
 4. If the fix changes behavior, update existing tests
-5. Commit the fix with a descriptive message
+5. **Do NOT commit yet** — the fix must pass the Net-Positive Gate first (Phase 5.5)
 
 **Minimal means minimal.** A one-line fix for a one-line bug. Don't turn a bugfix into a feature.
 
@@ -331,7 +484,53 @@ Apply the minimal fix that addresses the root cause:
 
 <HARD-GATE>
 Every fix MUST be proven through automated verification. A fix without proof is not a fix — it's a hope. Use every available verification method.
+
+CRITICAL: Every fix MUST pass the Net-Positive Gate before it can be committed. A fix that introduces regressions is not a fix — it's a trade.
 </HARD-GATE>
+
+### Layer 0: Net-Positive Gate (Always Required — Run FIRST)
+
+Before any other verification, compare the fix against the baseline captured in Phase 4.5:
+
+1. **Run the full test suite** with the fix applied (but not yet committed)
+2. **Compare against baseline:**
+   ```
+   Net-Positive Gate:
+   - Baseline passing: [N]
+   - Now passing: [M]
+   - Previously passing, now failing (REGRESSIONS): [list]
+   - Previously failing, now passing (FIXED): [list]
+   - New tests added: [N] (passing: [N], failing: [N])
+   - Net change: [+N or -N]
+   ```
+3. **Apply the gate:**
+
+| Result | Verdict | Action |
+|--------|---------|--------|
+| All baseline-passing tests still pass + target test(s) now pass | **PASS** | Proceed to Layer 1 |
+| All baseline-passing tests still pass but target test(s) still fail | **FIX INCOMPLETE** | The fix doesn't solve the problem. Back to Phase 3. |
+| Some baseline-passing tests now fail (regressions introduced) | **FAIL — ROLLBACK** | The fix breaks other things. Revert ALL changes. Back to Phase 3 with new information: "fix X causes regression in Y" |
+| Different tests pass now (some fixed, some regressed) | **FAIL — NET NEGATIVE** | The fix trades one problem for another. Revert. Investigate why the fix causes regressions — the root cause analysis was likely incomplete |
+
+<HARD-GATE>
+**A fix that fails the Net-Positive Gate MUST be rolled back immediately.** Do not attempt to "also fix" the regressions it introduced — that's how you get into circular fixing. Revert, understand WHY the fix caused regressions (this is new diagnostic information), and approach the root cause differently.
+</HARD-GATE>
+
+**Rollback procedure:**
+```bash
+git checkout -- .                    # Discard all unstaged changes
+git clean -fd                        # Remove any new untracked files
+```
+
+**After rollback:** The regression information is valuable. Record it:
+```
+Fix Attempt N: ROLLED BACK
+- Attempted: [what the fix changed]
+- Regressions caused: [which tests broke and in which modules]
+- Insight: [why the fix caused regressions — e.g., "changing the serializer format
+  also affects the export module which expects the old format"]
+```
+This insight often reveals the REAL root cause — the one that can be fixed without regressions.
 
 ### Layer 1: Regression Unit Test (Always Required)
 
@@ -471,18 +670,18 @@ Before final verification, honestly assess whether you fixed the root cause or j
 
 ## Phase 6: Final Verification
 
-After fix is proven and symptomatic-fix check is done:
+After fix is proven, net-positive gate passed, and symptomatic-fix check is done:
 
 1. Run the originally failing test/command — it should pass
 2. Run the regression test from Phase 5.5 — it should pass
-3. Run the full test suite — no regressions
+3. Run the full test suite — **compare against Phase 4.5 baseline: zero regressions allowed**
 4. If runtime verification was done (Playwright/HTTP/CLI), review evidence
 5. If the error was in E2E, re-run the failing E2E scenario
 6. If the error was environment-related, verify the setup phase still works
 7. Verify the predicted outcome from Phase 4 matches reality
-8. Commit the regression test alongside the fix
+8. **Only now commit** the fix and regression test together with a descriptive message
 
-**If verification fails:** The fix was wrong or incomplete. Go back to Phase 3, not Phase 5. The root cause needs re-investigation, not a bigger patch.
+**If verification fails:** Rollback the fix (`git checkout -- .`). Go back to Phase 3, not Phase 5. The root cause needs re-investigation, not a bigger patch. Record what broke as diagnostic information for the next attempt.
 
 ## Advanced Debugging Techniques
 
@@ -643,11 +842,20 @@ Agent tool (general-purpose):
   prompt: |
     You are debugging a failure in the implementor pipeline.
 
+    ## Architecture Context
+    [Task-focused lens from docs/architecture-map.md — max 150 lines. Include:
+     - Module where the error manifests (with interfaces and responsibilities)
+     - Dependency chain leading to this module (upstream modules that feed it)
+     - Hot spots in the dependency chain (if any)
+     - Relevant patterns (error handling, data access conventions)
+     Use the dependency graph to trace root causes — walk backward from the
+     symptom module through its dependencies instead of grepping blindly.]
+
     ## Error Context
     [Full error output, stack trace, command that failed]
 
     ## Files Involved
-    [Files referenced in the error]
+    [Files referenced in the error, mapped to modules from the architecture map]
 
     ## What Was Attempted
     [What the previous subagent was trying to do]
@@ -657,32 +865,54 @@ Agent tool (general-purpose):
      If not provided, you MUST discover them yourself — scan: tools/, scripts/, bin/,
      package.json scripts, Makefile, *.sln/*.csproj CLI projects, README.md usage sections]
 
+    ## Fix History (if provided)
+    [Previous fix attempts in this debug cycle — files changed, results, reverts.
+     Check for circular patterns: same file modified twice = likely wrong approach.
+     Use regression info from rolled-back fixes as diagnostic evidence.]
+
     ## Your Job
     Follow the auto-debug process:
     0. Triage: classify error type, discover project tools, check git diff, cascade-analyze if multiple errors
     1. Reproduce the error (run exact command, capture full output)
     2. Isolate to specific file/function/line (use log injection with [DEBUG:auto-debug] prefix if needed)
-    3. Trace root cause (ask "why?" 3+ times, use git bisect if regression suspected)
+    3. Trace root cause using dependency graph (ask "why?" 3+ times, walk backward through module dependencies, use git bisect if regression suspected)
     4. Hypothesize and predict outcome
-    5. Apply minimal fix
-    6. Prove the fix (MANDATORY):
+    4.5. BASELINE CAPTURE (MANDATORY): Run the full test suite BEFORE applying the fix. Record exactly which tests pass and which fail. This is how you detect regressions.
+    4.75. FIX IMPACT ANALYSIS: Use the architecture map to identify all modules that depend on the code you're about to change. Their tests must also pass after the fix.
+    5. Apply minimal fix (DO NOT COMMIT YET)
+    6. NET-POSITIVE GATE (MANDATORY — run BEFORE any other verification):
+       a. Run full test suite with fix applied
+       b. Compare against baseline from step 4.5
+       c. If ANY previously-passing test now fails: ROLLBACK the fix immediately (git checkout -- .)
+          Record what regressed and why — this is diagnostic info for the next attempt.
+          Go back to step 3 with new information.
+       d. Only proceed if all baseline-passing tests still pass AND the target test is fixed.
+    7. Prove the fix:
        a. Write regression unit test that FAILS without fix, PASSES with fix
        b. Run project's own CLI/validators/analyzers on real input to verify output correctness
        c. If app has UI: use Playwright MCP (browser_navigate, browser_snapshot, browser_take_screenshot) to verify
        d. If app has API: send HTTP requests to verify correct responses
        e. If app has CLI: run the CLI with representative input and verify output with project validators
        f. If fix touches shared code: run tests for all consumers
-    7. Run full test suite — no regressions
-    8. Clean up: remove ALL [DEBUG:auto-debug] log lines, run git bisect reset if used
+    8. Run full test suite one final time — compare against baseline: zero regressions allowed
+    9. Only now commit the fix and regression test together
+    10. Clean up: remove ALL [DEBUG:auto-debug] log lines, run git bisect reset if used
+
+    ANTI-CIRCLE RULE: If you find yourself modifying a file that was already
+    changed in a previous fix attempt (check Fix History), STOP. The previous
+    fix was likely wrong. Revert to before that fix and rethink the approach.
 
     Report:
     - **Status:** RESOLVED | UNRESOLVED
     - **Root cause:** [one sentence]
     - **Fix:** [what was changed and why]
+    - **Baseline:** [test counts before fix]
+    - **Net-positive gate:** [PASSED — N tests passing before, M after, zero regressions]
+    - **Fix attempts:** [N — include any rolled-back attempts with reason]
     - **Regression test:** [test name, file path, and proof it fails without fix]
     - **Project tool verification:** [which project tools were used, commands run, output summary]
     - **Runtime verification:** [what was verified and how — Playwright/HTTP/CLI evidence]
-    - **Full suite result:** [pass/fail count, any new failures]
+    - **Full suite result:** [pass/fail count, comparison against baseline]
     - **Files changed:** [list]
     - **Side effects:** [any other tests/behavior affected]
 ```
@@ -713,6 +943,11 @@ Debug artifacts in committed code = tech debt. Always clean up.
 | "Let me rewrite this whole thing" | Minimal fix. Don't turn a bugfix into a rewrite. |
 | "This is a flaky test, skip it" | Flaky tests have root causes too. Investigate. |
 | "I've been debugging too long" | Max 3 hypotheses. Then mark UNRESOLVED with evidence. Don't spin. |
+| "The fix broke other tests, let me fix those too" | NO. Rollback. A fix that breaks things is not a fix. Find an approach that doesn't regress. |
+| "I'll commit now and fix the regressions next" | NO. Net-Positive Gate must pass BEFORE commit. Never commit a regression. |
+| "I already changed this file before but need to change it again" | Circular fixing detected. Revert to before the first change. Rethink the approach. |
+| "I'll just update the test to match the new behavior" | Is the test wrong, or is the code wrong? Changing tests to match broken code is not fixing — it's hiding. |
+| "The regressions are in unrelated code" | If they appeared after your fix, they're related. Investigate the connection. |
 
 ## Anti-Patterns
 
@@ -725,3 +960,9 @@ Debug artifacts in committed code = tech debt. Always clean up.
 **Error suppression:** Wrapping in try/catch, adding `|| true`, ignoring return codes. STOP. These hide bugs, they don't fix them.
 
 **Blame shifting:** "It's a framework bug" / "The test is wrong." Maybe. But verify with evidence before dismissing.
+
+**Regression chasing:** Fix A breaks test B, so you fix test B, which breaks test C, so you fix test C... STOP. You're in a circle. Revert ALL fixes back to the last known-good state and rethink the approach. The problem is that fix A was wrong — not that it needs more fixes.
+
+**Committing regressions:** Committing a fix that breaks previously-passing tests, intending to fix those "in the next step." STOP. Never commit a net-negative change. The Net-Positive Gate exists precisely for this.
+
+**Trading problems:** A fix that makes different tests pass (some fixed, some regressed) is not progress — it's shuffling failure. The total passing count must strictly increase.

@@ -126,17 +126,50 @@ digraph auto_review {
 
 **Output:** List of fidelity concerns, or CLEAN if no discrepancies found. Fidelity concerns are treated as CRITICAL issues.
 
+## Stage 2.5: Architecture Boundary Review
+
+**Purpose:** Do the changes respect the codebase's architectural boundaries? New code that violates module boundaries or introduces wrong-direction dependencies creates hidden coupling that causes cascading breakage in future changes.
+
+**If an architecture map exists** (`docs/architecture-map.md`), check:
+
+1. **No new cross-boundary dependencies in the wrong direction:**
+   - Read the dependency graph from the map
+   - Check the git diff for new `import`/`using`/`require` statements
+   - If module A did not previously depend on module B, but now does — is this intentional?
+   - Especially flag: downstream → upstream dependencies (e.g., a utility module importing from an application module), circular dependencies created by new imports
+
+2. **Data model changes are atomic:**
+   - If a shared data model (from the map's Data Models section) was changed, verify ALL consumers were updated in the same change set
+   - If not: the change will cause runtime failures in consumers that still expect the old shape
+   - Check serialization: if the model is serialized (API, database, message queue), verify the serialization format is backward-compatible or that all serialization points were updated
+
+3. **Hot spot changes got proportional review depth:**
+   - If the diff touches a hot spot module (from the map), increase scrutiny:
+     - Read all changed functions in detail (not just glance)
+     - Check every consumer that imports the changed interface
+     - Verify contract tests exist for the changed interface
+     - If no contract tests exist, flag as a risk
+
+4. **Shared config changes are safe:**
+   - If a shared config file was modified (from the map's Shared Configuration section), verify all consumers handle the change correctly
+   - Check for additive changes (safe) vs breaking changes (dangerous): new keys are usually safe, renamed/removed keys break consumers
+
+**Output:** List of architectural concerns, or CLEAN if no boundary violations detected.
+
+**If concerns found:** These are CRITICAL issues — architectural violations cause the exact cascading breakage pattern the user described. Fix before proceeding.
+
 ## Stage 3: Code Quality Review
 
 **Purpose:** Is the code well-built? Clean, secure, maintainable?
 
-**Only dispatch after spec compliance and behavioral fidelity pass.**
+**Only dispatch after spec compliance, behavioral fidelity, and architecture boundary review pass.**
 
 **Dispatch quality reviewer subagent** with:
 - Implementation summary
 - Git diff of all changes (base SHA to HEAD)
 - Project conventions and patterns
 - Behavioral fidelity findings (if any were found and fixed)
+- **Architecture map context** (dependency graph, data models, hot spots — so the reviewer can check boundary compliance)
 
 **Quality reviewer checks:**
 - Single responsibility per file
@@ -148,6 +181,9 @@ digraph auto_review {
 - No hardcoded values that should be configurable
 - Tests verify behavior, not implementation details
 - File structure follows plan and project conventions
+- **No architectural boundary violations** (new cross-module dependencies go in the right direction)
+- **Data model changes are backward-compatible** (or all consumers updated atomically)
+- **Hot spot changes have contract test coverage**
 
 **See `./quality-reviewer-prompt.md` for the full prompt template.**
 
@@ -189,6 +225,13 @@ After all stages complete:
 - Status: CLEAN | CONCERNS_FOUND
 - Discrepancies found: [list — code/test mismatches, boundary disagreements, masked defaults]
 - Resolved: [yes/no]
+
+### Architecture Boundaries
+- Status: CLEAN | VIOLATIONS_FOUND
+- New cross-module dependencies: [list any new dependencies and whether they're in the correct direction]
+- Data model changes: [atomic/incomplete — list any shared models changed and whether all consumers were updated]
+- Hot spot changes: [list any hot spots touched and whether contract tests cover the changes]
+- Shared config changes: [safe/breaking — list any config changes and their impact]
 
 ### Code Quality
 - Status: APPROVED | APPROVED_WITH_NOTES

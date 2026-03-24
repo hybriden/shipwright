@@ -88,13 +88,26 @@ digraph auto_verify {
 If you do not know HOW to verify the changes — what system to deploy to, what URL to hit, what to check, what "correct" looks like — you MUST ask the user before proceeding. Do not guess verification steps. Do not invent test procedures. Ask.
 </HARD-GATE>
 
+### Architecture Map Consumption
+
+**Before gathering verification context, read the architecture map.** Check `docs/architecture-map.md` — if it exists:
+
+1. **Identify involved modules** — match the changed files to modules in the map
+2. **Trace the dependency chain** — which modules depend on the changed modules? These are potential blast radius targets for verification
+3. **Note hot spots** — if any changed module is a hot spot, verification needs to be more thorough (more checks, deeper data verification)
+4. **Understand interfaces** — the map's interface contracts tell you what the system's expected behavior should be at module boundaries
+5. **Build a verification scope** — from the dependency graph, determine which parts of the system could be affected by the changes
+
+**Record this in the runbook** as "Architecture Context" — it tells fix subagents exactly which modules are involved and how they connect.
+
 **Sources of verification context (check in order):**
 
-1. **User's message** — Did the user describe how to verify?
-2. **Project documentation** — Check `docs/`, `README.md`, runbooks, `CLAUDE.md` for verification procedures, deployment steps, test environments
-3. **`.implementor.json`** — Check `startCommand`, `verifyCommand`, `verifyUrl` fields
-4. **Previous runbooks** — Check `docs/*RUNBOOK*` for established verification patterns from prior iterations
-5. **Project tools** — Scan `tools/`, `scripts/`, `bin/`, `Makefile`, `package.json` scripts for deploy/verify/validate commands
+1. **Architecture map** — Module boundaries, dependency graph, interface contracts, hot spots
+2. **User's message** — Did the user describe how to verify?
+3. **Project documentation** — Check `docs/`, `README.md`, runbooks, `CLAUDE.md` for verification procedures, deployment steps, test environments
+4. **`.implementor.json`** — Check `startCommand`, `verifyCommand`, `verifyUrl` fields
+5. **Previous runbooks** — Check `docs/*RUNBOOK*` for established verification patterns from prior iterations
+6. **Project tools** — Scan `tools/`, `scripts/`, `bin/`, `Makefile`, `package.json` scripts for deploy/verify/validate commands
 
 **What you need before proceeding:**
 
@@ -139,6 +152,21 @@ Create a runbook at `docs/<FEATURE>-VERIFY-RUNBOOK.md` to track iterations:
 **System under test:** [URL/path/description]
 **Changes being verified:** [1-2 sentence summary]
 
+## Architecture Context
+
+**Modules involved:** [list of modules from the architecture map that are being changed]
+**Dependency chain:**
+```
+changed-module → [dependent-module-1, dependent-module-2]
+dependent-module-1 → [downstream-module]
+```
+**Hot spots affected:** [list any hot spot modules, or "none"]
+**Blast radius:** [which parts of the system could be affected, derived from dependency graph]
+**Key interfaces:** [interface contracts at the boundaries — what "correct" looks like structurally]
+**Relevant patterns:** [error handling, data access, or other patterns from the map that affect verification]
+
+This section is consumed by fix subagents to understand the codebase without reading it from scratch.
+
 ## Verification Checklist
 
 - [ ] [Check 1: specific behavior and expected result]
@@ -152,18 +180,94 @@ Create a runbook at `docs/<FEATURE>-VERIFY-RUNBOOK.md` to track iterations:
 ## Iteration Log
 
 ### Iteration 1 — [date/time]
+- **Baseline:** [N] checks passing, [M] unit tests passing
 - **State reset:** [yes/no, what was reset]
 - **Deployed:** [exact command or steps]
 - **Checks performed:**
   - [x] Check 1: PASS — [evidence: screenshot path, query result, response body]
   - [ ] Check 2: FAIL — [what was wrong, expected vs actual]
-- **Issues found:** [list with root cause analysis]
+- **Anti-regression comparison:** [all previous passes still pass? any regressions?]
+- **Issues found:** [list with root cause analysis and dependency chain trace]
 - **Fixes applied:** [commit hashes and descriptions]
+- **Fix reverted?** [yes/no — if yes, what regressed and why]
 - **Regression tests added:** [test names]
-- **Status:** PASS | ISSUES_FOUND | BLOCKED
+- **Status:** PROGRESS | STALL | REGRESSION_REVERTED | BLOCKED
+
+## Fix History
+
+| Iteration | Files Changed | Checks Fixed | Checks Regressed | Net | Reverted? |
+|-----------|--------------|-------------|-------------------|-----|-----------|
+| [N] | [files] | [checks] | [checks] | [+/-N] | [yes/no] |
 ```
 
 **The runbook is the single source of truth.** Every finding, fix, and re-verification is documented here. It survives context compression and can be resumed in future conversations.
+
+### Codebase Learnings Section
+
+The runbook MUST include a "Codebase Learnings" section that accumulates runtime knowledge across iterations:
+
+```markdown
+## Codebase Learnings
+
+Runtime behaviors discovered during verification that weren't obvious from the code or architecture map:
+
+- [Iteration 1] ContentSerializer silently drops properties with null values — not documented anywhere
+- [Iteration 2] Auth middleware returns 302 redirect to /login, not 401, for unauthenticated API requests
+- [Iteration 3] Database connection pool maxes out at 5 connections in dev config — causes timeouts with concurrent imports
+- [Iteration 4] The import endpoint is async — returns 202 immediately, actual import runs in background job
+```
+
+**Why this matters:** Each iteration discovers something about how the real system behaves. Without recording these learnings:
+- Fix subagents waste time rediscovering the same behaviors
+- Later iterations can't build on earlier knowledge when context is compressed
+- The architecture map stays incomplete about runtime behaviors
+
+**Update this section after every iteration,** even if no issues are found. "The import completed in 3 seconds with 50 items" is useful context for later iterations that might see timeouts.
+
+**These learnings can feed back into the architecture map** — after verification completes, significant learnings should be incorporated into `docs/architecture-map.md` as runtime behavior annotations.
+
+## Phase 1.5: Stateful Resource Inventory
+
+Before entering the iteration loop, inventory ALL stateful resources the system depends on. Stateful resources are the #1 source of false passes and mysterious failures — a test that passes against stale data proves nothing.
+
+**Build the inventory:**
+
+```markdown
+## Stateful Resources
+
+| Resource | Type | Location/Connection | Reset Command | Verify Clean Command |
+|----------|------|-------------------|---------------|---------------------|
+| [Main DB] | Database | [connection string or container name] | [drop + recreate or migrate:fresh] | [SELECT COUNT(*) from key tables = 0] |
+| [Cache] | Cache | [Redis URL or in-memory] | [FLUSHALL or restart] | [DBSIZE = 0] |
+| [Blob storage] | File system | [path or container] | [rm -rf or clear container] | [ls shows empty] |
+| [Search index] | External service | [URL] | [DELETE index + recreate] | [count = 0] |
+| [Message queue] | External service | [URL] | [purge queues] | [queue length = 0] |
+| [Output files] | File system | [path] | [rm -rf output/] | [directory empty or absent] |
+| [Session/auth state] | In-memory/cookie | [browser or server] | [clear cookies + restart server] | [no active sessions] |
+```
+
+**Detection from architecture map:**
+- Check the Data Models section — any persisted model implies a database
+- Check the Shared Configuration section — look for connection strings, cache URLs, storage paths
+- Check the module inventory — modules with type "service" often have stateful dependencies
+- Check the patterns section — data access patterns reveal what databases/caches are used
+
+**Record the inventory in the runbook** — it persists across iterations and informs fix subagents about what state exists.
+
+### Verification Prerequisites
+
+Before each iteration, verify that the system CAN be verified:
+
+```
+Pre-iteration checklist:
+- [ ] All stateful resources are accessible (DB connects, cache responds, storage writable)
+- [ ] All stateful resources are in clean state (verified with "Verify Clean Command")
+- [ ] The application builds successfully
+- [ ] The application starts without errors
+- [ ] Health check endpoints respond (if applicable)
+```
+
+**If any prerequisite fails:** Fix it BEFORE entering the iteration. Don't waste an iteration discovering the database is down.
 
 ## Phase 2: Deploy and Verify (Iteration Loop)
 
@@ -171,11 +275,16 @@ Each iteration follows the same structure. Max 20 iterations.
 
 ### Step 1: Reset State
 
-Before every iteration, reset the system to a known state:
-- Drop and recreate databases
-- Clear blob storage, caches, temp files
-- Remove previous import/output artifacts
-- Restart services if needed
+Before every iteration, reset ALL stateful resources from the inventory to a known state. Use the reset commands from the Stateful Resource Inventory, then verify each with the "Verify Clean Command":
+
+- Drop and recreate databases (verify: count queries return 0)
+- Clear blob storage, caches, temp files (verify: empty)
+- Remove previous import/output artifacts (verify: absent)
+- Purge message queues (verify: queue length 0)
+- Clear browser state/cookies (verify: no sessions)
+- Restart services if needed (verify: health check passes)
+
+**Verify the reset worked.** Running the reset command is not enough — confirm with the verify command. A reset that silently fails leaves stale state that produces false passes.
 
 **Never verify against stale state.** A fix that appears to work against leftover data from a previous iteration is not verified.
 
@@ -370,12 +479,18 @@ For each check, record in the runbook:
 When verification reveals issues, **delegate the fix to `implementor:run`** — auto-verify's job is to verify, not to implement fixes. This keeps responsibilities clean: auto-verify finds problems, implementor:run solves them with proper planning, testing, and review.
 
 1. **Document the finding** in the runbook with evidence (screenshot, query result, error message)
-2. **Trace the root cause** — Read the relevant code enough to understand why. Document your analysis.
+2. **Trace the root cause using the dependency graph** — Don't grep blindly. Use the architecture map's dependency graph to trace from the symptom to the likely source:
+   - Identify which module the symptom manifests in
+   - Follow the dependency chain backward — which modules feed data/control to this one?
+   - Check interface contracts at each boundary — is the contract being violated?
+   - The root cause is usually in the module that produces incorrect input, not the one that fails on it
+   - Document your dependency-chain analysis in the runbook
 3. **Invoke `implementor:run`** with the fix task:
-   - Include the root cause analysis from step 2
+   - Include the root cause analysis from step 2 (with dependency chain trace)
    - Include the evidence (what was expected vs what was observed)
    - Include the runbook path so implementor:run can reference the verification context
-   - Example: `implementor:run "Fix idmap.xml filtering: uses <guid> elements but actual format is <SerialiazableGuidEntry>. See docs/SUBTREE-VERIFY-RUNBOOK.md iteration 1 for evidence."`
+   - **Include the Architecture Context section from the runbook** — this gives the fix subagent structural understanding without re-reading the whole codebase
+   - Example: `implementor:run "Fix idmap.xml filtering: uses <guid> elements but actual format is <SerialiazableGuidEntry>. Root cause in DataExporter module (feeds ContentSerializer via dependency chain). See docs/SUBTREE-VERIFY-RUNBOOK.md iteration 1 for evidence and architecture context."`
 4. **Wait for implementor:run to complete** — It will plan, implement, test, and review the fix
 5. **Return to Step 1** — Reset state, re-deploy, re-verify ALL checks from scratch with the fix applied
 
@@ -390,6 +505,52 @@ When verification reveals issues, **delegate the fix to `implementor:run`** — 
 **Do NOT skip re-verification after a fix.** A fix for one issue can regress another. Verify everything again, not just the fixed item.
 
 **Do NOT fix multiple issues before re-verifying.** Fix one issue, verify, then fix the next. Batching fixes makes it impossible to tell which fix resolved which issue — or which fix introduced a new problem.
+
+## Architecture-Guided Root Cause Tracing
+
+When verification reveals an issue, use the architecture map's dependency graph to trace the root cause systematically instead of grep-based guessing:
+
+### Trace Algorithm
+
+1. **Identify the symptom module** — which module does the failure manifest in?
+2. **Check the interface contract** — is the symptom module receiving incorrect input from its dependencies?
+3. **Walk backward through the dependency chain:**
+   ```
+   Symptom in ModuleC ← receives data from ModuleB ← receives data from ModuleA
+   ```
+4. **At each hop, verify the interface contract:**
+   - What does the upstream module promise to provide?
+   - What does it actually provide? (log it, inspect it, query it)
+   - If the contract is violated here, this is the root cause location
+5. **Check hot spots** — if the dependency chain passes through a hot spot module, that module is a likely culprit (many dependents = many opportunities for subtle breakage)
+
+### Example
+
+```
+Symptom: Page tree shows 7 pages instead of 4
+  ↓ Manifest in: CMS UI (frontend rendering)
+  ↓ Data from: Content API endpoint
+  ↓ Data from: ContentRepository.GetPageTree()
+  ↓ Data from: ImportService.Import() ← ROOT CAUSE: import filter not excluding template pages
+```
+
+**This replaces blind grepping.** Instead of searching the entire codebase for "page" or "tree", you follow the dependency chain from symptom to source. In a large codebase, this reduces investigation from 20 files to 4-5.
+
+### Recording the Trace
+
+Document the dependency-chain trace in the runbook for each issue:
+
+```markdown
+### Issue: [description]
+**Symptom module:** [module name from map]
+**Dependency trace:**
+  [ModuleA] → [ModuleB] → [ModuleC (symptom)]
+**Contract violation at:** [ModuleA] — [what it should provide vs what it actually provides]
+**Root cause:** [one sentence]
+**Fix location:** [exact file:line in the root cause module]
+```
+
+This trace is passed to `implementor:run` when delegating the fix, so the fix subagent starts with the answer, not the question.
 
 ## Iteration Budget and Progress Tracking
 
@@ -409,6 +570,69 @@ When verification reveals issues, **delegate the fix to `implementor:run`** — 
 - If an iteration finds the **same issues** as the previous one, the fix was wrong. Don't retry — investigate deeper or try a different approach.
 - If an iteration **fixes N issues but introduces N new ones**, the approach may be fundamentally wrong. Step back and reassess.
 - If **3 consecutive iterations** make no progress, report PARTIAL with evidence and ask the user for guidance.
+
+### Anti-Regression Gate (Per Iteration)
+
+<HARD-GATE>
+Every iteration must be compared against the previous iteration's results. A fix that passes its own checks but regresses a previously-passing check is NOT progress — it's circular fixing. Detect and stop this immediately.
+</HARD-GATE>
+
+**Before each iteration, record the full state:**
+```
+Iteration N Baseline:
+- Passing checks: [list check names]
+- Failing checks: [list check names]
+- Unit tests passing: [count]
+- Unit tests failing: [count]
+```
+
+**After the fix and re-verification, compare:**
+```
+Iteration N Results:
+- Previously passing, still passing: [list] ← MUST be ALL of them
+- Previously passing, now failing: [list] ← REGRESSIONS — fix is net-negative
+- Previously failing, now passing: [list] ← PROGRESS
+- Previously failing, still failing: [list] ← UNCHANGED
+- New issues discovered: [list] ← may or may not be related to fix
+```
+
+**Apply the anti-regression gate:**
+
+| Result | Verdict | Action |
+|--------|---------|--------|
+| All previous passes hold + some failures now pass | **PROGRESS** | Continue to next iteration |
+| All previous passes hold + no failures fixed | **STALL** | Fix was ineffective. Don't repeat it — investigate differently |
+| Some previous passes now fail (regressions) | **REGRESSION — REVERT FIX** | The fix broke something that was working. Revert the fix commit, record what regressed and why, then investigate the shared dependency between the fixed and regressed behavior |
+| New issues appeared that weren't in any previous iteration | **SIDE EFFECT** | The fix introduced new problems. Revert unless the new issues are clearly unrelated to the fix (e.g., flaky test, environment change) |
+
+### Circular Fix Detection (Across Iterations)
+
+Track a **fix history** across all iterations:
+
+```markdown
+## Fix History
+
+| Iteration | Files Changed | Checks Fixed | Checks Regressed | Net | Reverted? |
+|-----------|--------------|-------------|-------------------|-----|-----------|
+| 2 | src/serializer.ts | Check 1 | — | +1 | No |
+| 3 | src/importer.ts | Check 2 | — | +1 | No |
+| 4 | src/serializer.ts | Check 3 | Check 1 | 0 | YES |
+```
+
+**Circle detection rules:**
+
+| Signal | Meaning | Action |
+|--------|---------|--------|
+| Same file changed in 2+ iterations | Fixes are fighting over the same code | STOP. Revert to before the first fix touching this file. The file needs a single coherent change, not incremental patches. |
+| A check that was fixed in iteration N fails again in iteration M | Circular regression | STOP. The two fixes are incompatible. Find the shared dependency and fix it once. |
+| 3+ reverts in the fix history | The approach is fundamentally wrong | STOP. Report PARTIAL. The remaining issues likely require a different architectural approach, not more iteration. |
+| Net progress across last 3 iterations is 0 or negative | Treading water | STOP. Report PARTIAL. Include the full fix history — it shows exactly where the approach breaks down. |
+
+**When circular fixing is detected:**
+1. Revert to the last state where all currently-passing checks were passing (the "high water mark")
+2. Read the fix history — it reveals the conflict pattern
+3. Instead of fixing each issue independently, look for the single change that resolves the underlying conflict
+4. If that's not possible within the verification scope, report PARTIAL with the conflict analysis — this is actionable information for the user
 
 ## Specialized Verification Strategies
 
@@ -452,6 +676,15 @@ Agent tool (general-purpose):
   prompt: |
     You are performing iterative runtime verification of code changes.
 
+    ## Architecture Context
+    [Task-focused lens from docs/architecture-map.md — max 150 lines. Include:
+     - Modules involved in the changes (with interfaces and responsibilities)
+     - Dependency chain from changed modules to dependent modules
+     - Hot spots affected (if any)
+     - Relevant patterns (error handling, data access conventions)
+     This gives you structural understanding of the codebase without reading every file.
+     When tracing root causes, follow the dependency chain — don't grep blindly.]
+
     ## Changes to Verify
     [What was changed and why]
 
@@ -459,6 +692,7 @@ Agent tool (general-purpose):
     - System: [URL, path, or connection info]
     - Deploy command: [how to deploy/start]
     - Reset command: [how to reset state]
+    - Blast radius: [from dependency graph — which parts of the system could be affected]
     - Checks:
       1. [What to verify and what "correct" looks like]
       2. [...]
@@ -469,6 +703,9 @@ Agent tool (general-purpose):
     ## Your Job
     Follow the auto-verify process:
     1. Create a runbook at docs/<feature>-VERIFY-RUNBOOK.md
+       - Include an "Architecture Context" section with involved modules,
+         dependency chain, hot spots, and blast radius (from the lens above).
+         This section survives context compression and informs fix subagents.
     2. For each iteration (max 20):
        a. Reset system state
        b. Deploy/import changes
@@ -479,17 +716,27 @@ Agent tool (general-purpose):
           - CLI: run command, capture stdout/stderr/exit code
           - DB: run queries, verify counts and values
        e. Evaluate evidence (PROVEN/SUPERFICIAL/INSUFFICIENT)
-       f. If issues found: document in runbook, trace root cause, invoke implementor:run for the fix
+       f. If issues found:
+          - Document in runbook with evidence
+          - Trace root cause using the dependency graph (follow module boundaries
+            backward from the symptom to the source — don't grep blindly)
+          - Invoke implementor:run for the fix, including the runbook's
+            Architecture Context section so the fix subagent has structural understanding
        g. After fix: return to step 2a (reset, redeploy, re-verify ALL checks)
        h. If all checks pass: close iteration
     3. Document ALL findings in the runbook
+    4. After each iteration, update the runbook's "Codebase Learnings" section
+       with anything discovered about the system that wasn't in the architecture map
+       (e.g., "the ContentSerializer silently drops null properties" or
+       "the auth middleware returns 302, not 401, for unauthenticated requests")
 
     Report:
     - **Status:** VERIFIED | PARTIAL | FAILED
     - **Iterations:** N/20
     - **Checks:** [pass/fail/blocked counts]
-    - **Issues discovered:** [list with root causes and fixes]
+    - **Issues discovered:** [list with root causes traced through dependency graph]
     - **Runtime issues not caught by unit tests:** [most valuable findings]
+    - **Codebase learnings:** [things discovered about the system during verification]
     - **Runbook:** [path to runbook file]
     - **Evidence:** [summary of what was proven and how]
 ```
@@ -503,16 +750,18 @@ Auto-verify is a standalone skill, independently invocable:
 - Can be called by `implementor:auto-debug` for Layer 2 runtime verification after a fix
 
 **Signals consumed:**
+- From auto-map: architecture map (module boundaries, dependency graph, interfaces, hot spots, patterns)
 - From auto-impl: files changed, features implemented
 - From auto-test: test results, coverage data
 - From auto-e2e: E2E evidence (may inform what to verify in the real system)
 - From user: verification context (system URL, deploy steps, what to check)
 
 **Signals produced:**
-- Runbook artifact (`docs/<feature>-VERIFY-RUNBOOK.md`) with full iteration history
+- Runbook artifact (`docs/<feature>-VERIFY-RUNBOOK.md`) with full iteration history, architecture context, and codebase learnings
 - List of runtime issues discovered (not caught by unit tests or E2E)
 - Verification verdict: VERIFIED | PARTIAL | FAILED
 - Regression tests for every runtime issue fixed
+- **Codebase learnings** — runtime behaviors discovered during verification that weren't in the architecture map (these can feed back into the map for future runs)
 
 ## Adaptation Rules
 
@@ -546,11 +795,17 @@ After all iterations complete:
 | [Check 3] | FAIL | [evidence description] | [why it still fails] |
 
 ### Issues Discovered and Fixed
-1. **[Issue]** — Found in iteration N. Root cause: [explanation]. Fixed by [commit]. Regression test: [test name].
+1. **[Issue]** — Found in iteration N.
+   - Dependency trace: [ModuleA] → [ModuleB] → [symptom module]
+   - Root cause: [explanation, in which module]
+   - Fixed by [commit]. Regression test: [test name].
 2. **[Issue]** — ...
 
 ### Issues Remaining
-1. **[Issue]** — [evidence of failure, investigation so far, what's needed to resolve]
+1. **[Issue]** — [evidence of failure, dependency trace so far, what's needed to resolve]
+
+### Codebase Learnings
+[Runtime behaviors discovered during verification — accumulated across all iterations]
 
 ### Runtime Issues Not Caught by Unit Tests
 [List of issues that only manifested when running against the real system.
@@ -562,6 +817,15 @@ After all iterations complete:
 |-----------|---------------|-------------|-------------|------------|
 | 1 | X/Y | N | — | — |
 | ... | | | | |
+
+### Fix History
+
+| Iteration | Files Changed | Checks Fixed | Checks Regressed | Net | Reverted? |
+|-----------|--------------|-------------|-------------------|-----|-----------|
+| [N] | [files] | [checks] | [checks] | [+/-N] | [yes/no] |
+
+### Circular Fix Incidents
+[Any detected circular patterns — files modified twice, regressions of previously-fixed checks, etc.]
 
 ### Runbook: [path to runbook file]
 ```
@@ -580,6 +844,10 @@ After all iterations complete:
 | "I'll batch these fixes and verify once" | Fix one, verify, fix the next. Batching hides causality. |
 | "The system is too complex to verify fully" | Verify what you can, document what you can't, ask about the rest. |
 | "I'll invent the expected behavior" | You don't know what "correct" is. The spec, the user, or the docs do. Ask. |
+| "The fix broke check 2 but fixed check 3" | That's not progress — that's trading problems. Revert and find a fix that doesn't regress. |
+| "I need to modify that file again" | If you already fixed it once, modifying it again means the first fix was wrong. Revert to before the first fix. |
+| "3 iterations and still not passing, let me keep going" | Check the fix history — if net progress is zero, more iterations won't help. Report PARTIAL. |
+| "The regression is unrelated to my fix" | If it appeared after your fix and disappears when you revert, it's related. Investigate the connection. |
 
 ## Anti-Patterns
 
@@ -596,3 +864,9 @@ After all iterations complete:
 **Batch-fixing:** Making multiple fixes before re-verifying. When you verify and find a new problem, you don't know which fix caused it.
 
 **Evidence inflation:** Capturing 20 screenshots as "evidence" when none of them actually verify the specific behavior in question. Fewer, targeted evidence is better than volume.
+
+**Circular fixing:** Fix A breaks check B, fix B breaks check A — round and round. The fix history detects this. When detected: revert to the high water mark and find a single change that resolves both. If that's impossible, report PARTIAL with the conflict analysis.
+
+**Regression tolerance:** Accepting that "the fix broke something else but we'll fix that next iteration." No. A fix that introduces regressions is net-negative. Revert it and find a better approach. The anti-regression gate enforces this.
+
+**Ignoring the fix history:** Not checking whether you've already modified the same file or regressed the same check before. The fix history exists to break cycles — use it.

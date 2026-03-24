@@ -77,6 +77,17 @@ Before analyzing anything, check for lessons from previous pipeline runs:
 
 ### Phase 1: Codebase Analysis
 
+**First: Read the architecture map.** Check `docs/architecture-map.md` for an existing auto-map output. If it exists and is fresh (git SHA matches HEAD), use it as your primary source of structural understanding. The map gives you:
+- Module inventory with responsibilities and boundaries
+- Interface contracts (public APIs per module)
+- Dependency graph (which modules depend on which)
+- Established patterns and conventions
+- Hot spots (high-risk modules with many dependents)
+
+**If the map exists:** You already know the module boundaries, dependency direction, and patterns. Skip broad scanning — focus your file reading on the specific modules relevant to the task. Use the map's dependency graph to understand how changes will ripple.
+
+**If no map exists:** Fall back to manual scanning:
+
 Use Glob to map the full project structure. Use Grep to find:
 - Package manager and dependencies (package.json, requirements.txt, go.mod, Cargo.toml, etc.)
 - Test framework configuration (jest.config, pytest.ini, vitest.config, etc.)
@@ -92,6 +103,29 @@ Read key files to understand:
 - Logging patterns
 
 ### Phase 2: Task Decomposition
+
+**If an architecture map exists, use it to guide decomposition:**
+- **Decompose along module boundaries** shown in the map, not along feature lines
+- **Order tasks by the dependency graph** — build dependencies before dependents
+- **Flag hot spot tasks** — any task touching a hot spot module (from the map) gets extra context and a stronger model recommendation
+- **Include neighbor interfaces** — when a task modifies a module, include the interfaces of its 1-hop neighbors in the task context so subagents know what they're connecting to
+- **Respect patterns** — the map's pattern section tells you how errors are handled, how data is accessed, etc. Task descriptions should reference these patterns explicitly
+
+**Detect atomic change groups** — some changes MUST be made together or not at all:
+- **Interface + all implementations**: If you change an interface/abstract class, every implementation must change in the same task. Splitting them guarantees build failures between tasks.
+- **Data model + all consumers**: If you change a shared model's fields (from the map's Data Models section), every module that consumes that model must be updated atomically. Splitting means half the codebase sees the old shape and half sees the new.
+- **Shared config + all readers**: If you change a config file's structure (from the map's Shared Configuration section), every module that reads it must be updated together.
+- **Migration + code**: Database schema changes and the code that depends on them must be in the same task. A migration without code changes = runtime errors. Code without migration = compile but crash.
+
+**Detect shared resource conflicts** — two tasks that touch the same shared resource will conflict:
+- Two tasks modifying the same config file → merge into one task or strictly order them
+- Two tasks adding database migrations → merge (migration ordering is critical)
+- Two tasks modifying the same build file (package.json, .csproj) → merge or order with explicit dependency
+- Two tasks modifying the same shared utility → merge (the anti-circle detection will catch this at runtime, but catching it at plan time is cheaper)
+
+**Order tasks by build dependency graph** (not just code dependency):
+- If the map has a build order (e.g., `Core → Infrastructure → API → Tests`), tasks that modify downstream projects must come AFTER tasks that modify upstream projects
+- A task that changes `Core` must complete and build successfully before any task that depends on `Core` begins
 
 Break the task into ordered implementation steps where each step is **one action (2-5 minutes)**:
 
@@ -119,6 +153,9 @@ Before outputting the plan, stress-test it. For each task in the decomposition, 
    - Do the task boundaries match the code's actual module boundaries?
    - Will subagents need to modify the same files in multiple tasks? (If yes, you decomposed wrong — group by file, not by feature.)
    - Are there hidden coupling points where Task 3 will silently break Task 1's work?
+   - **Do any tasks break an atomic change group?** (interface change split from implementations, model change split from consumers, migration split from code)
+   - **Do any tasks have shared resource conflicts?** (two tasks touching the same config, migration, or build file)
+   - **Does the task order respect the build dependency graph?** (upstream before downstream)
 
 4. **"Am I planning for tests that prove behavior, or tests that prove structure?"**
    - If the test in the plan asserts that a function exists and returns the right type, that's a structure test. Plan behavioral tests instead.
@@ -128,7 +165,8 @@ Before outputting the plan, stress-test it. For each task in the decomposition, 
 - **VIABLE:** Task is self-contained, criteria are verifiable, a subagent can execute it.
 - **NEEDS_REFINEMENT:** Task has vague criteria, hidden dependencies, or wrong boundaries. Refine before outputting.
 - **SHOULD_SPLIT:** Task is too large or has mixed concerns. Split into smaller tasks.
-- **SHOULD_MERGE:** Task is too small to be useful alone or creates artificial file-conflict boundaries with an adjacent task. Merge.
+- **SHOULD_MERGE:** Task is too small to be useful alone, creates artificial file-conflict boundaries with an adjacent task, or breaks an atomic change group. Merge.
+- **WRONG_ORDER:** Task depends on a module that is modified by a later task, or violates build dependency order. Reorder.
 
 **If any task is NEEDS_REFINEMENT:** Fix it now. Do not output a plan with known viability issues.
 
@@ -163,6 +201,9 @@ Save the plan to `docs/plans/YYYY-MM-DD-<task-name>.md` using this format:
 
 **Goal:** [One sentence]
 **Architecture:** [2-3 sentences about approach]
+**Architecture Map:** [path to docs/architecture-map.md if exists, or "generated inline"]
+**Modules Involved:** [list of modules from the map that this task touches]
+**Hot Spots Affected:** [list of hot spot modules, if any — these tasks need extra care]
 **Tech Stack:** [Detected technologies]
 **Test Framework:** [Detected test framework and run command]
 **Coverage Target:** [80% default or project-specific]
@@ -220,6 +261,10 @@ Expected: PASS
 - Put "write tests" as a separate task from implementation (TDD means tests come first in every task)
 - Have tasks that silently depend on shared files without declaring it
 - Use vague language: "add appropriate error handling," "implement validation logic," "connect to the API"
+- **Split atomic change groups** — interface change in Task 2, implementation change in Task 5 = guaranteed build failure between them
+- **Ignore build order** — Task 3 modifies the core library, Task 2 modifies a project that depends on it = Task 2's subagent can't compile
+- **Create shared resource conflicts** — Task 1 and Task 4 both add migrations = migration ordering conflict at merge time
+- **Change a data model without updating all consumers** — changing a shared model's fields in one task but updating consumers in separate tasks = runtime errors between tasks
 
 **Do NOT:**
 - Skip the viability check because the plan "looks right"

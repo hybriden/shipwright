@@ -139,6 +139,42 @@ Execute the changes proposed by the testability audit. Authorized refactors:
 - Do not refactor code that is already testable
 - Commit refactors separately from test additions with clear commit messages
 
+### Phase 4.5: Module Boundary Contract Analysis
+
+**If an architecture map exists** (`docs/architecture-map.md`), analyze module boundaries for missing contract tests. Contract tests verify that the interface between two modules works correctly — they catch the class of bugs where module A changes its output format and module B silently receives wrong data.
+
+**For each module boundary in the dependency graph where the changed code is involved:**
+
+1. **Identify the contract** — what does module A promise to provide to module B?
+   - Function signatures and return types
+   - Data model shapes (from the map's Data Models section)
+   - API request/response formats
+   - Event/message payload shapes
+   - Error types and error handling expectations
+
+2. **Check if contract tests exist:**
+   - Search for tests that import from BOTH modules involved in the boundary
+   - Search for serialization/deserialization round-trip tests for shared models
+   - Search for API schema validation tests
+   - Check the map's Test Infrastructure Classification for "Contract" test count per module
+
+3. **Flag missing contract tests:**
+   ```
+   Contract Test Gaps:
+   - auth-service → user-service: No tests verify that the user object auth-service
+     produces matches what user-service expects. If auth-service changes the user
+     shape, user-service will break with no test catching it.
+   - api-routes → order-service: API response format is tested in E2E but no
+     contract test verifies the serialization independently. A serialization change
+     would only be caught by slow E2E tests, not fast contract tests.
+   ```
+
+4. **Prioritize contract test writing:**
+   - Boundaries involving changed code (highest priority — these are at risk RIGHT NOW)
+   - Boundaries involving data models with > 3 consumers (high risk)
+   - Boundaries involving hot spot modules (high blast radius)
+   - Boundaries with no existing tests at all (invisible breakage)
+
 ### Phase 5: Gap Analysis
 
 For each file with coverage below the target (default 80%):
@@ -151,6 +187,7 @@ For each file with coverage below the target (default 80%):
    - Untested integration points
 3. Cross-reference with testability audit — skip paths marked UNTESTABLE (if Phase 4 was skipped)
 4. If an external contract was identified in Phase 3, ensure gap analysis includes contract-conformance test gaps (not just code coverage gaps)
+5. **Include contract test gaps from Phase 4.5** — missing module boundary tests are the highest-priority gaps because they catch cross-module breakage that unit tests miss
 
 ### Phase 6: Test Writing
 
@@ -163,6 +200,11 @@ Dispatch test writer subagents (see `./test-writer-prompt.md`) for each gap clus
 - **Boundary conditions:** Off-by-one, min/max values, empty/full collections
 - **Integration:** Components working together correctly
 - **Contract conformance:** If an external contract was identified, tests that assert against the documented contract behavior, not just the current implementation
+- **Module boundary contracts:** For each contract gap identified in Phase 4.5, write tests that verify the interface between modules:
+  - Serialization round-trip tests for shared data models (serialize → deserialize → compare)
+  - Tests that call module A's output function and feed the result to module B's input function
+  - Tests that verify error contracts (module A throws ErrorType X, module B handles ErrorType X)
+  - These tests import from BOTH modules and verify they agree on the contract
 
 ### Phase 7: Test Honesty Check
 
