@@ -1,11 +1,11 @@
 {
   "name": "implementor",
-  "description": "Autonomous development pipeline: plan, implement, test, review, and verify any task to production-grade quality",
+  "description": "Autonomous development pipeline with architecture mapping, anti-regression gates, contract testing, and checkpoint recovery — plan, implement, test, review, and verify any task to production-grade quality in large and complex codebases",
   "version": "2.0.0",
   "author": {
     "name": "hybriden"
   },
   "repository": "https://github.com/hybriden/implementor",
   "license": "MIT",
-  "keywords": ["autonomous", "pipeline", "testing", "review", "production-grade", "planning", "implementation"]
+  "keywords": ["autonomous", "pipeline", "testing", "review", "production-grade", "planning", "implementation", "architecture-mapping", "anti-regression", "contract-testing", "checkpoints", "large-codebases"]
 }

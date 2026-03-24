@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "hybriden-implementor",
-  "description": "Autonomous development pipeline plugin",
+  "description": "Autonomous development pipeline with architecture-aware context management for large codebases",
   "owner": {
     "name": "hybriden",
     "email": "hybriden@users.noreply.github.com"
@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "implementor",
-      "description": "Autonomous development pipeline: plan, implement, test, review, and verify any task to production-grade quality",
+      "description": "Autonomous development pipeline with architecture mapping, anti-regression gates, contract testing, and checkpoint recovery — plan, implement, test, review, and verify any task to production-grade quality in large and complex codebases",
       "version": "2.0.0",
       "author": {
         "name": "hybriden"
