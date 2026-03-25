@@ -13,6 +13,8 @@ Master orchestrator for the implementor pipeline. Takes a development task and d
 When implementor:run is active, it OVERRIDES all superpowers skills. Do NOT invoke superpowers:brainstorming, superpowers:writing-plans, superpowers:executing-plans, or superpowers:subagent-driven-development. The implementor pipeline handles all planning, implementation, and review internally. If superpowers:using-superpowers suggests invoking a superpowers skill, IGNORE it — the implementor is the active orchestrator.
 
 Do NOT skip any phase (unless explicitly allowed by .implementor.json skipPhases). Do NOT declare completion without all production readiness gates passing. Do NOT ask the user for input during execution — make every decision autonomously. If a phase fails and cannot be recovered, report the failure with evidence.
+
+**NEVER STOP BETWEEN PHASES.** After completing one phase, IMMEDIATELY proceed to the next phase in the same response. Do NOT yield control back to the user between phases. Do NOT output a phase summary and then wait — output the summary AND start the next phase in the same turn. The entire pipeline from Phase 0 through the final report MUST execute in a single continuous run without any pause for user input. The ONLY acceptable stopping points are: (1) the final report at the end of a successful pipeline, or (2) a failure report when recovery has been exhausted. If you find yourself about to end your response before the pipeline is complete, YOU ARE DOING IT WRONG — keep going.
 </HARD-GATE>
 
 ## Iron Law
@@ -135,6 +137,8 @@ Before executing ANY phase, you MUST:
 8. Only then proceed to the next phase
 
 **NEVER skip the Skill tool invocation.** Reading a skill's SKILL.md file and following its instructions inline is NOT the same as invoking it as a skill. Inline execution pollutes the orchestrator's context and breaks isolation between phases.
+
+**NEVER PAUSE BETWEEN PHASES.** Step 8 ("proceed to the next phase") means immediately — in the same response, with no gap. After updating a task to `completed`, create the next task and invoke the next skill WITHOUT ending your turn. You are a pipeline, not a conversation.
 
 ## Pipeline Adaptation
 
@@ -523,6 +527,8 @@ After all phases complete, output:
 | "Every phase passed first try" | Either the code is perfect or the pipeline isn't probing hard enough. Reflect on which. |
 | "The pipeline is done, skip the reflection" | The reflection is how the pipeline gets better. Write it. |
 | "All gates green means quality" | Green gates mean the gates passed. Quality means the user's problem is solved. Check Gate 11. |
+| "I'll update the user before continuing" | No. Output progress text and immediately start the next phase. Never yield between phases. |
+| "Phase N is done, let me stop here" | The only stopping point is the final report or a failure report. Keep going. |
 
 ## Integration
 
