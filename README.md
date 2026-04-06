@@ -119,6 +119,7 @@ Each skill is independently usable:
 | `implementor:auto-review` | Two-stage code review |
 | `implementor:auto-debug` | Systematic root cause analysis with proven fixes |
 | `implementor:production-readiness` | Final verification gate |
+| `implementor:harness` | Agent Team & Skill Architect — generates project-specific agent teams |
 
 ## Requirements
 

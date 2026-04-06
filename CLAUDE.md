@@ -15,6 +15,7 @@ A Claude Code plugin providing an autonomous development pipeline.
 - `skills/auto-debug/` - Systematic root cause analysis with dependency-graph tracing, net-positive gate, and anti-circle detection
 - `skills/auto-verify/` - Iterative runtime verification with architecture-aware context, anti-regression gate, and stateful resource management
 - `skills/production-readiness/` - Final verification gate
+- `skills/harness/` - Agent Team & Skill Architect (generates project-specific agent teams and skills)
 
 ## Usage
 
