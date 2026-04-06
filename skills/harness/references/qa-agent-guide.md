@@ -338,9 +338,9 @@ Implement Backend → QA Backend Boundaries → Implement Frontend → QA Full S
 Implement → [QA Boundary Review] → [Code Quality Review] → Done
 ```
 
-### QA + implementor:run Integration
+### QA + shipwright:run Integration
 
-When the harness includes a QA agent and the project also uses `implementor:run`:
+When the harness includes a QA agent and the project also uses `shipwright:run`:
 - QA boundary checks complement (not replace) auto-test's unit tests
 - QA runs between auto-impl and auto-test (catch boundary bugs before writing unit tests that mask them)
 - QA findings feed into auto-review as additional review criteria

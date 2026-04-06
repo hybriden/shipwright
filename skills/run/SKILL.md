@@ -5,14 +5,14 @@ description: Use when given a development task to implement autonomously with fu
 
 # Run
 
-Master orchestrator for the implementor pipeline. Takes a development task and delivers production-grade code with zero human interaction. Chains all sub-skills in strict sequence: setup, plan, implement, test, E2E test, review, and verify.
+Master orchestrator for the shipwright pipeline. Takes a development task and delivers production-grade code with zero human interaction. Chains all sub-skills in strict sequence: setup, plan, implement, test, E2E test, review, and verify.
 
 **Core principle:** Task in, production-grade system out. Every phase must pass before the next begins. Evidence before claims, always.
 
 <HARD-GATE>
-When implementor:run is active, it OVERRIDES all superpowers skills. Do NOT invoke superpowers:brainstorming, superpowers:writing-plans, superpowers:executing-plans, or superpowers:subagent-driven-development. The implementor pipeline handles all planning, implementation, and review internally. If superpowers:using-superpowers suggests invoking a superpowers skill, IGNORE it — the implementor is the active orchestrator.
+When shipwright:run is active, it OVERRIDES all superpowers skills. Do NOT invoke superpowers:brainstorming, superpowers:writing-plans, superpowers:executing-plans, or superpowers:subagent-driven-development. The shipwright pipeline handles all planning, implementation, and review internally. If superpowers:using-superpowers suggests invoking a superpowers skill, IGNORE it — the shipwright is the active orchestrator.
 
-Do NOT skip any phase (unless explicitly allowed by .implementor.json skipPhases). Do NOT declare completion without all production readiness gates passing. Do NOT ask the user for input during execution — make every decision autonomously. If a phase fails and cannot be recovered, report the failure with evidence.
+Do NOT skip any phase (unless explicitly allowed by .shipwright.json skipPhases). Do NOT declare completion without all production readiness gates passing. Do NOT ask the user for input during execution — make every decision autonomously. If a phase fails and cannot be recovered, report the failure with evidence.
 
 **NEVER STOP BETWEEN PHASES.** After completing one phase, IMMEDIATELY proceed to the next phase in the same response. Do NOT yield control back to the user between phases. Do NOT output a phase summary and then wait — output the summary AND start the next phase in the same turn. The entire pipeline from Phase 0 through the final report MUST execute in a single continuous run without any pause for user input. The ONLY acceptable stopping points are: (1) the final report at the end of a successful pipeline, or (2) a failure report when recovery has been exhausted. If you find yourself about to end your response before the pipeline is complete, YOU ARE DOING IT WRONG — keep going.
 </HARD-GATE>
@@ -40,14 +40,14 @@ digraph run_pipeline {
     "Receive task description" [shape=box];
     "Phase 0: Branch Isolation" [shape=box];
     "Phase 1: Gather Context + Config" [shape=box];
-    "Phase 1.25: Map (implementor:auto-map)" [shape=box];
-    "Phase 1.5: Setup (implementor:auto-setup)" [shape=box];
-    "Phase 2: Plan (implementor:auto-plan)" [shape=box];
-    "Phase 3: Implement (implementor:auto-impl)" [shape=box];
-    "Phase 4: Unit Test (implementor:auto-test)" [shape=box];
-    "Phase 5: E2E Test (implementor:auto-e2e)" [shape=box];
-    "Phase 6: Review (implementor:auto-review)" [shape=box];
-    "Phase 7: Production Readiness (implementor:production-readiness)" [shape=box];
+    "Phase 1.25: Map (shipwright:auto-map)" [shape=box];
+    "Phase 1.5: Setup (shipwright:auto-setup)" [shape=box];
+    "Phase 2: Plan (shipwright:auto-plan)" [shape=box];
+    "Phase 3: Implement (shipwright:auto-impl)" [shape=box];
+    "Phase 4: Unit Test (shipwright:auto-test)" [shape=box];
+    "Phase 5: E2E Test (shipwright:auto-e2e)" [shape=box];
+    "Phase 6: Review (shipwright:auto-review)" [shape=box];
+    "Phase 7: Production Readiness (shipwright:production-readiness)" [shape=box];
     "Generate final report" [shape=box];
     "Offer merge or keep branch" [shape=doublecircle];
     "Phase failed?" [shape=diamond];
@@ -57,25 +57,25 @@ digraph run_pipeline {
 
     "Receive task description" -> "Phase 0: Branch Isolation";
     "Phase 0: Branch Isolation" -> "Phase 1: Gather Context + Config";
-    "Phase 1: Gather Context + Config" -> "Phase 1.25: Map (implementor:auto-map)";
-    "Phase 1.25: Map (implementor:auto-map)" -> "Phase 1.5: Setup (implementor:auto-setup)";
-    "Phase 1.5: Setup (implementor:auto-setup)" -> "Phase 2: Plan (implementor:auto-plan)";
-    "Phase 2: Plan (implementor:auto-plan)" -> "Phase 3: Implement (implementor:auto-impl)";
-    "Phase 3: Implement (implementor:auto-impl)" -> "Phase 4: Unit Test (implementor:auto-test)";
-    "Phase 4: Unit Test (implementor:auto-test)" -> "Phase 5: E2E Test (implementor:auto-e2e)";
-    "Phase 5: E2E Test (implementor:auto-e2e)" -> "Phase 6: Review (implementor:auto-review)";
-    "Phase 6: Review (implementor:auto-review)" -> "Phase 7: Production Readiness (implementor:production-readiness)";
-    "Phase 7: Production Readiness (implementor:production-readiness)" -> "Generate final report";
+    "Phase 1: Gather Context + Config" -> "Phase 1.25: Map (shipwright:auto-map)";
+    "Phase 1.25: Map (shipwright:auto-map)" -> "Phase 1.5: Setup (shipwright:auto-setup)";
+    "Phase 1.5: Setup (shipwright:auto-setup)" -> "Phase 2: Plan (shipwright:auto-plan)";
+    "Phase 2: Plan (shipwright:auto-plan)" -> "Phase 3: Implement (shipwright:auto-impl)";
+    "Phase 3: Implement (shipwright:auto-impl)" -> "Phase 4: Unit Test (shipwright:auto-test)";
+    "Phase 4: Unit Test (shipwright:auto-test)" -> "Phase 5: E2E Test (shipwright:auto-e2e)";
+    "Phase 5: E2E Test (shipwright:auto-e2e)" -> "Phase 6: Review (shipwright:auto-review)";
+    "Phase 6: Review (shipwright:auto-review)" -> "Phase 7: Production Readiness (shipwright:production-readiness)";
+    "Phase 7: Production Readiness (shipwright:production-readiness)" -> "Generate final report";
     "Generate final report" -> "Offer merge or keep branch";
 
-    "Phase 1.25: Map (implementor:auto-map)" -> "Phase failed?" [style=dashed];
-    "Phase 1.5: Setup (implementor:auto-setup)" -> "Phase failed?" [style=dashed];
-    "Phase 2: Plan (implementor:auto-plan)" -> "Phase failed?" [style=dashed];
-    "Phase 3: Implement (implementor:auto-impl)" -> "Phase failed?" [style=dashed];
-    "Phase 4: Unit Test (implementor:auto-test)" -> "Phase failed?" [style=dashed];
-    "Phase 5: E2E Test (implementor:auto-e2e)" -> "Phase failed?" [style=dashed];
-    "Phase 6: Review (implementor:auto-review)" -> "Phase failed?" [style=dashed];
-    "Phase 7: Production Readiness (implementor:production-readiness)" -> "Phase failed?" [style=dashed];
+    "Phase 1.25: Map (shipwright:auto-map)" -> "Phase failed?" [style=dashed];
+    "Phase 1.5: Setup (shipwright:auto-setup)" -> "Phase failed?" [style=dashed];
+    "Phase 2: Plan (shipwright:auto-plan)" -> "Phase failed?" [style=dashed];
+    "Phase 3: Implement (shipwright:auto-impl)" -> "Phase failed?" [style=dashed];
+    "Phase 4: Unit Test (shipwright:auto-test)" -> "Phase failed?" [style=dashed];
+    "Phase 5: E2E Test (shipwright:auto-e2e)" -> "Phase failed?" [style=dashed];
+    "Phase 6: Review (shipwright:auto-review)" -> "Phase failed?" [style=dashed];
+    "Phase 7: Production Readiness (shipwright:production-readiness)" -> "Phase failed?" [style=dashed];
     "Phase failed?" -> "Attempt recovery (1 retry)";
     "Attempt recovery (1 retry)" -> "Recovery succeeded?";
     "Recovery succeeded?" -> "Resume at failed phase" [label="yes" style=dashed];
@@ -89,7 +89,7 @@ digraph run_pipeline {
 You MUST create a task for each phase and complete them in order:
 
 1. **Branch isolation** — create feature branch, note original branch
-2. **Gather context** — scan codebase, detect tech stack, read .implementor.json
+2. **Gather context** — scan codebase, detect tech stack, read .shipwright.json
 3. **Map** — invoke auto-map to generate architecture map with task-focused lens
 4. **Setup** — invoke auto-setup for dependencies, env, build verification
 5. **Plan** — invoke auto-plan to decompose task (consumes architecture map)
@@ -105,21 +105,21 @@ You MUST create a task for each phase and complete them in order:
 Output progress at every phase transition and within long-running phases:
 
 ```
-[implementor] Phase 0/9: Creating branch implementor/add-user-auth
-[implementor] Phase 1/10: Gathering context (detected: Node.js + Vitest + Express)
-[implementor] Phase 1.25/10: Mapping architecture (12 modules, 3 hot spots, task lens: 120 lines)
-[implementor] Phase 1.5/10: Setting up environment (npm ci)
-[implementor] Phase 2/10: Planning (decomposed into 5 tasks)
-[implementor] Phase 3/10: Implementing task 1/5 — UserModel
-[implementor] Phase 3/10: Implementing task 2/5 — AuthService
-[implementor] Phase 3/10: Implementing task 3/5 — AuthController
-[implementor] Phase 3/10: Implementing task 4/5 — AuthMiddleware
-[implementor] Phase 3/10: Implementing task 5/5 — Routes
-[implementor] Phase 4/10: Testing (coverage: 62% -> 84%)
-[implementor] Phase 5/10: E2E testing (web app detected, 8 scenarios)
-[implementor] Phase 6/10: Reviewing (spec: ✅, quality: cycle 1/3)
-[implementor] Phase 7/10: Production readiness (8/10 gates passed, fixing...)
-[implementor] COMPLETE: All gates passed. Branch: implementor/add-user-auth
+[shipwright] Phase 0/9: Creating branch shipwright/add-user-auth
+[shipwright] Phase 1/10: Gathering context (detected: Node.js + Vitest + Express)
+[shipwright] Phase 1.25/10: Mapping architecture (12 modules, 3 hot spots, task lens: 120 lines)
+[shipwright] Phase 1.5/10: Setting up environment (npm ci)
+[shipwright] Phase 2/10: Planning (decomposed into 5 tasks)
+[shipwright] Phase 3/10: Implementing task 1/5 — UserModel
+[shipwright] Phase 3/10: Implementing task 2/5 — AuthService
+[shipwright] Phase 3/10: Implementing task 3/5 — AuthController
+[shipwright] Phase 3/10: Implementing task 4/5 — AuthMiddleware
+[shipwright] Phase 3/10: Implementing task 5/5 — Routes
+[shipwright] Phase 4/10: Testing (coverage: 62% -> 84%)
+[shipwright] Phase 5/10: E2E testing (web app detected, 8 scenarios)
+[shipwright] Phase 6/10: Reviewing (spec: ✅, quality: cycle 1/3)
+[shipwright] Phase 7/10: Production readiness (8/10 gates passed, fixing...)
+[shipwright] COMPLETE: All gates passed. Branch: shipwright/add-user-auth
 ```
 
 **Output these as plain text between tool calls.** The user should see continuous progress, not silence.
@@ -132,7 +132,7 @@ Before executing ANY phase, you MUST:
 3. Invoke the sub-skill via the `Skill` tool (NOT by reading the SKILL.md and following it inline)
 4. Wait for the skill invocation to complete
 5. Update the task status to `completed` via TaskUpdate
-6. **Create a checkpoint:** `git tag "implementor/phase-N-[name]"` — so the pipeline can roll back or resume if a later phase fails
+6. **Create a checkpoint:** `git tag "shipwright/phase-N-[name]"` — so the pipeline can roll back or resume if a later phase fails
 7. Output the progress update text
 8. Only then proceed to the next phase
 
@@ -196,26 +196,26 @@ After each phase completes successfully, create a checkpoint. Checkpoints enable
 After each phase passes its gate:
 
 ```bash
-git tag "implementor/phase-N-[phase-name]" -m "Phase N complete: [summary]"
+git tag "shipwright/phase-N-[phase-name]" -m "Phase N complete: [summary]"
 ```
 
 Example checkpoint sequence:
 ```
-implementor/phase-1.25-map
-implementor/phase-1.5-setup
-implementor/phase-2-plan
-implementor/phase-3-impl
-implementor/phase-4-test
-implementor/phase-5-e2e
-implementor/phase-6-review
-implementor/phase-7-readiness
+shipwright/phase-1.25-map
+shipwright/phase-1.5-setup
+shipwright/phase-2-plan
+shipwright/phase-3-impl
+shipwright/phase-4-test
+shipwright/phase-5-e2e
+shipwright/phase-6-review
+shipwright/phase-7-readiness
 ```
 
 ### Rollback to Checkpoint
 
 When a phase fails and recovery also fails:
 
-1. Identify the last successful checkpoint: `git tag -l "implementor/phase-*" | tail -1`
+1. Identify the last successful checkpoint: `git tag -l "shipwright/phase-*" | tail -1`
 2. Roll back: `git reset --hard [checkpoint-tag]`
 3. Report what was lost and why
 4. If the failure is in a late phase (review, readiness), the rollback preserves all implementation work — only the failing phase's changes are lost
@@ -224,7 +224,7 @@ When a phase fails and recovery also fails:
 
 If the pipeline is interrupted (context limit, timeout, crash):
 
-1. On restart, check for existing checkpoint tags: `git tag -l "implementor/phase-*"`
+1. On restart, check for existing checkpoint tags: `git tag -l "shipwright/phase-*"`
 2. If checkpoints exist, identify the last completed phase
 3. Resume from the next phase — don't re-run completed phases
 4. Re-read the plan from `docs/plans/` and the architecture map from `docs/architecture-map.md` to restore context
@@ -233,7 +233,7 @@ If the pipeline is interrupted (context limit, timeout, crash):
 
 After pipeline completes (success or failure):
 ```bash
-git tag -l "implementor/phase-*" | xargs git tag -d
+git tag -l "shipwright/phase-*" | xargs git tag -d
 ```
 
 Checkpoint tags are internal bookkeeping — they should not persist after the pipeline run.
@@ -244,10 +244,10 @@ Before any work begins, isolate the changes:
 
 1. Verify clean working tree (`git status`). If dirty, report and abort.
 2. Note the current branch as `originalBranch`
-3. Generate branch name: `implementor/<task-slug>` (lowercase, hyphens, max 50 chars)
-   - Read `branch.prefix` from `.implementor.json` if present (default: `implementor`)
-4. Create and checkout the feature branch: `git checkout -b implementor/<task-slug>`
-5. Output: `[implementor] Phase 0/9: Creating branch implementor/<task-slug>`
+3. Generate branch name: `shipwright/<task-slug>` (lowercase, hyphens, max 50 chars)
+   - Read `branch.prefix` from `.shipwright.json` if present (default: `shipwright`)
+4. Create and checkout the feature branch: `git checkout -b shipwright/<task-slug>`
+5. Output: `[shipwright] Phase 0/9: Creating branch shipwright/<task-slug>`
 
 **On pipeline failure:** All commits stay on the feature branch. The original branch is untouched. Report the branch name so the user can inspect or delete it.
 
@@ -260,7 +260,7 @@ Before any work begins, isolate the changes:
 
 Before anything else, understand the battlefield:
 
-1. **Config:** Read `.implementor.json` if it exists. Pass config to all subsequent phases.
+1. **Config:** Read `.shipwright.json` if it exists. Pass config to all subsequent phases.
 2. **Project structure:** Use Glob to map all directories and files
 3. **Tech stack:** Read package.json/requirements.txt/go.mod/Cargo.toml/etc.
 4. **Test infrastructure:** Find test config, existing tests, coverage setup
@@ -273,19 +273,19 @@ Before anything else, understand the battlefield:
 
 ## Phase 1.25: Map
 
-Invoke `implementor:auto-map` with:
+Invoke `shipwright:auto-map` with:
 - The original task description (for task-scoped lens generation)
 - Project context from Phase 1 (tech stack, conventions)
 
 **Output:** Architecture map saved to `docs/architecture-map.md` + task-focused lens for subagent consumption.
 
-**Progress:** `[implementor] Phase 1.25/10: Mapping architecture (N modules, N hot spots, task lens: N lines)`
+**Progress:** `[shipwright] Phase 1.25/10: Mapping architecture (N modules, N hot spots, task lens: N lines)`
 
 **The map is passed to every downstream phase.** It is the compressed structural understanding that keeps subagents oriented in large codebases.
 
 ## Phase 1.5: Setup
 
-Invoke `implementor:auto-setup` to:
+Invoke `shipwright:auto-setup` to:
 - Install dependencies
 - Configure environment files
 - Run database migrations (if applicable)
@@ -294,7 +294,7 @@ Invoke `implementor:auto-setup` to:
 
 **Output:** Environment ready for implementation and testing.
 
-**Skip if:** `.implementor.json` has `"setup"` in `skipPhases`.
+**Skip if:** `.shipwright.json` has `"setup"` in `skipPhases`.
 
 ## Invoking Sub-Skills
 
@@ -302,7 +302,7 @@ Use the `Skill` tool to invoke each sub-skill. This ensures proper context isola
 
 ## Phase 2: Plan
 
-Invoke `implementor:auto-plan` with:
+Invoke `shipwright:auto-plan` with:
 - The original task description
 - Context gathered in Phase 1 (tech stack, conventions, test framework)
 - Any constraints from the user's request
@@ -311,29 +311,29 @@ Invoke `implementor:auto-plan` with:
 
 ## Phase 3: Implement
 
-Invoke `implementor:auto-impl` with:
+Invoke `shipwright:auto-impl` with:
 - The plan from Phase 2
 - Project context from Phase 1
 
-**Output progress per task:** `[implementor] Phase 3/10: Implementing task N/M — TaskName`
+**Output progress per task:** `[shipwright] Phase 3/10: Implementing task N/M — TaskName`
 
 **Output:** Working implementation with initial tests, committed to git.
 
 ## Phase 4: Unit Test
 
-Invoke `implementor:auto-test` to:
+Invoke `shipwright:auto-test` to:
 - Run existing + new tests
 - Analyze coverage gaps
 - Write additional tests to meet coverage target
 - Verify all tests pass
 
-**Output progress:** `[implementor] Phase 4/10: Testing (coverage: X% -> Y%)`
+**Output progress:** `[shipwright] Phase 4/10: Testing (coverage: X% -> Y%)`
 
 **Output:** Comprehensive test suite meeting coverage targets.
 
 ## Phase 5: E2E Test
 
-Invoke `implementor:auto-e2e` to:
+Invoke `shipwright:auto-e2e` to:
 - Detect app type (web/API/CLI/library)
 - Generate test scenarios from task description
 - Execute E2E tests with evidence capture
@@ -345,18 +345,18 @@ Invoke `implementor:auto-e2e` to:
 
 ## Phase 6: Review
 
-Invoke `implementor:auto-review` to:
+Invoke `shipwright:auto-review` to:
 - Stage 1: Verify spec compliance
 - Stage 2: Verify code quality
 - Fix any issues found (max 3 cycles per stage)
 
-**Output progress:** `[implementor] Phase 6/10: Reviewing (spec: ✅, quality: cycle N/3)`
+**Output progress:** `[shipwright] Phase 6/10: Reviewing (spec: ✅, quality: cycle N/3)`
 
 **Output:** Review report (APPROVED / APPROVED_WITH_NOTES).
 
 ## Phase 7: Production Readiness
 
-Invoke `implementor:production-readiness` to:
+Invoke `shipwright:production-readiness` to:
 - Run all 10 gates
 - Generate load test (if applicable)
 - Produce final report with evidence
@@ -365,7 +365,7 @@ Invoke `implementor:production-readiness` to:
 
 ## Error Recovery
 
-If any phase fails, invoke `implementor:auto-debug` to diagnose and resolve:
+If any phase fails, invoke `shipwright:auto-debug` to diagnose and resolve:
 
 1. Pass the full error context to auto-debug (command, output, stack trace, files)
 2. Auto-debug executes its 6-phase process: reproduce, isolate, trace, hypothesize, fix, verify
@@ -424,7 +424,7 @@ After all phases complete but before generating the final report, perform one ho
 
 ## Retrospective File (Feedback Loop)
 
-After the pipeline completes (success or failure), append learnings to `.implementor-retrospective.md` in the project root. This file is read by `auto-plan` in future runs.
+After the pipeline completes (success or failure), append learnings to `.shipwright-retrospective.md` in the project root. This file is read by `auto-plan` in future runs.
 
 **Format:**
 
@@ -467,7 +467,7 @@ After all phases complete, output:
 ## Status: COMPLETE | PARTIAL | FAILED
 
 ## Branch
-- Feature branch: `implementor/<task-slug>`
+- Feature branch: `shipwright/<task-slug>`
 - Original branch: `<original-branch>`
 
 ## Summary
@@ -533,17 +533,17 @@ After all phases complete, output:
 ## Integration
 
 This skill is the entry point. It invokes:
-- **implementor:auto-map** — Phase 1.25
-- **implementor:auto-setup** — Phase 1.5
-- **implementor:auto-plan** — Phase 2
-- **implementor:auto-impl** — Phase 3
-- **implementor:auto-test** — Phase 4
-- **implementor:auto-e2e** — Phase 5
-- **implementor:auto-review** — Phase 6
-- **implementor:production-readiness** — Phase 7
-- **implementor:auto-debug** — Error recovery (any phase)
-- **implementor:auto-verify** — Iterative runtime verification (standalone, invoke when task involves external system integration)
+- **shipwright:auto-map** — Phase 1.25
+- **shipwright:auto-setup** — Phase 1.5
+- **shipwright:auto-plan** — Phase 2
+- **shipwright:auto-impl** — Phase 3
+- **shipwright:auto-test** — Phase 4
+- **shipwright:auto-e2e** — Phase 5
+- **shipwright:auto-review** — Phase 6
+- **shipwright:production-readiness** — Phase 7
+- **shipwright:auto-debug** — Error recovery (any phase)
+- **shipwright:auto-verify** — Iterative runtime verification (standalone, invoke when task involves external system integration)
 
 Each sub-skill is independently usable but designed to chain in this order.
 
-**Configuration:** See `implementor:auto-setup` (`./implementor-config.md`) for `.implementor.json` reference.
+**Configuration:** See `shipwright:auto-setup` (`./implementor-config.md`) for `.shipwright.json` reference.

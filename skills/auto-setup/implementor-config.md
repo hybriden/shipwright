@@ -1,6 +1,6 @@
-# .implementor.json Configuration Reference
+# .shipwright.json Configuration Reference
 
-All implementor skills check for `.implementor.json` in the project root. Every field is optional — sensible defaults apply when absent.
+All implementor skills check for `.shipwright.json` in the project root. Every field is optional — sensible defaults apply when absent.
 
 ## Full Schema
 

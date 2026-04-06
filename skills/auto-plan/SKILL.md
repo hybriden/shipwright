@@ -1,6 +1,6 @@
 ---
 name: auto-plan
-description: Use when a development task needs to be decomposed into an implementation plan before any code is written
+description: "Use when a development task needs to be decomposed into an implementation plan. Triggers on: 'plan this', 'plan the task', 'break this down', 'decompose this', 'create an implementation plan', 'what's the plan', 'how should I implement', 'task decomposition', 'plan before coding', 'write a plan'. Also triggers on: 're-plan', 'update the plan', 'the plan needs fixing'. Use before any code is written."
 ---
 
 # Auto-Plan
@@ -10,7 +10,7 @@ Autonomously analyze a codebase and decompose a development task into an ordered
 **Core principle:** Understand everything before touching anything. Read first, plan second, implement never (that's auto-impl's job).
 
 <HARD-GATE>
-This skill is part of the implementor pipeline. Do NOT invoke superpowers:brainstorming, superpowers:writing-plans, or any other superpowers orchestration skill. The implementor handles planning internally.
+This skill is part of the shipwright pipeline. Do NOT invoke superpowers:brainstorming, superpowers:writing-plans, or any other superpowers orchestration skill. The shipwright handles planning internally.
 </HARD-GATE>
 
 ## Iron Law
@@ -25,7 +25,7 @@ No exceptions. Not for "quick fixes." Not for "obvious changes." Not for "just o
 
 - Given a development task of any size
 - Before any implementation begins
-- When invoked by `implementor:run` as the first phase
+- When invoked by `shipwright:run` as the first phase
 
 ## Process
 
@@ -69,7 +69,7 @@ Before analyzing anything, check for lessons from previous pipeline runs:
    - "Frequent NEEDS_CONTEXT" → provide more context per task
    - "Tasks too large/small" → adjust granularity
 
-2. **Read `.implementor-retrospective.md`** if it exists in the project root. This file accumulates cross-run learnings (written by `implementor:run`). It tells you what has gone wrong before in this specific codebase.
+2. **Read `.shipwright-retrospective.md`** if it exists in the project root. This file accumulates cross-run learnings (written by `shipwright:run`). It tells you what has gone wrong before in this specific codebase.
 
 3. **Apply lessons.** Don't just read them — adjust your planning approach based on what failed before. If the last retrospective says "tasks that modify `src/utils/` always conflict," plan those modifications as a single task.
 
@@ -271,6 +271,25 @@ Expected: PASS
 - Output a plan where you couldn't verify every acceptance criterion yourself
 - Decompose along clean theoretical boundaries that don't match the actual code structure
 - Plan for code you haven't read — always read existing files before planning modifications
+
+## Integration
+
+Auto-plan sits between context gathering and implementation:
+
+| Relationship | Skill | Data Flow |
+|-------------|-------|-----------|
+| **Consumes from** | `auto-map` | Architecture map (`docs/architecture-map.md`) — module boundaries, dependency graph, hot spots |
+| **Consumes from** | `auto-setup` | Pre-flight findings — missing dependencies, environment constraints |
+| **Consumes from** | `auto-review` | Plan retrospective from previous runs — decomposition quality, context sufficiency |
+| **Consumes from** | `shipwright:run` | `.shipwright-retrospective.md` — cross-run learnings |
+| **Produces for** | `auto-impl` | Plan file (`docs/plans/*.md`) — ordered tasks with file paths, acceptance criteria, test strategy |
+| **Produces for** | `auto-review` | Plan file — spec compliance reviewer verifies implementation against this |
+| **Produces for** | `production-readiness` | Plan file — Gate 11 (Definition of Done) cross-references original task against plan |
+
+**Invoked by:** `shipwright:run` (Phase 2)
+**Invokes:** Nothing — planning is a leaf skill
+**Signals produced:** Implementation plan file with task decomposition, viability verdicts, and simulation results
+**Signals consumed:** Architecture map, task description, config, retrospectives
 
 ## Red Flags - STOP
 

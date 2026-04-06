@@ -1,4 +1,4 @@
-# Implementor
+# Shipwright
 
 A Claude Code plugin providing an autonomous development pipeline.
 
@@ -19,7 +19,7 @@ A Claude Code plugin providing an autonomous development pipeline.
 
 ## Usage
 
-Invoke `implementor:run` with a task description. The system handles everything autonomously: branch isolation, environment setup, **architecture mapping**, planning, implementation, unit testing, E2E user testing, code review, and production readiness verification. The architecture map (`docs/architecture-map.md`) provides compressed structural understanding to all subagents, enabling better decisions in large codebases. Customize behavior with `.implementor.json` in the project root.
+Invoke `shipwright:run` with a task description. The system handles everything autonomously: branch isolation, environment setup, **architecture mapping**, planning, implementation, unit testing, E2E user testing, code review, and production readiness verification. The architecture map (`docs/architecture-map.md`) provides compressed structural understanding to all subagents, enabling better decisions in large codebases. Customize behavior with `.shipwright.json` in the project root.
 
 ## Philosophy
 

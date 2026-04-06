@@ -1,16 +1,16 @@
 ---
 name: auto-debug
-description: Use when encountering test failures, build errors, runtime errors, or unexpected behavior during any phase of the implementor pipeline
+description: Use when encountering test failures, build errors, runtime errors, or unexpected behavior during any phase of the shipwright pipeline
 ---
 
 # Auto-Debug
 
-Systematic root cause analysis and resolution for any error encountered during the implementor pipeline. Reproduces the issue, traces the root cause, forms and tests hypotheses, then implements and verifies the fix. Zero human interaction.
+Systematic root cause analysis and resolution for any error encountered during the shipwright pipeline. Reproduces the issue, traces the root cause, forms and tests hypotheses, then implements and verifies the fix. Zero human interaction.
 
 **Core principle:** Never guess. Reproduce first, trace second, hypothesize third, fix last. A fix without a root cause is a bandage, not a solution.
 
 <HARD-GATE>
-This skill is part of the implementor pipeline. Do NOT invoke superpowers:systematic-debugging or any other superpowers skill. The implementor handles debugging internally.
+This skill is part of the shipwright pipeline. Do NOT invoke superpowers:systematic-debugging or any other superpowers skill. The shipwright handles debugging internally.
 </HARD-GATE>
 
 ## Iron Law
@@ -189,7 +189,7 @@ Before any verification, you MUST discover what tools the project already has. A
 | `Cargo.toml` `[[bin]]` sections | Rust binary targets |
 | `docker-compose.yml` | Service definitions with health checks |
 | `README.md`, `docs/` | Usage examples, "How to run" sections, verification instructions |
-| `.implementor.json` | Custom `testCommand`, `coverageCommand`, `startCommand` |
+| `.shipwright.json` | Custom `testCommand`, `coverageCommand`, `startCommand` |
 
 **Build a tool inventory:**
 
@@ -217,58 +217,15 @@ Project Tools Found:
 
 **Tool discovery happens ONCE during triage, then tools are used throughout debugging.**
 
-## Anti-Circle Detection
+## Anti-Circle Detection & Debug Budget
 
-<HARD-GATE>
-Circular fixing — where fix A breaks B, fix B breaks A — is the most dangerous failure mode in complex codebases. It wastes context, time, and can leave the codebase in a worse state than it started. Detect and break the cycle early.
-</HARD-GATE>
+Read `references/safety-mechanisms.md` for the full anti-circle detection rules (fix history tracking, circle signals, breaking the cycle) and debug budget constraints (max hypotheses, max log injection rounds, context budget).
 
-### Fix History Tracking
-
-Maintain a **fix history log** across all debug invocations within a pipeline run. After every fix attempt (successful or rolled back), record:
-
-```
-Fix History:
-  Attempt 1: [files changed] → [result: passed / rolled back because X]
-  Attempt 2: [files changed] → [result: passed / rolled back because X]
-  Attempt 3: [files changed] → [result: passed / rolled back because X]
-```
-
-### Circle Detection Rules
-
-Before applying any fix, check the fix history:
-
-| Signal | Detection | Action |
-|--------|-----------|--------|
-| **Same file modified twice** | Fix N touches `src/utils/serialize.ts`, fix M also touches it | STOP. The first fix was likely wrong or incomplete. Don't patch a patch — revert to before fix N and find the real root cause. |
-| **Regression is a previously-fixed test** | Fix N fixed test A. Fix M breaks test A again. | STOP. Fixes N and M are in conflict. They can't both be right. Revert both and investigate the shared dependency. |
-| **Oscillating test results** | Test A: pass → fail → pass → fail across fix attempts | STOP. Something structural is wrong. The individual fixes are treating symptoms of a deeper issue. |
-| **Fix count exceeds 3 for same error class** | Three different fixes attempted for the same type of failure | STOP. Mark UNRESOLVED. The root cause is not what you think it is. |
-| **Net test count not improving** | After 2+ fixes, the total passing test count hasn't increased | STOP. You're trading problems, not solving them. |
-
-### Breaking the Cycle
-
-When circular fixing is detected:
-
-1. **Revert ALL fixes in the cycle** — go back to the last known-good state (before the first fix in the cycle)
-2. **Re-read the full error context** with fresh eyes — what are ALL the tests that fail, not just the one you were focused on?
-3. **Look for the shared dependency** — circular fixes almost always mean two things depend on the same code in incompatible ways. Find that shared code.
-4. **Consider a different approach entirely:**
-   - If fixes keep conflicting in a utility module, the module's interface may need to change (not just its implementation)
-   - If fixes keep oscillating in a data format, the format specification may be ambiguous — clarify it before fixing
-   - If fixes in module A keep breaking module B, the architecture map's dependency graph may reveal a hidden coupling that needs explicit resolution
-5. **If still stuck after one revert-and-rethink cycle:** Mark UNRESOLVED with the full fix history as evidence. The fix history is extremely valuable diagnostic information for a human or a future agent with fresh context.
-
-## Debug Budget
-
-Debugging can consume unlimited time and context. Set a budget before starting:
-
-- **Max 3 hypotheses.** If three root cause theories fail, mark UNRESOLVED. (Already enforced.)
-- **Max 3 log injection rounds.** If three rounds of strategic logging don't reveal the execution path, the bug is deeper than trace-level debugging can reach. Escalate to a different technique (git bisect, environment comparison).
-- **Max 15 minutes equivalent of investigation** before you must have a hypothesis. If you're still in "I have no idea" territory after reading the stack trace, the failing code, the test, the recent diff, and injecting one round of logs — stop widening the search and formulate your best guess. A wrong hypothesis that can be tested is better than infinite exploration.
-- **Context budget:** If your debug investigation has consumed more tool calls than the original implementation task, something is wrong. Either the bug is environmental (not a code fix), the plan was fundamentally flawed, or you're chasing a symptom. Step back, re-triage from Phase 0, and consider marking UNRESOLVED with evidence.
-
-**The budget exists because debugging has diminishing returns.** The first 5 minutes find 80% of bugs. The next 20 minutes find 15%. The last 5% require a fundamentally different approach — and marking UNRESOLVED with good evidence is more valuable than an exhausted agent with no answer.
+**Key rules (always apply):**
+- Maintain a fix history log across all debug invocations
+- If the same file is modified twice across fix attempts, STOP and revert — the first fix was wrong
+- Max 3 hypotheses. Max 15 minutes equivalent investigation before forming a hypothesis.
+- If a fix fails the Net-Positive Gate, rollback immediately and record what regressed.
 
 ## Phase 1: Reproduce
 
@@ -685,133 +642,18 @@ After fix is proven, net-positive gate passed, and symptomatic-fix check is done
 
 ## Advanced Debugging Techniques
 
-### Concurrency Debugging (Race Conditions, Flaky Tests)
+For specialized debugging strategies, read `references/advanced-techniques.md`. It covers:
+- **Concurrency debugging** — race conditions, flaky tests, shared mutable state
+- **Timeout and hang debugging** — unresolved promises, infinite loops, blocked I/O
+- **Dependency conflict resolution** — peer dep mismatches, CJS/ESM conflicts, lock file drift
+- **Environment fingerprinting** — cross-environment issues, version mismatches
+- **Error message decoding** — mapping misleading error messages to actual causes
 
-**Symptoms:** Test passes sometimes, fails sometimes. Or fails only when run with other tests but passes in isolation.
-
-**Investigation:**
-
-1. **Shared mutable state:** Look for global variables, singletons, module-level caches, or database state that isn't reset between tests
-2. **Timing dependencies:** Look for `setTimeout`, `setInterval`, unresolved promises, or missing `await`
-3. **Resource contention:** Look for tests that use the same port, file, or database table
-4. **Order dependency:** Run the failing test in isolation. If it passes alone, another test is leaking state
-
-**Techniques:**
-- Run the test suite with `--randomize` or `--shuffle` flag to expose order dependencies
-- Add `beforeEach`/`afterEach` cleanup to reset shared state
-- For async issues: check every `async` function has a matching `await` at the call site
-- For timer issues: use fake timers (`jest.useFakeTimers()`, `sinon.useFakeTimers()`)
-- For promise issues: look for fire-and-forget promises (missing `await` or `.catch`)
-
-**Root cause pattern:** "Test A mutates [shared resource] and test B reads it without reset."
-
-### Timeout and Hang Debugging
-
-**Symptoms:** Process hangs, test times out, command never completes.
-
-**Investigation:**
-
-1. **Identify what's blocking:**
-   - Unresolved promise? Missing callback? Deadlocked async operation?
-   - Waiting for network that will never respond? (Missing mock, wrong URL, service down)
-   - Infinite loop? (Add a counter log to suspect loops)
-   - Waiting for stdin/user input? (Process expects interaction that isn't coming)
-
-2. **Narrowing technique:**
-   - Add timeout logging: log a message before and after each suspect async operation
-   - The last "before" log without a matching "after" is the hang point
-   - For Node.js: use `--inspect` flag and check for pending async operations
-   - For tests: reduce the timeout to fail fast (`jest --testTimeout=5000`)
-
-3. **Common causes:**
-   | Hang Pattern | Cause | Fix |
-   |-------------|-------|-----|
-   | Test hangs after all assertions pass | Open handle (server, DB connection, timer) | Close/dispose in `afterAll` |
-   | Hangs on import | Circular dependency with side effects | Break the circular import |
-   | Hangs on network call | No mock, real service not running | Add mock or start service |
-   | Hangs intermittently | Race condition in async setup | Add proper await/synchronization |
-
-### Dependency Conflict Resolution
-
-**Symptoms:** `peer dep` warnings, version mismatch errors, `Cannot find module`, or subtle runtime errors after `npm install`.
-
-**Investigation:**
-
-1. **Check the dependency tree:**
-   ```bash
-   npm ls <package-name>        # Show all versions of a specific package
-   npm ls --all | grep "WARN"   # Find peer dep warnings
-   ```
-2. **Check for version conflicts:**
-   - Two packages requiring incompatible versions of the same dependency
-   - A package using `require()` expecting CJS but getting ESM (or vice versa)
-   - Lock file drift: `package-lock.json` doesn't match `package.json`
-
-3. **Resolution strategies:**
-   | Conflict Type | Fix |
-   |--------------|-----|
-   | Peer dep mismatch | Align to the version range that satisfies both peers |
-   | Duplicate packages | Add `overrides` (npm) or `resolutions` (yarn) in package.json |
-   | CJS/ESM mismatch | Check the package's `exports` field, use correct import syntax |
-   | Lock file drift | Delete lock file + `node_modules`, reinstall from scratch |
-   | Type version mismatch | Align `@types/` package version with the runtime package version |
-
-### Environment Fingerprinting
-
-**Symptoms:** "Works on my machine" or "Works locally but fails in CI" or "Worked yesterday."
-
-**Capture this environment fingerprint when the error seems environment-related:**
-
-```bash
-# Runtime versions
-node --version && npm --version       # Node.js
-python --version && pip --version     # Python
-go version                            # Go
-rustc --version && cargo --version    # Rust
-
-# OS and shell
-uname -a || ver                       # OS info
-echo $SHELL $BASH_VERSION             # Shell info
-
-# Key env vars (DO NOT log secrets)
-env | grep -E '^(NODE_ENV|PATH|HOME|CI|DATABASE_URL|PORT)='
-
-# Disk and memory
-df -h . && free -h                    # Space and memory (Linux)
-
-# Package state
-npm ls --depth=0 2>&1 | head -30     # Installed packages
-```
-
-**Compare fingerprints** between the working and broken environments. Differences in versions, env vars, or paths are likely the cause.
-
-**Common environment causes:**
-- `NODE_ENV=production` vs `development` (changes which dependencies load)
-- Different Node/Python versions (syntax or API differences)
-- Missing env vars (`.env` file not copied, secret not set in CI)
-- Different OS (path separators, case sensitivity, line endings)
-- Stale `node_modules` (delete and reinstall)
-
-### Error Message Decoding
-
-Don't take error messages at face value. Common misreadings:
-
-| Error Says | Often Actually Means |
-|-----------|---------------------|
-| `Cannot find module 'X'` | X exists but has a broken export, or a transitive dep is missing |
-| `X is not a function` | X was imported but is `undefined` — check the export name |
-| `Maximum call stack exceeded` | Infinite recursion, often from circular references |
-| `ECONNREFUSED 127.0.0.1:3000` | The server isn't running, not a network issue |
-| `Unexpected token '<'` | Server returned HTML (error page) instead of JSON |
-| `Cannot read property 'X' of undefined` | The PARENT object is undefined — investigate one level up |
-| `EPERM: operation not permitted` | File is locked by another process, or antivirus blocking |
-| `ERR_MODULE_NOT_FOUND` | ESM/CJS mismatch — file exists but wrong module system |
-| `Jest encountered an unexpected token` | Missing transform for file type (JSX, TS, ESM) |
-| `ENOMEM` | Not always out of memory — can be too many open files or processes |
+Load this reference when the error category (from Phase 0 Triage) matches one of these patterns.
 
 ## Integration with Pipeline
 
-Auto-debug is called by other implementor skills when they encounter failures:
+Auto-debug is called by other shipwright skills when they encounter failures:
 
 | Calling Skill | Trigger | Debug Scope |
 |---------------|---------|-------------|
@@ -834,88 +676,7 @@ Auto-debug is called by other implementor skills when they encounter failures:
 
 ## Dispatch as Subagent
 
-When called from auto-impl or other skills, dispatch as a subagent:
-
-```
-Agent tool (general-purpose):
-  description: "Debug: [error summary]"
-  prompt: |
-    You are debugging a failure in the implementor pipeline.
-
-    ## Architecture Context
-    [Task-focused lens from docs/architecture-map.md — max 150 lines. Include:
-     - Module where the error manifests (with interfaces and responsibilities)
-     - Dependency chain leading to this module (upstream modules that feed it)
-     - Hot spots in the dependency chain (if any)
-     - Relevant patterns (error handling, data access conventions)
-     Use the dependency graph to trace root causes — walk backward from the
-     symptom module through its dependencies instead of grepping blindly.]
-
-    ## Error Context
-    [Full error output, stack trace, command that failed]
-
-    ## Files Involved
-    [Files referenced in the error, mapped to modules from the architecture map]
-
-    ## What Was Attempted
-    [What the previous subagent was trying to do]
-
-    ## Project Tools Available
-    [List any project-specific CLIs, validators, scripts discovered by the caller.
-     If not provided, you MUST discover them yourself — scan: tools/, scripts/, bin/,
-     package.json scripts, Makefile, *.sln/*.csproj CLI projects, README.md usage sections]
-
-    ## Fix History (if provided)
-    [Previous fix attempts in this debug cycle — files changed, results, reverts.
-     Check for circular patterns: same file modified twice = likely wrong approach.
-     Use regression info from rolled-back fixes as diagnostic evidence.]
-
-    ## Your Job
-    Follow the auto-debug process:
-    0. Triage: classify error type, discover project tools, check git diff, cascade-analyze if multiple errors
-    1. Reproduce the error (run exact command, capture full output)
-    2. Isolate to specific file/function/line (use log injection with [DEBUG:auto-debug] prefix if needed)
-    3. Trace root cause using dependency graph (ask "why?" 3+ times, walk backward through module dependencies, use git bisect if regression suspected)
-    4. Hypothesize and predict outcome
-    4.5. BASELINE CAPTURE (MANDATORY): Run the full test suite BEFORE applying the fix. Record exactly which tests pass and which fail. This is how you detect regressions.
-    4.75. FIX IMPACT ANALYSIS: Use the architecture map to identify all modules that depend on the code you're about to change. Their tests must also pass after the fix.
-    5. Apply minimal fix (DO NOT COMMIT YET)
-    6. NET-POSITIVE GATE (MANDATORY — run BEFORE any other verification):
-       a. Run full test suite with fix applied
-       b. Compare against baseline from step 4.5
-       c. If ANY previously-passing test now fails: ROLLBACK the fix immediately (git checkout -- .)
-          Record what regressed and why — this is diagnostic info for the next attempt.
-          Go back to step 3 with new information.
-       d. Only proceed if all baseline-passing tests still pass AND the target test is fixed.
-    7. Prove the fix:
-       a. Write regression unit test that FAILS without fix, PASSES with fix
-       b. Run project's own CLI/validators/analyzers on real input to verify output correctness
-       c. If app has UI: use Playwright MCP (browser_navigate, browser_snapshot, browser_take_screenshot) to verify
-       d. If app has API: send HTTP requests to verify correct responses
-       e. If app has CLI: run the CLI with representative input and verify output with project validators
-       f. If fix touches shared code: run tests for all consumers
-    8. Run full test suite one final time — compare against baseline: zero regressions allowed
-    9. Only now commit the fix and regression test together
-    10. Clean up: remove ALL [DEBUG:auto-debug] log lines, run git bisect reset if used
-
-    ANTI-CIRCLE RULE: If you find yourself modifying a file that was already
-    changed in a previous fix attempt (check Fix History), STOP. The previous
-    fix was likely wrong. Revert to before that fix and rethink the approach.
-
-    Report:
-    - **Status:** RESOLVED | UNRESOLVED
-    - **Root cause:** [one sentence]
-    - **Fix:** [what was changed and why]
-    - **Baseline:** [test counts before fix]
-    - **Net-positive gate:** [PASSED — N tests passing before, M after, zero regressions]
-    - **Fix attempts:** [N — include any rolled-back attempts with reason]
-    - **Regression test:** [test name, file path, and proof it fails without fix]
-    - **Project tool verification:** [which project tools were used, commands run, output summary]
-    - **Runtime verification:** [what was verified and how — Playwright/HTTP/CLI evidence]
-    - **Full suite result:** [pass/fail count, comparison against baseline]
-    - **Files changed:** [list]
-    - **Side effects:** [any other tests/behavior affected]
-```
+When called from auto-impl or other skills, use the dispatch template in `references/dispatch-template.md`. The template includes the full subagent prompt with architecture context, error context, fix history, and the complete debug process instructions.
 
 ## Cleanup (MANDATORY)
 

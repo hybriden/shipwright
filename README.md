@@ -1,4 +1,4 @@
-# Implementor
+# Shipwright
 
 Autonomous development pipeline for Claude Code. Give it a task, get production-grade code back — with planning, implementation, unit tests, E2E tests, code review, systematic debugging, and production readiness verification. Zero interaction required.
 
@@ -6,7 +6,7 @@ Autonomous development pipeline for Claude Code. Give it a task, get production-
 
 ```
 /plugin marketplace add hybriden/implementor
-/plugin install implementor@hybriden-implementor
+/plugin install shipwright@hybriden-shipwright
 ```
 
 ## Usage
@@ -14,12 +14,12 @@ Autonomous development pipeline for Claude Code. Give it a task, get production-
 Invoke the master orchestrator with any development task:
 
 ```
-/implementor:run
+/shipwright:run
 ```
 
 Then describe your task. The system handles everything autonomously:
 
-1. **Branch Isolation** — Creates `implementor/<task>` feature branch
+1. **Branch Isolation** — Creates `shipwright/<task>` feature branch
 2. **Setup** — Installs dependencies, configures environment, verifies build
 3. **Plan** — Scans codebase, detects tech stack, decomposes task into ordered steps
 4. **Implement** — Dispatches fresh subagent per task with TDD enforcement
@@ -32,9 +32,9 @@ Any failure at any phase triggers **auto-debug** automatically — no manual int
 
 Progress updates throughout:
 ```
-[implementor] Phase 3/9: Implementing task 2/5 — AuthService
-[implementor] Phase 4/9: Testing (coverage: 62% -> 84%)
-[implementor] COMPLETE: All gates passed. Branch: implementor/add-user-auth
+[shipwright] Phase 3/9: Implementing task 2/5 — AuthService
+[shipwright] Phase 4/9: Testing (coverage: 62% -> 84%)
+[shipwright] COMPLETE: All gates passed. Branch: shipwright/add-user-auth
 ```
 
 ## Auto-Debug
@@ -42,7 +42,7 @@ Progress updates throughout:
 The debugger is integrated into every pipeline phase and can also be used standalone on any project:
 
 ```
-/implementor:auto-debug
+/shipwright:auto-debug
 ```
 
 ### How It Works
@@ -87,7 +87,7 @@ Auto-debug includes specialized strategies for hard-to-diagnose issues:
 
 ## Configuration
 
-Create `.implementor.json` in your project root to customize behavior. All fields are optional:
+Create `.shipwright.json` in your project root to customize behavior. All fields are optional:
 
 ```json
 {
@@ -98,7 +98,7 @@ Create `.implementor.json` in your project root to customize behavior. All field
   "startCommand": "npm start",
   "loadTest": { "users": 100, "duration": "60s", "p99": 500 },
   "e2eType": "auto",
-  "branch": { "prefix": "implementor", "autoMerge": false }
+  "branch": { "prefix": "shipwright", "autoMerge": false }
 }
 ```
 
@@ -110,16 +110,16 @@ Each skill is independently usable:
 
 | Skill | Purpose |
 |-------|---------|
-| `implementor:run` | Master orchestrator — full pipeline |
-| `implementor:auto-setup` | Environment and dependency setup |
-| `implementor:auto-plan` | Autonomous task planning |
-| `implementor:auto-impl` | Subagent-driven implementation |
-| `implementor:auto-test` | Unit and integration test coverage |
-| `implementor:auto-e2e` | End-to-end user testing |
-| `implementor:auto-review` | Two-stage code review |
-| `implementor:auto-debug` | Systematic root cause analysis with proven fixes |
-| `implementor:production-readiness` | Final verification gate |
-| `implementor:harness` | Agent Team & Skill Architect — generates project-specific agent teams |
+| `shipwright:run` | Master orchestrator — full pipeline |
+| `shipwright:auto-setup` | Environment and dependency setup |
+| `shipwright:auto-plan` | Autonomous task planning |
+| `shipwright:auto-impl` | Subagent-driven implementation |
+| `shipwright:auto-test` | Unit and integration test coverage |
+| `shipwright:auto-e2e` | End-to-end user testing |
+| `shipwright:auto-review` | Two-stage code review |
+| `shipwright:auto-debug` | Systematic root cause analysis with proven fixes |
+| `shipwright:production-readiness` | Final verification gate |
+| `shipwright:harness` | Agent Team & Skill Architect — generates project-specific agent teams |
 
 ## Requirements
 

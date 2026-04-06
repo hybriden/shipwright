@@ -1,6 +1,6 @@
 ---
 name: auto-review
-description: Use when implementation and testing are complete and code needs two-stage review for spec compliance and quality before production readiness
+description: "Use when code needs review for spec compliance and quality. Triggers on: 'review this code', 'code review', 'check the implementation', 'does this match the spec', 'review for quality', 'is this production ready', 'spec compliance check', 'verify the code'. Also triggers on: 're-review', 'review again', 'check the fixes'. Two-stage review: spec compliance first, then code quality."
 ---
 
 # Auto-Review
@@ -10,7 +10,7 @@ Two-stage code review: first verify the code matches the spec (nothing missing, 
 **Core principle:** Spec compliance and code quality are orthogonal concerns. Checking them separately catches issues that combined review misses.
 
 <HARD-GATE>
-This skill is part of the implementor pipeline. Do NOT invoke superpowers:requesting-code-review or any other superpowers skill. The implementor handles code review internally.
+This skill is part of the shipwright pipeline. Do NOT invoke superpowers:requesting-code-review or any other superpowers skill. The shipwright handles code review internally.
 </HARD-GATE>
 
 ## Iron Law
@@ -23,8 +23,8 @@ Never start code quality review before spec compliance passes. Wrong code that's
 
 ## When to Use
 
-- After `implementor:auto-test` and `implementor:auto-e2e` have passed
-- When invoked by `implementor:run` as the review phase
+- After `shipwright:auto-test` and `shipwright:auto-e2e` have passed
+- When invoked by `shipwright:run` as the review phase
 - When code needs verification against a specification
 
 ## Process
@@ -250,6 +250,38 @@ After all stages complete:
 ### Overall: APPROVED | APPROVED_WITH_NOTES | NEEDS_ATTENTION
 ```
 
+## Integration
+
+Auto-review is the quality gate between implementation and production readiness:
+
+| Relationship | Skill | Data Flow |
+|-------------|-------|-----------|
+| **Consumes from** | `auto-impl` | Git diff of all changes, implementation report |
+| **Consumes from** | `auto-test` | Testability audit, honesty check results, coverage data |
+| **Consumes from** | `auto-plan` | Plan file — spec compliance reviewer verifies against this |
+| **Consumes from** | `auto-map` | Architecture map — dependency graph, data models, hot spots for boundary review |
+| **Consumes from** | `auto-e2e` | E2E evidence — informs whether features actually work for users |
+| **Produces for** | `production-readiness` | Review report (APPROVED/APPROVED_WITH_NOTES/NEEDS_ATTENTION), behavioral fidelity findings |
+| **Produces for** | `auto-plan` (next run) | Plan retrospective — decomposition quality, context sufficiency feedback |
+| **Produces for** | `shipwright:run` | Plan retrospective appended to `.shipwright-retrospective.md` |
+
+**Invoked by:** `shipwright:run` (Phase 6)
+**Invokes:** Implementer subagents (to fix issues found during review)
+**Signals produced:** Review report, behavioral fidelity findings, architecture boundary violations, plan retrospective
+**Signals consumed:** Git diff, plan file, original task description, architecture map, testability audit, honesty results
+
+## Anti-Patterns
+
+**Combined review:** Reviewing spec compliance and code quality in a single pass misses issues that separate reviews catch. Always run spec compliance first, then quality.
+
+**Self-review acceptance:** Accepting the implementer's self-assessment without independent verification. The implementer says "done" — the reviewer must verify by reading the actual code.
+
+**Fidelity skip:** Skipping the behavioral fidelity check because "tests pass." Tests passing and code being correct are different things — tests can be wrong in the same way as the code.
+
+**Rubber-stamp approval:** Approving on the first pass with zero findings. Either the code is genuinely perfect (rare) or the review was shallow. If first-pass approval happens, flag it in the report for the pipeline integrity reflection.
+
+**Fix without re-review:** Applying fixes from review feedback without re-dispatching the reviewer. Fixes introduce new issues 30% of the time.
+
 ## Red Flags - STOP
 
 | Thought | Reality |
@@ -264,7 +296,7 @@ After all stages complete:
 
 ## Dispatching Fix Subagents
 
-When reviewers find issues, dispatch an implementer subagent to fix them. Use the prompt template from `implementor:auto-impl` (`./implementer-prompt.md` in that skill's directory). Provide:
+When reviewers find issues, dispatch an implementer subagent to fix them. Use the prompt template from `shipwright:auto-impl` (`./implementer-prompt.md` in that skill's directory). Provide:
 - The specific issues found by the reviewer (with file:line references)
 - The original task context
 - Instruction to fix only the identified issues, nothing more

@@ -1,6 +1,6 @@
 ---
 name: auto-impl
-description: Use when an implementation plan exists and needs to be executed via subagents without human interaction
+description: "Use when an implementation plan exists and needs to be executed via subagents. Triggers on: 'implement the plan', 'execute the plan', 'run the implementation', 'start implementing', 'dispatch subagents', 'build from plan', 'implement these tasks'. Also triggers on: 'resume implementation', 'continue implementing', 'retry the implementation'. Executes autonomously with zero human interaction."
 ---
 
 # Auto-Impl
@@ -10,7 +10,7 @@ Execute an implementation plan by dispatching a fresh subagent per task, with au
 **Core principle:** Fresh subagent per task (no context pollution) + autonomous error handling (no human escalation) = reliable execution at scale.
 
 <HARD-GATE>
-This skill is part of the implementor pipeline. Do NOT invoke superpowers:subagent-driven-development, superpowers:executing-plans, or any other superpowers orchestration skill. The implementor handles implementation internally.
+This skill is part of the shipwright pipeline. Do NOT invoke superpowers:subagent-driven-development, superpowers:executing-plans, or any other superpowers orchestration skill. The shipwright handles implementation internally.
 </HARD-GATE>
 
 ## Iron Laws
@@ -24,8 +24,8 @@ Violating the letter of these rules is violating the spirit. A green bar AND a c
 
 ## When to Use
 
-- After `implementor:auto-plan` has created a plan
-- When invoked by `implementor:run` as the implementation phase
+- After `shipwright:auto-plan` has created a plan
+- When invoked by `shipwright:run` as the implementation phase
 - When you have an ordered list of implementation tasks with exact file paths and code
 
 ## Process
@@ -148,7 +148,7 @@ Use the least powerful model that can handle each task:
 
 ## Handling Subagent Status
 
-**DONE:** Before trusting the status, run the Implementation Integrity Check (see below). Then run full test suite. If tests pass, mark task complete. If tests fail, invoke `implementor:auto-debug` with the failure context (test command, output, stack trace). Auto-debug will investigate root cause and apply a fix.
+**DONE:** Before trusting the status, run the Implementation Integrity Check (see below). Then run full test suite. If tests pass, mark task complete. If tests fail, invoke `shipwright:auto-debug` with the failure context (test command, output, stack trace). Auto-debug will investigate root cause and apply a fix.
 
 **DONE_WITH_CONCERNS:** Note the concerns. If correctness-related, address before proceeding. If observational, note and proceed to integrity check + test suite.
 
@@ -207,7 +207,7 @@ After each task's tests pass, verify that *previous tasks' tests still pass too*
 
 After each task completes and before running the test suite, verify the project builds:
 
-1. **Run the build command** (`buildCommand` from `.implementor.json`, or auto-detected: `dotnet build`, `npm run build`, `cargo build`, `go build ./...`, etc.)
+1. **Run the build command** (`buildCommand` from `.shipwright.json`, or auto-detected: `dotnet build`, `npm run build`, `cargo build`, `go build ./...`, etc.)
 2. **If the build fails:**
    - The task introduced a compilation/type error
    - Do NOT proceed to the test suite — build errors cascade into meaningless test failures
@@ -223,7 +223,7 @@ After each task completes and before running the test suite, verify the project 
 After each task passes (build + tests), create a checkpoint:
 
 ```bash
-git tag "implementor/checkpoint-task-N" -m "Checkpoint after task N: [task name]"
+git tag "shipwright/checkpoint-task-N" -m "Checkpoint after task N: [task name]"
 ```
 
 **Checkpoints enable:**
@@ -234,7 +234,7 @@ git tag "implementor/checkpoint-task-N" -m "Checkpoint after task N: [task name]
 **Rollback procedure:**
 ```bash
 # Roll back to checkpoint after task N
-git reset --hard implementor/checkpoint-task-N
+git reset --hard shipwright/checkpoint-task-N
 ```
 
 **When to rollback:**
@@ -244,7 +244,7 @@ git reset --hard implementor/checkpoint-task-N
 
 **Cleanup:** After the pipeline completes successfully, remove checkpoint tags:
 ```bash
-git tag -l "implementor/checkpoint-*" | xargs git tag -d
+git tag -l "shipwright/checkpoint-*" | xargs git tag -d
 ```
 
 ## Model Escalation
@@ -268,6 +268,37 @@ When a subagent fails or produces low-quality work, escalate to a more capable m
 - Never retry the exact same prompt without changes
 - If a task fails, assess impact on downstream tasks before continuing
 - If downstream tasks depend on the failed task, attempt to re-plan them too
+
+## Integration
+
+Auto-impl is the core execution engine, consuming plans and producing working code:
+
+| Relationship | Skill | Data Flow |
+|-------------|-------|-----------|
+| **Consumes from** | `auto-plan` | Plan file — ordered tasks with file paths, acceptance criteria, code |
+| **Consumes from** | `auto-map` | Architecture map — task-focused lens per subagent (max 150 lines) |
+| **Consumes from** | `auto-setup` | Build/test commands, environment fingerprint |
+| **Produces for** | `auto-test` | Implementation with initial tests, inter-task learning log |
+| **Produces for** | `auto-review` | Git commits with implementation, integrity check findings |
+| **Produces for** | `production-readiness` | All code changes on the feature branch |
+| **Invokes** | `auto-debug` | When tests fail after a task — passes error context, architecture lens, fix history |
+
+**Invoked by:** `shipwright:run` (Phase 3)
+**Invokes:** `shipwright:auto-debug` (on test/build failure)
+**Signals produced:** Implementation commits, inter-task learning log, checkpoint tags, cascading breakage incidents
+**Signals consumed:** Plan file, architecture map lens, build/test commands, `.shipwright.json` config
+
+## Anti-Patterns
+
+**Parallel subagent dispatch:** Dispatching multiple implementer subagents simultaneously causes file conflicts. One subagent at a time, always.
+
+**Context pollution:** Re-using the same subagent for multiple tasks. Each task gets a fresh subagent with only its own context — no memory of previous tasks except the inter-task learning log.
+
+**Blind trust in DONE status:** A subagent reporting DONE is a claim, not proof. The Implementation Integrity Check must verify files exist, code matches the plan, and tests test behavior (not just shape).
+
+**Skipping the build gate:** Running the test suite on a broken build produces hundreds of cascading errors. Always verify the build compiles before running tests.
+
+**Retrying without change:** Same prompt = same output. Every retry must add context, change scope, or escalate the model.
 
 ## Red Flags - STOP
 

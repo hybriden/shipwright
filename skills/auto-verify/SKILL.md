@@ -1,6 +1,6 @@
 ---
 name: auto-verify
-description: Use when code changes need iterative verification against a real running system through change-deploy-verify cycles with a runbook tracking findings
+description: "Use when code changes need iterative verification against a real running system. Triggers on: 'verify this in the real system', 'test against the running system', 'deploy and verify', 'verify the import', 'check the live system', 'runtime verification', 'does it work when deployed', 'verify the integration'. Also triggers on: 're-verify', 'verification failed', 'run another iteration', 'check the system again'. Iterative change-deploy-verify cycles with a runbook tracking findings."
 ---
 
 # Auto-Verify
@@ -10,7 +10,7 @@ Iterative verification of code changes against a real running system. Deploys, v
 **Core principle:** Code that passes tests is not code that works. Code that works in a real system, verified through the same interface a user would use, is code that works. The gap between these two is where bugs live.
 
 <HARD-GATE>
-This skill is part of the implementor plugin. Do NOT invoke any superpowers orchestration skill. The implementor handles verification internally.
+This skill is part of the shipwright plugin. Do NOT invoke any superpowers orchestration skill. The shipwright handles verification internally.
 
 This skill is NOT auto-e2e. Auto-e2e writes test scenarios for new code before deployment. Auto-verify iteratively verifies code changes against a real deployed system, discovers issues that only manifest at runtime, fixes them, and re-verifies. Auto-e2e proves features work in isolation. Auto-verify proves features work in the real environment.
 </HARD-GATE>
@@ -30,7 +30,7 @@ A build that passes, a test suite that's green, a code review that approves — 
 - When the verification requires a running external system (CMS, database, third-party service)
 - When previous iterations revealed runtime issues that unit tests missed
 - When the user describes a verification workflow or asks to "test this in the real system"
-- When invoked standalone or by other implementor skills that need runtime verification
+- When invoked standalone or by other shipwright skills that need runtime verification
 
 ## Process
 
@@ -49,7 +49,7 @@ digraph auto_verify {
     "Evidence evaluation gate" [shape=box];
     "Issues found?" [shape=diamond];
     "Document findings in runbook" [shape=box];
-    "Invoke implementor:run for fix" [shape=box];
+    "Invoke shipwright:run for fix" [shape=box];
     "Fix complete?" [shape=diamond];
     "Report PARTIAL" [shape=box];
     "Max iterations reached?" [shape=diamond];
@@ -70,8 +70,8 @@ digraph auto_verify {
     "Evidence evaluation gate" -> "Issues found?";
     "Issues found?" -> "Close iteration in runbook" [label="no"];
     "Issues found?" -> "Document findings in runbook" [label="yes"];
-    "Document findings in runbook" -> "Invoke implementor:run for fix";
-    "Invoke implementor:run for fix" -> "Fix complete?";
+    "Document findings in runbook" -> "Invoke shipwright:run for fix";
+    "Invoke shipwright:run for fix" -> "Fix complete?";
     "Fix complete?" -> "Start iteration" [label="yes — next iteration"];
     "Fix complete?" -> "Report PARTIAL" [label="no"];
     "Close iteration in runbook" -> "All checks pass?";
@@ -105,7 +105,7 @@ If you do not know HOW to verify the changes — what system to deploy to, what 
 1. **Architecture map** — Module boundaries, dependency graph, interface contracts, hot spots
 2. **User's message** — Did the user describe how to verify?
 3. **Project documentation** — Check `docs/`, `README.md`, runbooks, `CLAUDE.md` for verification procedures, deployment steps, test environments
-4. **`.implementor.json`** — Check `startCommand`, `verifyCommand`, `verifyUrl` fields
+4. **`.shipwright.json`** — Check `startCommand`, `verifyCommand`, `verifyUrl` fields
 5. **Previous runbooks** — Check `docs/*RUNBOOK*` for established verification patterns from prior iterations
 6. **Project tools** — Scan `tools/`, `scripts/`, `bin/`, `Makefile`, `package.json` scripts for deploy/verify/validate commands
 
@@ -310,56 +310,7 @@ Verify each checklist item using the strategy appropriate to the system type.
 
 #### CMS / Content Management Systems
 
-The most common auto-verify target. Content imports, page trees, media libraries.
-
-**Verification sequence:**
-1. Import the package (via API endpoint, admin UI, or CLI)
-2. Navigate to the admin/editor UI with Playwright
-3. Verify page tree structure (correct pages, correct hierarchy, no extras)
-4. Verify content properties (open a page, check field values)
-5. Verify media/assets (images render, files downloadable)
-6. Query the database for counts and relationships
-7. Check for import warnings/errors in logs or UI
-
-**Playwright MCP sequence for CMS verification:**
-
-```
-1. browser_navigate → admin login page
-2. browser_snapshot → verify login form exists
-3. browser_fill_form / browser_click → authenticate
-4. browser_navigate → content editor / page tree
-5. browser_snapshot → capture page tree structure
-   → VERIFY: correct pages listed, correct hierarchy, no unexpected items
-6. browser_click → select a specific page
-7. browser_snapshot → capture page properties panel
-   → VERIFY: field values match expected data
-8. browser_take_screenshot → capture visual evidence
-9. browser_console_messages → check for JS errors
-```
-
-**Database verification for CMS:**
-
-```sql
--- Verify content count by type
-SELECT ct.Name, COUNT(*) as Count
-FROM tblContent c JOIN tblContentType ct ON c.fkContentTypeID = ct.pkID
-GROUP BY ct.Name ORDER BY COUNT(*) DESC
-
--- Verify no orphan references
-SELECT COUNT(*) FROM tblContentProperty p
-WHERE p.ContentLink IS NOT NULL
-AND p.ContentLink NOT IN (SELECT ContentGUID FROM tblContent)
-
--- Verify media has binary data
-SELECT ct.Name, COUNT(*) as Total,
-  SUM(CASE WHEN blob.fkContentID IS NOT NULL THEN 1 ELSE 0 END) as WithBlob
-FROM tblContent c
-JOIN tblContentType ct ON c.fkContentTypeID = ct.pkID
-LEFT JOIN tblContentProperty blob ON c.pkID = blob.fkContentID
-  AND blob.fkPropertyDefinitionID = (SELECT pkID FROM tblPropertyDefinition WHERE Name = 'Blob')
-WHERE ct.Name IN ('ImageFile', 'GenericMedia', 'VideoFile')
-GROUP BY ct.Name
-```
+See `references/verification-strategies.md` for CMS-specific verification sequences including Playwright navigation, content property verification, and database SQL queries.
 
 #### Web Applications
 
@@ -476,7 +427,7 @@ For each check, record in the runbook:
 
 ### Step 6: Fix (if issues found)
 
-When verification reveals issues, **delegate the fix to `implementor:run`** — auto-verify's job is to verify, not to implement fixes. This keeps responsibilities clean: auto-verify finds problems, implementor:run solves them with proper planning, testing, and review.
+When verification reveals issues, **delegate the fix to `shipwright:run`** — auto-verify's job is to verify, not to implement fixes. This keeps responsibilities clean: auto-verify finds problems, shipwright:run solves them with proper planning, testing, and review.
 
 1. **Document the finding** in the runbook with evidence (screenshot, query result, error message)
 2. **Trace the root cause using the dependency graph** — Don't grep blindly. Use the architecture map's dependency graph to trace from the symptom to the likely source:
@@ -485,13 +436,13 @@ When verification reveals issues, **delegate the fix to `implementor:run`** — 
    - Check interface contracts at each boundary — is the contract being violated?
    - The root cause is usually in the module that produces incorrect input, not the one that fails on it
    - Document your dependency-chain analysis in the runbook
-3. **Invoke `implementor:run`** with the fix task:
+3. **Invoke `shipwright:run`** with the fix task:
    - Include the root cause analysis from step 2 (with dependency chain trace)
    - Include the evidence (what was expected vs what was observed)
-   - Include the runbook path so implementor:run can reference the verification context
+   - Include the runbook path so shipwright:run can reference the verification context
    - **Include the Architecture Context section from the runbook** — this gives the fix subagent structural understanding without re-reading the whole codebase
-   - Example: `implementor:run "Fix idmap.xml filtering: uses <guid> elements but actual format is <SerialiazableGuidEntry>. Root cause in DataExporter module (feeds ContentSerializer via dependency chain). See docs/SUBTREE-VERIFY-RUNBOOK.md iteration 1 for evidence and architecture context."`
-4. **Wait for implementor:run to complete** — It will plan, implement, test, and review the fix
+   - Example: `shipwright:run "Fix idmap.xml filtering: uses <guid> elements but actual format is <SerialiazableGuidEntry>. Root cause in DataExporter module (feeds ContentSerializer via dependency chain). See docs/SUBTREE-VERIFY-RUNBOOK.md iteration 1 for evidence and architecture context."`
+4. **Wait for shipwright:run to complete** — It will plan, implement, test, and review the fix
 5. **Return to Step 1** — Reset state, re-deploy, re-verify ALL checks from scratch with the fix applied
 
 **If the fix is trivial** (one-line change, obvious typo, wrong constant) and invoking the full pipeline would be disproportionate, you may fix it directly:
@@ -500,7 +451,7 @@ When verification reveals issues, **delegate the fix to `implementor:run`** — 
 - Run the full unit test suite
 - Commit with a descriptive message
 
-**Use this escape hatch rarely.** Most "trivial" fixes turn out to have non-obvious implications. When in doubt, delegate to implementor:run.
+**Use this escape hatch rarely.** Most "trivial" fixes turn out to have non-obvious implications. When in doubt, delegate to shipwright:run.
 
 **Do NOT skip re-verification after a fix.** A fix for one issue can regress another. Verify everything again, not just the fixed item.
 
@@ -508,49 +459,9 @@ When verification reveals issues, **delegate the fix to `implementor:run`** — 
 
 ## Architecture-Guided Root Cause Tracing
 
-When verification reveals an issue, use the architecture map's dependency graph to trace the root cause systematically instead of grep-based guessing:
+When verification reveals an issue, trace the root cause through the architecture map's dependency graph instead of grep-based guessing. See `references/verification-strategies.md` for the full trace algorithm, worked example, and recording format.
 
-### Trace Algorithm
-
-1. **Identify the symptom module** — which module does the failure manifest in?
-2. **Check the interface contract** — is the symptom module receiving incorrect input from its dependencies?
-3. **Walk backward through the dependency chain:**
-   ```
-   Symptom in ModuleC ← receives data from ModuleB ← receives data from ModuleA
-   ```
-4. **At each hop, verify the interface contract:**
-   - What does the upstream module promise to provide?
-   - What does it actually provide? (log it, inspect it, query it)
-   - If the contract is violated here, this is the root cause location
-5. **Check hot spots** — if the dependency chain passes through a hot spot module, that module is a likely culprit (many dependents = many opportunities for subtle breakage)
-
-### Example
-
-```
-Symptom: Page tree shows 7 pages instead of 4
-  ↓ Manifest in: CMS UI (frontend rendering)
-  ↓ Data from: Content API endpoint
-  ↓ Data from: ContentRepository.GetPageTree()
-  ↓ Data from: ImportService.Import() ← ROOT CAUSE: import filter not excluding template pages
-```
-
-**This replaces blind grepping.** Instead of searching the entire codebase for "page" or "tree", you follow the dependency chain from symptom to source. In a large codebase, this reduces investigation from 20 files to 4-5.
-
-### Recording the Trace
-
-Document the dependency-chain trace in the runbook for each issue:
-
-```markdown
-### Issue: [description]
-**Symptom module:** [module name from map]
-**Dependency trace:**
-  [ModuleA] → [ModuleB] → [ModuleC (symptom)]
-**Contract violation at:** [ModuleA] — [what it should provide vs what it actually provides]
-**Root cause:** [one sentence]
-**Fix location:** [exact file:line in the root cause module]
-```
-
-This trace is passed to `implementor:run` when delegating the fix, so the fix subagent starts with the answer, not the question.
+**Key rule:** Follow the dependency chain backward from the symptom module to the source. At each hop, verify the interface contract. The root cause is where the contract breaks.
 
 ## Iteration Budget and Progress Tracking
 
@@ -636,118 +547,25 @@ Track a **fix history** across all iterations:
 
 ## Specialized Verification Strategies
 
-### File Format and Package Verification
+For domain-specific verification patterns, read `references/verification-strategies.md`. It covers:
+- **File format and package verification** — ZIP, XML, JSON, binary format validation and round-trip testing
+- **Database state verification** — count, relationship, value, constraint, and absence checks
+- **Multi-service integration** — health checks, data flow, error propagation, timing, idempotency
+- **CMS content management** — import verification, page tree, content properties, media, SQL queries
 
-For tools that produce structured output (ZIP, XML, JSON, binary formats):
-
-1. **Structural validation** — Use project-specific validators or schema tools
-2. **Content inspection** — Parse and inspect key fields, counts, relationships
-3. **Cross-reference validation** — Verify internal references resolve (e.g., all GUIDs in a content file have matching entries in an ID map)
-4. **Comparison testing** — Compare output against a known-good reference file
-5. **Round-trip testing** — If the format can be re-imported, import it and verify the result
-
-### Database State Verification
-
-For changes that affect data persistence:
-
-1. **Count verification** — Expected number of records per table/type
-2. **Relationship verification** — Foreign keys resolve, no orphan records
-3. **Value verification** — Specific fields have expected values (not just "not null")
-4. **Constraint verification** — Unique constraints hold, required fields populated
-5. **Absence verification** — Records that should NOT exist are absent
-
-### Multi-Service Integration
-
-For changes that span multiple services or systems:
-
-1. **Service health** — All services started and responding
-2. **Data flow** — Data propagates from source to destination correctly
-3. **Error propagation** — Errors in one service surface correctly in dependent services
-4. **Timing** — Async operations complete within expected timeframes
-5. **Idempotency** — Re-running the operation produces the same result
+Load this reference when the system under test matches one of these patterns.
 
 ## Dispatch as Subagent
 
-When other skills need runtime verification, dispatch auto-verify as a subagent:
-
-```
-Agent tool (general-purpose):
-  description: "Verify: [what to verify]"
-  prompt: |
-    You are performing iterative runtime verification of code changes.
-
-    ## Architecture Context
-    [Task-focused lens from docs/architecture-map.md — max 150 lines. Include:
-     - Modules involved in the changes (with interfaces and responsibilities)
-     - Dependency chain from changed modules to dependent modules
-     - Hot spots affected (if any)
-     - Relevant patterns (error handling, data access conventions)
-     This gives you structural understanding of the codebase without reading every file.
-     When tracing root causes, follow the dependency chain — don't grep blindly.]
-
-    ## Changes to Verify
-    [What was changed and why]
-
-    ## Verification Context
-    - System: [URL, path, or connection info]
-    - Deploy command: [how to deploy/start]
-    - Reset command: [how to reset state]
-    - Blast radius: [from dependency graph — which parts of the system could be affected]
-    - Checks:
-      1. [What to verify and what "correct" looks like]
-      2. [...]
-
-    ## Previous Runbooks (if any)
-    [Reference to docs/*RUNBOOK* files with established patterns]
-
-    ## Your Job
-    Follow the auto-verify process:
-    1. Create a runbook at docs/<feature>-VERIFY-RUNBOOK.md
-       - Include an "Architecture Context" section with involved modules,
-         dependency chain, hot spots, and blast radius (from the lens above).
-         This section survives context compression and informs fix subagents.
-    2. For each iteration (max 20):
-       a. Reset system state
-       b. Deploy/import changes
-       c. Wait for system readiness
-       d. Execute verification checks using appropriate tools:
-          - Web: Playwright MCP (browser_navigate, browser_snapshot, browser_click, browser_take_screenshot)
-          - API: curl with response body capture
-          - CLI: run command, capture stdout/stderr/exit code
-          - DB: run queries, verify counts and values
-       e. Evaluate evidence (PROVEN/SUPERFICIAL/INSUFFICIENT)
-       f. If issues found:
-          - Document in runbook with evidence
-          - Trace root cause using the dependency graph (follow module boundaries
-            backward from the symptom to the source — don't grep blindly)
-          - Invoke implementor:run for the fix, including the runbook's
-            Architecture Context section so the fix subagent has structural understanding
-       g. After fix: return to step 2a (reset, redeploy, re-verify ALL checks)
-       h. If all checks pass: close iteration
-    3. Document ALL findings in the runbook
-    4. After each iteration, update the runbook's "Codebase Learnings" section
-       with anything discovered about the system that wasn't in the architecture map
-       (e.g., "the ContentSerializer silently drops null properties" or
-       "the auth middleware returns 302, not 401, for unauthenticated requests")
-
-    Report:
-    - **Status:** VERIFIED | PARTIAL | FAILED
-    - **Iterations:** N/20
-    - **Checks:** [pass/fail/blocked counts]
-    - **Issues discovered:** [list with root causes traced through dependency graph]
-    - **Runtime issues not caught by unit tests:** [most valuable findings]
-    - **Codebase learnings:** [things discovered about the system during verification]
-    - **Runbook:** [path to runbook file]
-    - **Evidence:** [summary of what was proven and how]
-```
+When other skills need runtime verification, use the dispatch template in `references/dispatch-template.md`. The template includes the full subagent prompt with architecture context, verification checklist, and the complete iteration process.
 
 ## Integration
 
 Auto-verify is a standalone skill, independently invocable:
 
-- **`implementor:auto-verify`** — Direct invocation for runtime verification
-- Can be called by `implementor:run` when task description mentions external system verification
-- Can be called by `implementor:auto-debug` for Layer 2 runtime verification after a fix
+- **`shipwright:auto-verify`** — Direct invocation for runtime verification
+- Can be called by `shipwright:run` when task description mentions external system verification
+- Can be called by `shipwright:auto-debug` for Layer 2 runtime verification after a fix
 
 **Signals consumed:**
 - From auto-map: architecture map (module boundaries, dependency graph, interfaces, hot spots, patterns)

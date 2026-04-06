@@ -1,6 +1,6 @@
 ---
 name: auto-test
-description: Use when implementation is complete and test coverage needs verification, gap analysis, and additional test writing
+description: "Use when test coverage needs verification, gap analysis, or additional test writing. Triggers on: 'test this', 'check coverage', 'write tests', 'add tests', 'test coverage', 'coverage gaps', 'improve test coverage', 'are there enough tests', 'missing tests', 'test the implementation'. Also triggers on: 'recheck coverage', 'run tests again', 'coverage still low'. Use after implementation or standalone on any codebase."
 ---
 
 # Auto-Test
@@ -10,7 +10,7 @@ Analyze implementation for test coverage gaps and write comprehensive tests to m
 **Core principle:** Tests are the proof that code works. No proof, no confidence. No confidence, no production.
 
 <HARD-GATE>
-This skill is part of the implementor pipeline. Do NOT invoke superpowers:test-driven-development or any other superpowers skill. The implementor enforces TDD internally via subagent prompts.
+This skill is part of the shipwright pipeline. Do NOT invoke superpowers:test-driven-development or any other superpowers skill. The shipwright enforces TDD internally via subagent prompts.
 </HARD-GATE>
 
 ## Iron Law
@@ -23,8 +23,8 @@ Every line of implementation must be exercised by at least one test. Every test 
 
 ## When to Use
 
-- After `implementor:auto-impl` has completed implementation
-- When invoked by `implementor:run` as the testing phase
+- After `shipwright:auto-impl` has completed implementation
+- When invoked by `shipwright:run` as the testing phase
 - When you need to verify and improve test coverage on any codebase
 
 ## Process
@@ -62,8 +62,8 @@ digraph auto_test {
     "Honest?" -> "Rewrite dishonest tests" [label="no"];
     "Rewrite dishonest tests" -> "7: Test honesty check";
     "8: Coverage verification" -> "All tests pass?";
-    "All tests pass?" -> "Dispatch fix subagent" [label="no"];
-    "Dispatch fix subagent" -> "8: Coverage verification";
+    "All tests pass?" -> "Invoke auto-debug" [label="no"];
+    "Invoke auto-debug" -> "8: Coverage verification";
     "All tests pass?" -> "Coverage meets target?" [label="yes"];
     "Coverage meets target?" -> "Testing complete" [label="yes"];
     "Coverage meets target?" -> "Identify remaining gaps" [label="no"];
@@ -123,7 +123,7 @@ If all files are TESTABLE, proceed to Phase 5. If any are PARTIALLY_TESTABLE or 
 
 ### Phase 4: Refactor for Testability (opt-in)
 
-**Only runs when `refactorForTestability: true` in `.implementor.json`.** When disabled, skip to Phase 5 and report untestable code in the final output.
+**Only runs when `refactorForTestability: true` in `.shipwright.json`.** When disabled, skip to Phase 5 and report untestable code in the final output.
 
 Execute the changes proposed by the testability audit. Authorized refactors:
 
@@ -260,7 +260,7 @@ Run the full suite again. If coverage target met, complete. If not, repeat Phase
 | Branch coverage | 80% | `coverage.branch` |
 | Function coverage | 90% | `coverage.function` |
 
-**Configuration:** Read `.implementor.json` in the project root for overrides. See `implementor:auto-setup` (`./implementor-config.md`) for the full config reference. Also honors `testCommand` and `coverageCommand` fields.
+**Configuration:** Read `.shipwright.json` in the project root for overrides. See `shipwright:auto-setup` (`./implementor-config.md`) for the full config reference. Also honors `testCommand` and `coverageCommand` fields.
 
 ## Anti-Patterns
 
@@ -295,6 +295,24 @@ Run the full suite again. If coverage target met, complete. If not, repeat Phase
 | "The test passes, so it works" | A test that can't fail is not a test. Would it catch a real bug? |
 | "I'll construct the expected output" | If you built both the input and expected output, you tested your own logic, not the code. |
 | "This code can't be tested" | It can — you just need to refactor it first. Audit before giving up. |
+
+## Integration
+
+Auto-test bridges implementation and review, verifying that code is proven:
+
+| Relationship | Skill | Data Flow |
+|-------------|-------|-----------|
+| **Consumes from** | `auto-impl` | Implementation code, inter-task learning log |
+| **Consumes from** | `auto-map` | Architecture map — module boundaries, dependency graph, data models, test infrastructure classification |
+| **Produces for** | `auto-review` | Testability audit results, honesty check results, coverage data |
+| **Produces for** | `production-readiness` | Coverage numbers (Gate 2), dropped dishonest tests count, contract test gap report |
+| **Produces for** | `auto-e2e` | Test results indicating which paths are unit-tested (E2E can focus on integration paths) |
+| **Invokes** | `auto-debug` | When newly written tests fail unexpectedly or expose implementation bugs |
+
+**Invoked by:** `shipwright:run` (Phase 4)
+**Invokes:** `shipwright:auto-debug` (when tests fail due to implementation bugs, not test bugs)
+**Signals produced:** Coverage data, testability audit, honesty check verdicts, contract test gap analysis, dropped test count
+**Signals consumed:** Implementation, architecture map, `.shipwright.json` coverage targets
 
 ## Prompt Template
 

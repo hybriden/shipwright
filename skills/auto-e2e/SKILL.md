@@ -1,6 +1,6 @@
 ---
 name: auto-e2e
-description: Use when implementation and unit tests are complete and user-facing behavior needs end-to-end verification through browser, API, or CLI testing
+description: "Use when user-facing behavior needs end-to-end verification through browser, API, or CLI testing. Triggers on: 'e2e test', 'end-to-end test', 'test in the browser', 'test the UI', 'test the API endpoints', 'test the CLI', 'playwright test', 'verify user flows', 'does it work for users', 'browser testing'. Also triggers on: 're-run e2e', 'e2e failed', 'test the user experience'. Use after unit tests or standalone for any app."
 ---
 
 # Auto-E2E
@@ -10,7 +10,7 @@ Verify the complete user experience through end-to-end testing. Detects app type
 **Core principle:** Unit tests prove components work. E2E tests prove the system works for users. Both are required.
 
 <HARD-GATE>
-This skill is part of the implementor pipeline. Do NOT invoke any superpowers orchestration skill. The implementor handles E2E testing internally.
+This skill is part of the shipwright pipeline. Do NOT invoke any superpowers orchestration skill. The shipwright handles E2E testing internally.
 </HARD-GATE>
 
 ## Iron Law
@@ -23,8 +23,8 @@ If a user can interact with it, it must be tested the way a user would interact 
 
 ## When to Use
 
-- After `implementor:auto-test` has verified unit test coverage
-- When invoked by `implementor:run` as the E2E phase
+- After `shipwright:auto-test` has verified unit test coverage
+- When invoked by `shipwright:run` as the E2E phase
 - When you need to verify user-facing behavior of any application type
 
 ## App Type Detection
@@ -62,7 +62,7 @@ digraph app_type {
 
 ### Phase 1: App Analysis
 
-1. Read `.implementor.json` if present — check `e2eType` (overrides auto-detection) and `startCommand`
+1. Read `.shipwright.json` if present — check `e2eType` (overrides auto-detection) and `startCommand`
 2. If `skipPhases` includes `"e2e"`, skip this entire skill with documented justification
 3. Detect app type (see detection above, unless overridden by config)
 4. Find the start command (`npm start`, `python app.py`, `go run .`, etc.)
@@ -225,7 +225,7 @@ Report all scenarios with pass/fail, evidence, and evidence evaluation. If any c
 Before testing, start the app:
 1. Run the start command in background
 2. Wait for the server to be ready (poll health endpoint or check port)
-3. Set a timeout (30s default) — if app doesn't start, fail E2E with startup error
+3. Set a timeout (30s default) — if app doesn't start, invoke `shipwright:auto-debug` with the startup error context
 4. After all tests, stop the app
 
 **For web apps that need building first:** Run build command, then start.
@@ -259,6 +259,24 @@ Before testing, start the app:
 | "The page loaded, so the feature works" | Loading and working are different things. Verify the output. |
 | "200 OK means it's correct" | 200 means the server didn't crash. Check the response body. |
 | "No console errors = working" | Absence of errors is not presence of correctness. |
+
+## Integration
+
+Auto-e2e verifies user-facing behavior after unit tests pass:
+
+| Relationship | Skill | Data Flow |
+|-------------|-------|-----------|
+| **Consumes from** | `auto-test` | Unit test results — E2E focuses on integration paths, not re-testing unit-covered logic |
+| **Consumes from** | `auto-plan` | Plan's acceptance criteria — scenarios are derived from these |
+| **Consumes from** | `auto-setup` | Start command, app type detection |
+| **Produces for** | `production-readiness` | E2E evidence and verdicts (Gate 3), evidence evaluation verdicts (PROVEN/SUPERFICIAL/INSUFFICIENT) |
+| **Produces for** | `auto-review` | E2E results inform spec compliance — did the feature actually work for users? |
+| **Invokes** | `auto-debug` | When the app fails to start, scenarios crash, or unexpected runtime errors occur |
+
+**Invoked by:** `shipwright:run` (Phase 5)
+**Invokes:** `shipwright:auto-debug` (on app startup failure or scenario crashes)
+**Signals produced:** E2E scenario results with evidence, evidence evaluation verdicts, app type classification
+**Signals consumed:** Task description, acceptance criteria, start command, `.shipwright.json` e2eType config
 
 ## Prompt Template
 

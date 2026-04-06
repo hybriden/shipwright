@@ -1,6 +1,6 @@
 ---
 name: auto-map
-description: Use when a codebase needs a compact architecture map before planning, implementation, or debugging to give subagents structural understanding without consuming full context
+description: "Use when a codebase needs a compact architecture map before planning, implementation, or debugging. Triggers on: 'map the codebase', 'architecture map', 'map this project', 'understand the codebase', 'codebase overview', 'module map', 'dependency graph', 'what modules exist', 'how is this structured'. Also triggers on: 'refresh the map', 'update the map', 'map is stale', 're-map'. Use standalone to explore unfamiliar codebases or before any task that needs structural understanding."
 ---
 
 # Auto-Map
@@ -10,7 +10,7 @@ Generate a compact, structured architecture map of a codebase that fits in any s
 **Core principle:** A subagent that understands the architecture makes better decisions than one that has read more files. Compression beats volume. Structure beats text.
 
 <HARD-GATE>
-This skill is part of the implementor pipeline. Do NOT invoke superpowers skills. The implementor handles mapping internally.
+This skill is part of the shipwright pipeline. Do NOT invoke superpowers skills. The shipwright handles mapping internally.
 
 The map is NOT documentation. It is a compressed structural representation optimized for LLM consumption. It should be dense, precise, and actionable — not readable prose.
 </HARD-GATE>
@@ -29,7 +29,7 @@ A map that exceeds 400 lines defeats its purpose. If the codebase is huge, incre
 - Before `auto-impl` to give subagents architectural context
 - Before `auto-debug` to enable dependency-graph-guided root cause tracing
 - Before `auto-verify` to understand which modules are involved in verification targets
-- When invoked by `implementor:run` as Phase 1.25 (between context gathering and setup)
+- When invoked by `shipwright:run` as Phase 1.25 (between context gathering and setup)
 - When the map is stale (codebase has changed significantly since last generation)
 - Standalone when exploring an unfamiliar codebase
 
@@ -541,7 +541,7 @@ Auto-map is consumed by every downstream skill:
 - Orphan module warnings (possible dead code)
 
 **Signals consumed:**
-- Project context from Phase 1 of `implementor:run` (tech stack, conventions)
+- Project context from Phase 1 of `shipwright:run` (tech stack, conventions)
 - Task description (for task-scoped lens generation)
 - Git state (for staleness detection)
 

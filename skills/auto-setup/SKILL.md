@@ -1,6 +1,6 @@
 ---
 name: auto-setup
-description: Use when a project needs dependency installation, environment configuration, or build setup before implementation or testing can begin
+description: "Use when a project needs dependency installation, environment configuration, or build setup. Triggers on: 'set up the project', 'install dependencies', 'configure environment', 'set up env', 'project won't build', 'can't run tests', 'npm install', 'pip install', 'setup', 'bootstrap', 'initialize project'. Also triggers on: 'reinstall', 're-setup', 'fix the build', 'fix dependencies'. Use before any implementation or testing begins."
 ---
 
 # Auto-Setup
@@ -10,7 +10,7 @@ Detect and execute environment setup: install dependencies, configure environmen
 **Core principle:** A project that can't build can't be tested. A project that can't be tested can't be verified. Setup is the foundation.
 
 <HARD-GATE>
-This skill is part of the implementor pipeline. Do NOT invoke any superpowers orchestration skill. The implementor handles setup internally.
+This skill is part of the shipwright pipeline. Do NOT invoke any superpowers orchestration skill. The shipwright handles setup internally.
 </HARD-GATE>
 
 ## Iron Law
@@ -23,7 +23,7 @@ If the test suite can't execute (even if tests fail), setup is incomplete.
 
 ## When to Use
 
-- After Phase 1 (Gather Context) in the `implementor:run` pipeline
+- After Phase 1 (Gather Context) in the `shipwright:run` pipeline
 - Before any implementation or testing begins
 - When entering a new project for the first time
 
@@ -88,7 +88,7 @@ Detect and run the appropriate install command:
 
 1. Check for `.env.example`, `.env.template`, or `.env.sample`
 2. If found and no `.env` exists, copy to `.env`
-3. Check `.implementor.json` for custom environment setup commands
+3. Check `.shipwright.json` for custom environment setup commands
 4. Look for `docker-compose.yml` — note required services but do NOT auto-start Docker (report as prerequisite)
 
 ### Phase 3: Database Migrations
@@ -127,7 +127,7 @@ If no explicit build step, verify the entry point imports cleanly.
 Run the test suite once to verify it executes:
 
 ```bash
-[detected test command from Phase 1 context or .implementor.json]
+[detected test command from Phase 1 context or .shipwright.json]
 ```
 
 **Success criteria:** The test runner starts and completes (tests may pass or fail — we just need the suite to execute). If the runner can't start (missing dependencies, import errors, config issues), setup is incomplete.
@@ -136,7 +136,7 @@ Run the test suite once to verify it executes:
 
 Generic setup verifies the project builds. This phase verifies the project is ready for the *specific task at hand*.
 
-1. **Read the task description** (passed from `implementor:run`). Identify what the task will need:
+1. **Read the task description** (passed from `shipwright:run`). Identify what the task will need:
    - New external APIs? → Check if API keys/env vars are configured
    - Database changes? → Verify migration tools are installed and DB is accessible
    - File processing (PDF, images, CSV)? → Check for native dependencies (`wkhtmltopdf`, `sharp`, `Pillow`, `imagemagick`)
@@ -182,15 +182,43 @@ echo "NODE_ENV=$NODE_ENV CI=$CI"
 
 **Store the fingerprint** in the setup report. If `auto-debug` is invoked later, this fingerprint helps distinguish code bugs from environment bugs — "it worked in setup but fails now" points to a code problem, not a setup problem.
 
-## Reading .implementor.json
+## Reading .shipwright.json
 
-If `.implementor.json` exists in the project root, read these fields:
+If `.shipwright.json` exists in the project root, read these fields:
 
 - `setupCommand`: Custom setup command to run after dependency installation
 - `testCommand`: Override for the test command
 - `buildCommand`: Override for the build command
 - `startCommand`: Override for the app start command
 - `envFile`: Custom env file name (default: `.env`)
+
+## Integration
+
+Auto-setup is consumed by the pipeline and produces signals for downstream skills:
+
+| Consumer | What It Uses | How |
+|----------|-------------|-----|
+| `auto-debug` | Environment fingerprint | Distinguishes code bugs from environment bugs — "it worked in setup but fails now" points to code |
+| `auto-plan` | Task-aware pre-flight findings | Informs task decomposition — missing dependencies may require additional plan tasks |
+| `auto-impl` | Build/test command discovery | Subagents use the detected commands for TDD cycles |
+| `shipwright:run` | Setup status | Pipeline aborts if setup fails (build broken or tests can't execute) |
+
+**Invoked by:** `shipwright:run` (Phase 1.5)
+**Invokes:** Nothing — setup is a leaf skill
+**Signals produced:** Environment fingerprint, pre-flight verdict, detected commands (test, build, start)
+**Signals consumed:** `.shipwright.json` config, task description (for pre-flight check)
+
+## Anti-Patterns
+
+**Setup as implementation:** Setup installs dependencies and verifies the build. It does NOT write code, modify source files, or create new modules. If setup finds missing framework features, it reports them — it doesn't implement workarounds.
+
+**Global installs:** Never install packages globally (`npm install -g`, `pip install --user`). All installs are project-local to avoid polluting the system.
+
+**Docker auto-start:** Never auto-start Docker containers or external services. Report them as prerequisites and let the user manage them.
+
+**Skipping build verification:** "Dependencies installed successfully" is not setup complete. The project must build AND the test suite must execute. Both are mandatory gates.
+
+**Over-setup:** Don't install dev tools, linters, or optional dependencies unless the task specifically requires them. Install what's needed, nothing more.
 
 ## Red Flags - STOP
 

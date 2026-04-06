@@ -1,6 +1,6 @@
 ---
 name: production-readiness
-description: Use when all implementation, testing, and review phases are complete and a final production readiness verdict is needed before declaring done
+description: "Use when a final production readiness verdict is needed before shipping. Triggers on: 'is this ready for production', 'production readiness', 'can we ship this', 'readiness check', 'final verification', 'pre-ship checklist', 'production gates', 'are all gates passing', 'ready to deploy'. Also triggers on: 'recheck readiness', 'gates still failing', 'run the gates again'. 11-gate verification including security, load testing, and definition-of-done."
 ---
 
 # Production Readiness
@@ -10,7 +10,7 @@ Final verification gate. Runs every check required to declare code production-gr
 **Core principle:** Production is unforgiving. Every gate exists because skipping it has caused an outage. Pass all gates or don't ship.
 
 <HARD-GATE>
-This skill is part of the implementor pipeline. Do NOT invoke superpowers:verification-before-completion, superpowers:finishing-a-development-branch, or any other superpowers skill. The implementor handles verification internally.
+This skill is part of the shipwright pipeline. Do NOT invoke superpowers:verification-before-completion, superpowers:finishing-a-development-branch, or any other superpowers skill. The shipwright handles verification internally.
 </HARD-GATE>
 
 ## Iron Law
@@ -23,8 +23,8 @@ No exceptions. Not for "low-risk changes." Not for "it's just a config update." 
 
 ## When to Use
 
-- After `implementor:auto-review` has approved the code
-- When invoked by `implementor:run` as the final phase
+- After `shipwright:auto-review` has approved the code
+- When invoked by `shipwright:run` as the final phase
 - When you need to verify production readiness of any codebase
 
 ## Gate Relevance Scoring
@@ -55,7 +55,7 @@ Before running gates, classify the project type and score each gate's relevance.
 
 Every FULL gate must pass. LIGHT gates must not have critical findings. N/A gates need documented justification.
 
-**Configuration:** Read `.implementor.json` in the project root for overrides to coverage targets, load test parameters, and skippable phases. See `implementor:auto-setup` (`./implementor-config.md`) for the full config reference.
+**Configuration:** Read `.shipwright.json` in the project root for overrides to coverage targets, load test parameters, and skippable phases. See `shipwright:auto-setup` (`./implementor-config.md`) for the full config reference.
 
 ### Gate 1: Unit Tests Pass
 
@@ -297,6 +297,37 @@ After evaluating all gates:
 ## Recommendations
 [Post-deployment monitoring, follow-up tasks, known limitations]
 ```
+
+## Integration
+
+Production-readiness is the final gate before shipping:
+
+| Relationship | Skill | Data Flow |
+|-------------|-------|-----------|
+| **Consumes from** | `auto-test` | Coverage data (Gate 2), honesty check results, dropped test count |
+| **Consumes from** | `auto-e2e` | E2E evidence and verdicts (Gate 3), evidence evaluation verdicts |
+| **Consumes from** | `auto-review` | Review report (Gate 4), behavioral fidelity findings, architecture boundary violations |
+| **Consumes from** | `auto-impl` | All code changes on the feature branch |
+| **Consumes from** | `auto-plan` | Original task description (Gate 11 — Definition of Done) |
+| **Consumes from** | `auto-map` | Architecture map — hot spots, data models for security and boundary review |
+| **Produces for** | `shipwright:run` | Final verdict (COMPLETE/PARTIAL/FAILED), gate table, pipeline quality section |
+
+**Invoked by:** `shipwright:run` (Phase 7)
+**Invokes:** Nothing — production-readiness is a verification-only skill, it does not fix issues
+**Signals produced:** Gate verdicts (11 gates), final implementation report, pipeline quality reflection
+**Signals consumed:** All prior phase outputs, `.shipwright.json` config for coverage/load test targets
+
+## Anti-Patterns
+
+**Gate skipping:** Marking gates as N/A without justification. Every N/A needs a documented reason. If most gates are N/A, the project type classification is wrong.
+
+**Premature completion:** Declaring COMPLETE because all technical gates pass without checking Gate 11 (Definition of Done). Technical correctness is not the same as solving the user's problem.
+
+**Lowering the bar:** Reducing coverage targets or load test thresholds to make gates pass. If the defaults are wrong for this project, configure them in `.shipwright.json` before running — don't adjust mid-pipeline.
+
+**Evidence-free gates:** Marking security or error handling gates as PASS based on "I read the code and it looks fine." These gates require specific checklist items verified with evidence (grep results, audit output, test results).
+
+**Single-pass satisfaction:** If every gate passes on the first attempt with no issues found anywhere, either the implementation was perfect or the gates aren't probing hard enough. The pipeline integrity reflection should flag this.
 
 ## Red Flags - STOP
 
