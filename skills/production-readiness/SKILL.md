@@ -55,7 +55,7 @@ Before running gates, classify the project type and score each gate's relevance.
 
 Every FULL gate must pass. LIGHT gates must not have critical findings. N/A gates need documented justification.
 
-**Configuration:** Read `.shipwright.json` in the project root for overrides to coverage targets, load test parameters, and skippable phases. See `shipwright:auto-setup` (`./implementor-config.md`) for the full config reference.
+**Configuration:** Read `.shipwright.json` in the project root for overrides to coverage targets, load test parameters, and skippable phases. See `shipwright:auto-setup` (`./shipwright-config.md`) for the full config reference.
 
 ### Gate 1: Unit Tests Pass
 

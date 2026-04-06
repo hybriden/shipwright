@@ -546,4 +546,4 @@ This skill is the entry point. It invokes:
 
 Each sub-skill is independently usable but designed to chain in this order.
 
-**Configuration:** See `shipwright:auto-setup` (`./implementor-config.md`) for `.shipwright.json` reference.
+**Configuration:** See `shipwright:auto-setup` (`./shipwright-config.md`) for `.shipwright.json` reference.

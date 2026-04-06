@@ -5,7 +5,7 @@ Autonomous development pipeline for Claude Code. Give it a task, get production-
 ## Installation
 
 ```
-/plugin marketplace add hybriden/implementor
+/plugin marketplace add hybriden/shipwright
 /plugin install shipwright@hybriden-shipwright
 ```
 
@@ -102,7 +102,7 @@ Create `.shipwright.json` in your project root to customize behavior. All fields
 }
 ```
 
-See `skills/auto-setup/implementor-config.md` for the full reference.
+See `skills/auto-setup/shipwright-config.md` for the full reference.
 
 ## Skills
 

@@ -260,7 +260,7 @@ Run the full suite again. If coverage target met, complete. If not, repeat Phase
 | Branch coverage | 80% | `coverage.branch` |
 | Function coverage | 90% | `coverage.function` |
 
-**Configuration:** Read `.shipwright.json` in the project root for overrides. See `shipwright:auto-setup` (`./implementor-config.md`) for the full config reference. Also honors `testCommand` and `coverageCommand` fields.
+**Configuration:** Read `.shipwright.json` in the project root for overrides. See `shipwright:auto-setup` (`./shipwright-config.md`) for the full config reference. Also honors `testCommand` and `coverageCommand` fields.
 
 ## Anti-Patterns
 

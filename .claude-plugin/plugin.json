@@ -5,7 +5,7 @@
   "author": {
     "name": "hybriden"
   },
-  "repository": "https://github.com/hybriden/implementor",
+  "repository": "https://github.com/hybriden/shipwright",
   "license": "MIT",
   "keywords": ["autonomous", "pipeline", "testing", "review", "production-grade", "planning", "implementation", "architecture-mapping", "anti-regression", "contract-testing", "checkpoints", "large-codebases", "harness", "agent-team", "skill-architect", "shipwright"]
 }
