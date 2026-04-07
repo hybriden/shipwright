@@ -654,18 +654,9 @@ After all iterations complete:
 |---------|---------|
 | "Unit tests pass, so it works" | Unit tests prove code logic. Runtime verification proves system behavior. Different. |
 | "I'll skip the reset and just re-run" | Stale state hides bugs. Reset before every iteration. |
-| "The fix is obvious, no need to re-verify" | Obvious fixes break obvious things. Verify. |
-| "I'll verify just the thing I fixed" | Fixes cause regressions. Verify everything. |
-| "I don't know how to verify this" | Ask the user. Don't guess verification steps. |
-| "The screenshot looks fine" | Does it prove the FEATURE works, or just that the PAGE loads? Evaluate evidence. |
+| "The fix broke check 2 but fixed check 3" | That's not progress — that's trading problems. Revert and find a fix that doesn't regress. |
 | "Same error as last iteration, let me try harder" | Same error = same root cause not fixed. Investigate deeper, don't retry. |
 | "I'll batch these fixes and verify once" | Fix one, verify, fix the next. Batching hides causality. |
-| "The system is too complex to verify fully" | Verify what you can, document what you can't, ask about the rest. |
-| "I'll invent the expected behavior" | You don't know what "correct" is. The spec, the user, or the docs do. Ask. |
-| "The fix broke check 2 but fixed check 3" | That's not progress — that's trading problems. Revert and find a fix that doesn't regress. |
-| "I need to modify that file again" | If you already fixed it once, modifying it again means the first fix was wrong. Revert to before the first fix. |
-| "3 iterations and still not passing, let me keep going" | Check the fix history — if net progress is zero, more iterations won't help. Report PARTIAL. |
-| "The regression is unrelated to my fix" | If it appeared after your fix and disappears when you revert, it's related. Investigate the connection. |
 
 ## Anti-Patterns
 

@@ -307,12 +307,8 @@ Auto-impl is the core execution engine, consuming plans and producing working co
 | "I'll dispatch implementers in parallel" | Parallel implementers cause file conflicts. One at a time. |
 | "Tests are failing but I'll fix it in the next task" | Failing tests are a hard gate. Fix before proceeding. |
 | "Let me retry the same prompt" | Same input = same output. Change something first. |
-| "The subagent is BLOCKED but I'll proceed" | BLOCKED means the task isn't done. Resolve or re-plan. |
-| "The subagent can read the plan file" | Never. Provide full task text. Subagent context is precious. |
-| "I'll skip the test suite, nothing changed" | Something always changed. Run the suite. |
 | "The subagent said DONE, so it's done" | DONE is a claim. Verify the files, glance at the code. Trust but verify. |
-| "Haiku can handle this" | If the task involves judgment, design, or multi-file coordination, it probably can't. Don't penny-pinch on quality. |
-| "The subagent's tests pass, so the code is correct" | Tests passing means the tests pass. Run the integrity check to verify the tests test the right thing. |
+| "Haiku can handle this" | If the task involves judgment, design, or multi-file coordination, it probably can't. |
 
 ## Prompt Template
 

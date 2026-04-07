@@ -296,11 +296,6 @@ Auto-plan sits between context gathering and implementation:
 | Thought | Reality |
 |---------|---------|
 | "This is too simple to plan" | Simple tasks have the most assumptions. Plan it. |
-| "I already know what to do" | Knowledge isn't a plan. Write it down. |
-| "Planning is overhead" | Debugging unplanned code is the real overhead. |
-| "Let me just start coding" | That's auto-impl's job. You plan. |
-| "The user wants speed" | A 2-minute plan saves 20 minutes of rework. |
-| "I can plan as I go" | That's how you miss edge cases and tests. |
 | "The acceptance criteria are obvious" | If they're obvious, writing them explicitly takes 10 seconds. Do it. |
 | "The subagent will figure it out" | Subagents are context-limited. Spell everything out. |
 | "This decomposition is clean" | Clean != correct. Does it match the actual code seams? |

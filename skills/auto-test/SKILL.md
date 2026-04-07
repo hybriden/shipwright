@@ -40,8 +40,6 @@ digraph auto_test {
     "5: Gap analysis" [shape=box];
     "6: Test writing" [shape=box];
     "7: Test honesty check" [shape=box];
-    "Honest?" [shape=diamond];
-    "Rewrite dishonest tests" [shape=box];
     "8: Coverage verification" [shape=box];
     "All tests pass?" [shape=diamond];
     "Dispatch fix subagent" [shape=box];
@@ -57,10 +55,7 @@ digraph auto_test {
     "4: Refactor for testability" -> "5: Gap analysis";
     "5: Gap analysis" -> "6: Test writing";
     "6: Test writing" -> "7: Test honesty check";
-    "7: Test honesty check" -> "Honest?";
-    "Honest?" -> "8: Coverage verification" [label="yes"];
-    "Honest?" -> "Rewrite dishonest tests" [label="no"];
-    "Rewrite dishonest tests" -> "7: Test honesty check";
+    "7: Test honesty check" -> "8: Coverage verification";
     "8: Coverage verification" -> "All tests pass?";
     "All tests pass?" -> "Invoke auto-debug" [label="no"];
     "Invoke auto-debug" -> "8: Coverage verification";
@@ -206,42 +201,25 @@ Dispatch test writer subagents (see `./test-writer-prompt.md`) for each gap clus
   - Tests that verify error contracts (module A throws ErrorType X, module B handles ErrorType X)
   - These tests import from BOTH modules and verify they agree on the contract
 
-### Phase 7: Test Honesty Check
+### Phase 7: Test Honesty Check (Single Pass)
 
-After writing tests and before declaring coverage achieved, every test batch must pass the honesty gate. For each test file written, the agent must answer:
+After writing tests, do a quick cognitive check before declaring coverage achieved. For each test file written, answer:
 
 1. **"Does this test actually call the production code, or is it testing its own fixtures?"**
-   - Flag any test where the expected value is a literal constructed inside the test that mirrors the production logic. Example: a test that builds a dictionary and then asserts the function returns that exact dictionary — but the dictionary *is* the implementation.
-   - These tests prove nothing. They must be rewritten to exercise real code paths or explicitly marked as `contract-shape-only` with a comment explaining why.
+   - Flag any test where the expected value is a literal constructed inside the test that mirrors the production logic.
 
 2. **"If I introduced a bug in the implementation, would this test catch it?"**
-   - Mentally mutate the production code (flip a conditional, change a return value, remove a line). Would the test fail?
-   - If the answer is "probably not," the test is asserting shape, not behavior. Rewrite or flag.
+   - Mentally mutate the production code (flip a conditional, change a return value). Would the test fail?
 
 3. **"Is this testing shape or behavior?"**
-   - Shape tests (asserting types, keys exist, response has certain fields) are valid only as contract tests. They must not count toward behavioral coverage.
-   - Behavioral tests must assert on *computed values* that depend on inputs.
+   - Shape tests (asserting types, keys exist) are valid only as contract tests. They must not count toward behavioral coverage.
 
 **Verdicts:**
 - **HONEST:** Test exercises production code and would catch real bugs.
-- **SHAPE_ONLY:** Test validates structure but not behavior. Acceptable for contract tests only. Mark with comment.
-- **DISHONEST:** Test is self-referential or wouldn't catch any real bug. Must be rewritten.
+- **SHAPE_ONLY:** Test validates structure but not behavior. Acceptable for contract tests only.
+- **DISHONEST:** Test is self-referential or wouldn't catch any real bug. Flag for the review stage — auto-review's behavioral fidelity check will do the deeper analysis.
 
-If any tests are DISHONEST, rewrite them and re-run the honesty check. Max 2 honesty iterations — after that, drop the dishonest tests rather than ship them (zero tests > misleading tests).
-
-**Mechanical honesty verification (when available):** If the project has a mutation testing tool installed or easily installable, use it to verify test honesty mechanically instead of cognitively:
-
-| Ecosystem | Tool | Command |
-|-----------|------|---------|
-| JavaScript/TypeScript | Stryker | `npx stryker run` |
-| Python | mutmut | `mutmut run` |
-| Go | go-mutesting | `go-mutesting ./...` |
-| Java | PIT | `mvn org.pitest:pitest-maven:mutationCoverage` |
-| C#/.NET | Stryker.NET | `dotnet stryker` |
-
-Mutation testing introduces small changes (mutants) to the production code and verifies that tests catch them. A surviving mutant = a test that wouldn't catch a real bug.
-
-**Only use if already installed or installable in <1 minute.** Do not spend significant setup time on mutation testing. The cognitive honesty check is the primary gate; mutation testing is a mechanical confirmation when available.
+**This is a quick single-pass check, not a rewrite loop.** If many tests are DISHONEST, note it for auto-review and proceed — the deeper honesty analysis belongs in the review stage where it can consider code and tests together.
 
 ### Phase 8: Coverage Verification
 
@@ -275,10 +253,8 @@ Run the full suite again. If coverage target met, complete. If not, repeat Phase
 - Only check that a function returns *something* without verifying it's the *right* something
 
 **Do NOT:**
-- Skip running the test suite between writing batches
 - Write tests without running them
 - Accept a green bar without seeing red first
-- Lower the coverage target to pass
 - Write tests for untestable code without first auditing testability
 - Ship tests that wouldn't catch a real bug just to hit a coverage number
 - Count shape-only tests toward behavioral coverage
@@ -288,10 +264,7 @@ Run the full suite again. If coverage target met, complete. If not, repeat Phase
 | Thought | Reality |
 |---------|---------|
 | "80% is good enough" | Check the missing 20%. Is it error handling? That's the most important part. |
-| "This code is too simple to test" | Simple code breaks when assumptions change. Test it. |
 | "I'll just test the happy path" | Happy paths rarely fail in production. Error paths do. |
-| "Mocking is faster" | Mocked tests prove your mocks work, not your code. |
-| "Integration tests are slow" | Slow tests that catch bugs beat fast tests that don't. |
 | "The test passes, so it works" | A test that can't fail is not a test. Would it catch a real bug? |
 | "I'll construct the expected output" | If you built both the input and expected output, you tested your own logic, not the code. |
 | "This code can't be tested" | It can — you just need to refactor it first. Audit before giving up. |

@@ -164,26 +164,16 @@ Each phase produces signals that downstream phases should use. The orchestrator 
 
 | Source Phase | Signal | Consuming Phase | How Used |
 |-------------|--------|----------------|----------|
-| Map | Architecture map (full) | Plan, Review, Test | Module boundaries, dependency graph, patterns, hot spots |
-| Map | Task-focused lens | Impl (per subagent), Debug, Verify | Compressed context for subagent consumption (max 150 lines) |
-| Map | Hot spot warnings | Plan, Impl, Review | Flag high-risk modules for stronger models and extra review |
-| Map | Dependency graph (code + build) | Debug, Verify, Plan, Impl | Trace root causes, order tasks by build deps, verify compilation between tasks |
-| Map | Data models + consumers | Plan, Debug, Review, Test | Detect atomic change groups, assess change blast radius, write contract tests |
-| Map | Test classification | Debug, Test | Distinguish unit/integration/contract/e2e for targeted verification |
-| Map | Shared configuration | Plan, Debug, Review, Verify | Detect shared config conflicts, assess config change impact |
-| Map | Contract test gaps | Test | Write missing contract tests at module boundaries |
+| Map | Architecture map + task lens | Plan, Impl, Review, Test, Debug, Verify | Module boundaries, dependency graph, hot spots, compressed subagent context |
+| Map | Data models + contract gaps | Plan, Test, Review | Atomic change groups, contract tests, blast radius |
 | Setup | Environment fingerprint | Debug | Distinguishes code bugs from env bugs |
-| Setup | Task-specific pre-flight findings | Plan, Impl | Informs task decomposition, reveals constraints |
-| Plan | Plan retrospective from previous runs | Plan | Avoids repeating past mistakes |
+| Setup | Pre-flight findings | Plan, Impl | Task decomposition constraints |
 | Plan | Task viability verdicts | Impl | Flagged tasks get more context or stronger models |
 | Impl | Inter-task learning log | Impl (next task) | Real interfaces, patterns, and surprises |
-| Impl | Cascading breakage incidents | Review (plan feedback) | Indicates wrong decomposition |
-| Test | Testability audit results | Review | Reviewer knows which code was untestable and why |
-| Test | Honesty check results | Review, Prod Readiness | Downstream knows which tests are shape-only |
-| Test | Dropped dishonest tests | Prod Readiness | Coverage gap is explained, not mysterious |
+| Impl | Cascading breakage incidents | Review | Indicates wrong decomposition |
+| Test | Honesty check results + testability audit | Review, Prod Readiness | Downstream knows which tests are shape-only |
 | E2E | Evidence evaluation verdicts | Prod Readiness | Gate 3 knows which evidence is proven vs superficial |
-| Review | Behavioral fidelity findings | Prod Readiness | Gate 11 knows if code/test agreement was verified |
-| Review | Plan retrospective | Plan (next run) | Written to retrospective file for future use |
+| Review | Behavioral fidelity + plan retrospective | Prod Readiness, Plan (next run) | Quality signals and feedback loop |
 
 **Implementation:** After each phase completes, extract the signals listed above and include them in the context for the next phase's skill invocation. Don't just invoke skills blindly — pass what was learned.
 
@@ -515,20 +505,12 @@ After all phases complete, output:
 
 | Thought | Reality |
 |---------|---------|
-| "Phase 5 is overkill for this" | The pipeline is the pipeline. All phases, every time. |
 | "I'll skip the plan, it's obvious" | Obvious tasks have hidden complexity. Plan it. |
-| "Tests pass, let's call it done" | Tests are phase 4 of 9. Keep going. |
-| "The user said it's urgent" | Shipping broken code is never urgent. |
 | "I need to ask the user about X" | No. Make the decision. Document why. |
 | "Recovery failed, try again" | One recovery attempt. Then report failure. |
-| "This gate doesn't apply" | Mark N/A with justification. Don't skip silently. |
 | "I'll work on the main branch" | Never. Create a feature branch first. |
-| "Setup isn't needed, it probably works" | Verify. Don't assume. Run setup. |
 | "Every phase passed first try" | Either the code is perfect or the pipeline isn't probing hard enough. Reflect on which. |
-| "The pipeline is done, skip the reflection" | The reflection is how the pipeline gets better. Write it. |
-| "All gates green means quality" | Green gates mean the gates passed. Quality means the user's problem is solved. Check Gate 11. |
 | "I'll update the user before continuing" | No. Output progress text and immediately start the next phase. Never yield between phases. |
-| "Phase N is done, let me stop here" | The only stopping point is the final report or a failure report. Keep going. |
 
 ## Integration
 

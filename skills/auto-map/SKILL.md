@@ -23,6 +23,18 @@ THE MAP MUST FIT IN 400 LINES OR LESS
 
 A map that exceeds 400 lines defeats its purpose. If the codebase is huge, increase compression — summarize more aggressively, collapse low-importance modules, focus on the parts that matter for the current task. A 400-line map that covers 80% of the architecture is infinitely more useful than a 2000-line map that gets truncated.
 
+## Task Size Adaptation
+
+The map's depth adapts to task size. Not every task needs data model extraction and test infrastructure classification.
+
+| Task Size | Map Budget | Phases Run | Skip |
+|-----------|-----------|------------|------|
+| Small (1-3 files) | 150 lines | 1, 2, 3, 5 (light), 6 | Phase 2.5 (data models), Phase 4.5 (test classification) |
+| Medium (4-10 files) | 300 lines | All phases | — |
+| Large (10+ files) | 400 lines | All phases, full depth | — |
+
+**Task size is determined by the orchestrator** (`shipwright:run`) based on the plan's file count, or estimated from the task description if no plan exists yet. When invoked standalone, default to medium.
+
 ## When to Use
 
 - Before `auto-plan` to inform task decomposition along real module boundaries
@@ -134,6 +146,8 @@ Module: <name>
 ## Phase 2.5: Data Model / Entity Layer
 
 Identify the data models, entities, schemas, and DTOs that flow between modules. These are the most dangerous things to change in a large codebase — a schema change can silently break every module that consumes that model.
+
+**Skip for small tasks.** Data model extraction is most valuable when the task touches shared models across multiple modules. For 1-3 file changes, the task lens provides sufficient context.
 
 **What to capture:**
 
@@ -268,6 +282,8 @@ Patterns:
 ## Phase 4.5: Test Infrastructure Classification
 
 Classify the project's tests by type and scope. Different test types have vastly different blast radii when they break — an integration test failure after a change means something fundamentally different than a unit test failure.
+
+**Skip for small tasks.** Test classification is valuable for understanding blast radius in large codebases. For 1-3 file changes, the standard test runner output provides sufficient signal.
 
 **Classify each test file/directory:**
 
@@ -564,10 +580,8 @@ On subsequent runs, the map doesn't need to be regenerated from scratch:
 
 | Thought | Reality |
 |---------|---------|
-| "This codebase is too small to map" | Even small codebases benefit from explicit module boundaries and dependency direction. Map it. |
-| "I'll just read all the files instead" | That's what fills the context window. The map is the compressed alternative. |
 | "The map is over 400 lines but it's all important" | Nothing is all important. Compress. Prioritize. The budget exists for a reason. |
-| "I'll include implementation details" | The map captures structure, not implementation. Interfaces, not function bodies. |
+| "I'll just read all the files instead" | That's what fills the context window. The map is the compressed alternative. |
 | "I don't need the lens, I'll pass the full map" | Subagents have limited context. The lens is how you stay within budget. |
 | "I'll skip hot spot analysis" | Hot spots are how subagents know what NOT to touch carelessly. Don't skip. |
 | "The dependency graph is obvious" | Obvious to you in this context. Not obvious to a fresh subagent. Write it down. |

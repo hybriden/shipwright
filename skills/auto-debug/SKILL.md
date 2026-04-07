@@ -696,19 +696,11 @@ Debug artifacts in committed code = tech debt. Always clean up.
 
 | Thought | Reality |
 |---------|---------|
-| "I know what's wrong, let me just fix it" | You don't know until you've reproduced and traced. Investigate. |
-| "The error message says X, so it's X" | Error messages are symptoms, not diagnoses. Trace deeper. |
-| "Let me try a different approach" | Don't flail. Investigate WHY the current approach failed first. |
-| "I'll add a try/catch to suppress it" | Suppressing errors is not fixing them. Find the root cause. |
-| "It works now, not sure why" | If you don't know why, the fix is wrong. Investigate. |
-| "Let me rewrite this whole thing" | Minimal fix. Don't turn a bugfix into a rewrite. |
-| "This is a flaky test, skip it" | Flaky tests have root causes too. Investigate. |
-| "I've been debugging too long" | Max 3 hypotheses. Then mark UNRESOLVED with evidence. Don't spin. |
-| "The fix broke other tests, let me fix those too" | NO. Rollback. A fix that breaks things is not a fix. Find an approach that doesn't regress. |
-| "I'll commit now and fix the regressions next" | NO. Net-Positive Gate must pass BEFORE commit. Never commit a regression. |
-| "I already changed this file before but need to change it again" | Circular fixing detected. Revert to before the first change. Rethink the approach. |
-| "I'll just update the test to match the new behavior" | Is the test wrong, or is the code wrong? Changing tests to match broken code is not fixing — it's hiding. |
-| "The regressions are in unrelated code" | If they appeared after your fix, they're related. Investigate the connection. |
+| "The fix is obvious" | Obvious fixes for non-obvious causes create new bugs. Investigate first. |
+| "I've seen this error before" | Same symptom ≠ same cause. Reproduce and trace. |
+| "Let me just try this fix" | A fix without a hypothesis is a guess. Hypothesize first. |
+| "The fix works, ship it" | Does it fix the root cause or mask the symptom? Verify the root cause is gone. |
+| "This is an environment issue" | Check the environment fingerprint from auto-setup. If it matches, it's a code issue. |
 
 ## Anti-Patterns
 

@@ -219,36 +219,25 @@ For production services:
 
 ### Gate 11: Definition of Done — Does This Actually Solve the Problem?
 
-**This is the gate that catches pipeline-level dishonesty.** All prior gates verify *technical* properties: tests pass, code is clean, coverage is high. This gate verifies *intent*: did we build the right thing?
+**This gate cross-references auto-review's spec compliance findings against the original task.** It does not redo the full analysis — it verifies nothing fell through the cracks.
 
-**Step 1: Re-read the original task description.** Not the plan. Not the implementation report. The *original words the user typed.* Copy them into this gate's output verbatim.
+**Step 1: Re-read the original task description.** Not the plan. The *original words the user typed.*
 
-**Step 2: Sentence-by-sentence verification.** For each distinct requirement in the task description, fill in this table:
+**Step 2: Cross-reference against auto-review findings.** The spec compliance review (Stage 1) already verified requirements sentence-by-sentence. Check:
+- Did the spec review cover every distinct requirement from the original task?
+- Did the plan introduce interpretations that drifted from the user's intent?
+- Are there implicit requirements (error messages, performance, edge cases, UX) that neither the plan nor the review addressed?
 
-| Requirement (user's words) | Implemented? | Evidence | Confidence |
-|----------------------------|-------------|----------|------------|
-| "add user search" | Yes | `src/search.ts`, E2E scenario 3 screenshot showing search results | HIGH — verified through E2E with correct results |
-| "results should be paginated" | Partial | Pagination exists but only tested with <10 results | MEDIUM — works for small sets, untested at scale |
-| "search should be fast" | Unknown | No load test for search endpoint | LOW — functional but no performance evidence |
-
-**Confidence levels:**
-- **HIGH:** Feature demonstrated working through E2E evidence with verified correct output, or through multiple unit tests that exercise real behavior.
-- **MEDIUM:** Feature exists and tests pass, but evidence is limited (only happy path tested, only small inputs, only in isolation).
-- **LOW:** Feature exists but no real evidence of correctness. Tests are shape-only or evidence is superficial.
-- **NONE:** Feature is missing or broken.
-
-**Step 3: Check for implicit requirements.** Things the user expects but didn't explicitly state:
-- Error messages: Are they helpful or generic?
-- Performance: Is it fast enough for real use?
-- Edge cases: Does it handle empty states, long strings, special characters?
-- UX: If it has a UI, does it look finished or scaffolded?
+**Step 3: Confidence assessment.** For any requirement not explicitly covered by auto-review's findings, assess:
+- **HIGH:** Demonstrated working through E2E or behavioral tests
+- **MEDIUM:** Exists and tests pass, but evidence is limited
+- **LOW:** Exists but no real evidence of correctness
+- **NONE:** Missing or broken
 
 **Step 4: Verdict.**
-- **SOLVED:** Every requirement has HIGH or MEDIUM confidence. No NONE entries. Implicit requirements are reasonable.
-- **PARTIALLY_SOLVED:** Core requirements are HIGH/MEDIUM but some requirements are LOW or missing. List specifically what's missing.
-- **WRONG_PROBLEM:** Implementation is technically sound but the requirements table shows a fundamental mismatch between user intent and what was built. This is a plan failure.
-
-**If WRONG_PROBLEM:** This is a pipeline failure. The final report must explain what happened and why.
+- **SOLVED:** All requirements at HIGH or MEDIUM. No NONE entries.
+- **PARTIALLY_SOLVED:** Core requirements covered but some are LOW or missing.
+- **WRONG_PROBLEM:** Fundamental mismatch between user intent and what was built. This is a plan failure.
 
 ## Generating the Final Report
 
@@ -327,19 +316,12 @@ Production-readiness is the final gate before shipping:
 
 **Evidence-free gates:** Marking security or error handling gates as PASS based on "I read the code and it looks fine." These gates require specific checklist items verified with evidence (grep results, audit output, test results).
 
-**Single-pass satisfaction:** If every gate passes on the first attempt with no issues found anywhere, either the implementation was perfect or the gates aren't probing hard enough. The pipeline integrity reflection should flag this.
-
 ## Red Flags - STOP
 
 | Thought | Reality |
 |---------|---------|
 | "All tests pass, ship it" | Tests are gate 1 of 11. Keep going. |
-| "Load testing is overkill" | Every production outage thought that. Test it. |
-| "Security review is for the security team" | You ARE the security review. Check OWASP. |
 | "It's just a small change" | Small changes cause big outages. All gates. |
-| "We can monitor and fix" | Monitor AFTER shipping quality. Not instead of. |
-| "The deadline is tight" | Shipping broken code costs more than missing a deadline. |
 | "N/A for everything" | If most gates are N/A, you're skipping verification. Justify each. |
 | "All gates pass, we're done" | Did you check Gate 11? Does it actually solve the user's problem? |
-| "The plan said X, we built X" | The plan is an intermediary. The user's words are the spec. Go back to the original. |
-| "Technically correct is the best kind of correct" | Not in production. Correct for the *user* is the only kind that matters. |
+| "The plan said X, we built X" | The plan is an intermediary. The user's words are the spec. |

@@ -225,10 +225,6 @@ Auto-setup is consumed by the pipeline and produces signals for downstream skill
 | Thought | Reality |
 |---------|---------|
 | "Dependencies are probably installed" | Verify. Don't assume. Run the install. |
-| "I'll skip the build check" | A project that doesn't build can't be tested. |
 | "Tests fail, setup must be broken" | Failing tests are fine. Tests that can't RUN are not. |
 | "Docker services are needed, I'll start them" | Never auto-start Docker. Report as prerequisite. |
-| "I'll install globally" | Never install globally. Use project-local installs only. |
-| "The project builds, so setup is done" | Building generically isn't enough. Is the environment ready for *this specific task*? |
 | "The task doesn't need special dependencies" | Read the task. Image processing needs native libs. PDF needs renderers. Check. |
-| "The environment is fine, I just ran setup" | Capture the fingerprint anyway. When debugging fails later, you'll need it. |

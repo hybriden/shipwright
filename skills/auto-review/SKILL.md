@@ -288,10 +288,7 @@ Auto-review is the quality gate between implementation and production readiness:
 |---------|---------|
 | "Tests pass, so the code is correct" | Tests passing means tests pass. Check behavioral fidelity — do the tests test what they claim? |
 | "Spec compliance passed, skip fidelity" | Spec compliance checks requirements exist. Fidelity checks they work correctly. Different things. |
-| "The quality review will catch everything" | Quality review catches code issues. Fidelity catches logic issues. Don't conflate them. |
-| "Plan feedback is optional" | It's not. Every pipeline run is a learning opportunity. Capture what went wrong. |
 | "Close enough on spec compliance" | Close enough is not compliant. Fix it or document why it can't be fixed. |
-| "The implementer self-reviewed" | Self-review is for the implementer's benefit. Independent review is for the project's benefit. |
 | "I'll skip re-review after fixes" | Fixes introduce new issues 30% of the time. Always re-review. |
 
 ## Dispatching Fix Subagents
