@@ -39,10 +39,18 @@ class Config:
     origin_name: str = _env_str("ORIGIN_NAME", "Larvik")
     radius_km: float = _env_float("RADIUS_KM", 75.0)
 
+    # --- Feature-toggles ---
+    # Slå PÅ for å bruke Claude vision (bilder+tekst). AV = rask tekst-heuristikk.
+    enable_vision: bool = _env_str("ENABLE_VISION", "0") == "1"
+    # Slå PÅ for å sende e-post + bare varsle NYE annonser (produksjon). AV = bare rapport.
+    enable_email: bool = _env_str("ENABLE_EMAIL", "0") == "1"
+
     # --- Claude vision-vurdering ---
     eval_model: str = _env_str("EVAL_MODEL", "claude-sonnet-4-6")
     max_images: int = _env_int("MAX_IMAGES", 5)
     anthropic_api_key: str = _env_str("ANTHROPIC_API_KEY", "")
+    # Maks antall annonser som hentes i detalj/vurderes per kjøring (sikkerhetstak).
+    max_eval: int = _env_int("MAX_EVAL", 40)
 
     # --- Rangering / terskel ---
     # Båter med score under denne varsles ikke (demper støy). 0 = varsle alle som

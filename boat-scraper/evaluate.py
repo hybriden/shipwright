@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import base64
 import io
+import re
 from dataclasses import dataclass, field
 
 import httpx
@@ -126,6 +127,67 @@ def compute_score(ev: Evaluation, cfg: Config) -> float:
 
 
 def evaluate(listing: Listing, cfg: Config) -> Evaluation:
+    """Velg vurderingsmetode basert på feature-toggle."""
+    if cfg.enable_vision:
+        return evaluate_vision(listing, cfg)
+    return evaluate_text(listing, cfg)
+
+
+# --- Tekst-heuristikk (uten Claude/bilder) ------------------------------------
+
+_FOUR_STROKE_POS = re.compile(
+    r"\b(4[\s-]?takt|firetakt|four[\s-]?stroke|yamaha\s*f\d|honda\s*bf|"
+    r"suzuki\s*df|mercury\s*(four\s*stroke|f\d)|e-?tec\s*g2)\b",
+    re.IGNORECASE,
+)
+_TWO_STROKE = re.compile(r"\b(2[\s-]?takt|totakt|two[\s-]?stroke)\b", re.IGNORECASE)
+_CENTER = re.compile(r"\b(senterkonsoll|midtkonsoll|center\s*konsoll|center\s*console)\b", re.IGNORECASE)
+_CONSOLE = re.compile(r"\b(konsoll|styrekonsoll|console)\b", re.IGNORECASE)
+_WHEEL = re.compile(r"\b(ratt|styrehjul|styrekonsoll)\b", re.IGNORECASE)
+_THROTTLE = re.compile(r"\b(gass|gasskontroll|kontrollboks|kontrollspak|gass/?gir)\b", re.IGNORECASE)
+
+
+def evaluate_text(listing: Listing, cfg: Config) -> Evaluation:
+    """Rask, gratis heuristikk basert kun på tittel + beskrivelse.
+
+    Mindre presis enn vision: ratt/gasskontroll og rattsentrering kan ikke
+    bekreftes fra tekst alene, så disse settes konservativt (ikke som hard-avslag).
+    """
+    text = f"{listing.title}\n{listing.description}"
+
+    if _FOUR_STROKE_POS.search(text):
+        firetakt, four_why = "ja", "Tekst nevner firetakt/firetakts-motormerke."
+    elif _TWO_STROKE.search(text):
+        firetakt, four_why = "nei", "Tekst nevner totakt."
+    else:
+        firetakt, four_why = "ukjent", "Motortype ikke nevnt i teksten."
+
+    center = bool(_CENTER.search(text))
+    # Senter-/midtkonsoll => sentrert ratt. Vanlig konsoll => delvis sentrert.
+    if center:
+        sentrering = 85
+    elif _CONSOLE.search(text):
+        sentrering = 55
+    else:
+        sentrering = 0
+
+    ev = Evaluation(
+        firetakt=firetakt,
+        firetakt_begrunnelse=four_why,
+        har_ratt=bool(_WHEEL.search(text)),
+        har_gasskontroll=bool(_THROTTLE.search(text)),
+        ratt_gass_begrunnelse="Kun tekstsøk – ikke bekreftet via bilde.",
+        center_konsoll=center,
+        ratt_sentrering_score=sentrering,
+        lengde_fot=listing.length_feet,
+        pris=listing.price,
+        oppsummering="(Tekst-vurdering – slå på vision for bildeanalyse.)",
+    )
+    ev.score = compute_score(ev, cfg)
+    return ev
+
+
+def evaluate_vision(listing: Listing, cfg: Config) -> Evaluation:
     from anthropic import Anthropic
 
     client = Anthropic(api_key=cfg.anthropic_api_key)

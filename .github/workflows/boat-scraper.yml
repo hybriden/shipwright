@@ -4,7 +4,16 @@ on:
   schedule:
     # Hver 3. time (UTC). Justér ved behov.
     - cron: "0 */3 * * *"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      enable_vision:
+        description: "Bruk Claude vision (krever ANTHROPIC_API_KEY)"
+        type: boolean
+        default: false
+      enable_email:
+        description: "Send e-post + varsle bare nye (krever RESEND_API_KEY)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write  # for å committe seen.json tilbake
@@ -34,6 +43,9 @@ jobs:
 
       - name: Kjør scraper
         env:
+          # Toggles: schedule-kjøring = rapportmodus med mindre secrets/vars settes.
+          ENABLE_VISION: ${{ inputs.enable_vision == true && '1' || vars.ENABLE_VISION || '0' }}
+          ENABLE_EMAIL: ${{ inputs.enable_email == true && '1' || vars.ENABLE_EMAIL || '0' }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
@@ -42,7 +54,22 @@ jobs:
           MIN_SCORE: ${{ vars.MIN_SCORE }}
         run: python main.py
 
+      - name: Last opp rapport
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: skjaergardsjeep-rapport
+          path: |
+            boat-scraper/last-report.md
+            boat-scraper/last-report.json
+          if-no-files-found: warn
+
+      - name: Skriv rapport til job-sammendrag
+        if: always()
+        run: cat last-report.md >> "$GITHUB_STEP_SUMMARY" || echo "Ingen rapport" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Commit oppdatert seen.json
+        if: ${{ vars.ENABLE_EMAIL == '1' || inputs.enable_email == true }}
         run: |
           if [[ -n "$(git status --porcelain seen.json)" ]]; then
             git config user.name "github-actions[bot]"

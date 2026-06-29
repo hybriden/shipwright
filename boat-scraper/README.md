@@ -56,11 +56,29 @@ Sett miljøvariabler / secrets:
 | `EVAL_MODEL` | (valgfri) f.eks. `claude-opus-4-8` for grundigere vurdering |
 | `MIN_SCORE` | (valgfri) minste score for varsling, demper støy |
 
+## Feature-toggles
+
+Appen kjører som standard i **rapportmodus uten secrets** – ideelt for testing:
+
+| Toggle | Standard | Effekt når PÅ (`=1`) |
+|--------|----------|----------------------|
+| `ENABLE_VISION` | av | Bruk Claude vision (bilder). Av = rask tekst-heuristikk fra annonsetekst. |
+| `ENABLE_EMAIL` | av | Send e-post og varsle bare **nye** annonser. Av = skriv kun rapport (alle treff). |
+
+Resultatet skrives alltid til `last-report.md` og `last-report.json` (rangert,
+med direkte lenker til annonsene).
+
 ## Kjøring
 
 ```bash
-python main.py            # full kjøring: vurderer, sender e-post, lagrer seen.json
-python main.py --dry-run  # tester scraping+vurdering uten e-post/lagring
+# Rapportmodus (standard): tekst-vurdering, ingen e-post, ingen secrets nødvendig
+python main.py
+
+# Tving rapportmodus uansett toggles
+python main.py --dry-run
+
+# Full produksjon: vision + e-post (krever ANTHROPIC_API_KEY og RESEND_API_KEY)
+ENABLE_VISION=1 ENABLE_EMAIL=1 python main.py
 ```
 
 ## Automatisk kjøring (GitHub Actions)
