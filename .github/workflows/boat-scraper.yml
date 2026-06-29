@@ -1,6 +1,13 @@
 name: Finn skjærgårdsjeep-varsler
 
 on:
+  push:
+    # Midlertidig: la en push til feature-branchen trigge en testkjøring.
+    # (Fjernes når workflowen er på default-branch og kan dispatch-es derfra.)
+    branches: [claude/finn-skjergard-boat-scraper-ecot2m]
+    paths:
+      - boat-scraper/**
+      - .github/workflows/boat-scraper.yml
   schedule:
     # Hver 3. time (UTC). Justér ved behov.
     - cron: "0 */3 * * *"
