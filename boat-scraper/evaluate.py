@@ -136,11 +136,11 @@ def evaluate(listing: Listing, cfg: Config) -> Evaluation:
 # --- Tekst-heuristikk (uten Claude/bilder) ------------------------------------
 
 _FOUR_STROKE_POS = re.compile(
-    r"\b(4[\s-]?takt|firetakt|four[\s-]?stroke|yamaha\s*f\d|honda\s*bf|"
-    r"suzuki\s*df|mercury\s*(four\s*stroke|f\d)|e-?tec\s*g2)\b",
+    r"(4[\s-]?takt\w*|fire[\s-]?takt\w*|four[\s-]?stroke|yamaha\s*f\d|honda\s*bf|"
+    r"suzuki\s*df|mercury\s*(four\s*stroke|f\d)|e-?tec\s*g2)",
     re.IGNORECASE,
 )
-_TWO_STROKE = re.compile(r"\b(2[\s-]?takt|totakt|two[\s-]?stroke)\b", re.IGNORECASE)
+_TWO_STROKE = re.compile(r"(2[\s-]?takt\w*|to[\s-]?takt\w*|two[\s-]?stroke)", re.IGNORECASE)
 _CENTER = re.compile(r"\b(senterkonsoll|midtkonsoll|center\s*konsoll|center\s*console)\b", re.IGNORECASE)
 _CONSOLE = re.compile(r"\b(konsoll|styrekonsoll|console)\b", re.IGNORECASE)
 _WHEEL = re.compile(r"\b(ratt|styrehjul|styrekonsoll)\b", re.IGNORECASE)

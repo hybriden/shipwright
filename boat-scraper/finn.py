@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import re
 import time
 from dataclasses import dataclass, field
@@ -281,6 +282,11 @@ class FinnScraper:
                 for st in self._read_json_states(page):
                     self._harvest_docs_from_json(st, captured)
 
+            if os.environ.get("DEBUG_FINN") and pg == 1 and captured:
+                top = captured[0]
+                print("DEBUG doc keys:", sorted(top.keys()) if isinstance(top, dict) else type(top))
+                print("DEBUG doc sample:", json.dumps(top, ensure_ascii=False)[:2500])
+
             page_listings = self._parse_docs(captured)
             src = "json"
             if not page_listings:
@@ -424,6 +430,13 @@ class FinnScraper:
             if listing.length_feet is None:
                 listing.length_feet = _extract_length_feet(
                     listing.title + " " + listing.description
+                )
+
+            if os.environ.get("DEBUG_FINN"):
+                print(
+                    f"DEBUG detail {listing.finnkode}: desc_len={len(listing.description)} "
+                    f"imgs={len(listing.image_urls)} loc='{listing.location}' "
+                    f"title='{listing.title[:40]}'"
                 )
         finally:
             page.close()
