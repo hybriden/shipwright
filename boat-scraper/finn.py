@@ -11,6 +11,7 @@ koordinater finnes, slik at vi kan håndheve maks-radius uavhengig av Finns filt
 """
 from __future__ import annotations
 
+import json
 import math
 import re
 import time
@@ -145,26 +146,82 @@ class FinnScraper:
             if not url:
                 url = f"https://www.finn.no/mobility/item/{finnkode}"
 
-            coords = _first(d, "coordinates", "coordinate", default={}) or {}
+            coords = _first(d, "coordinates", "coordinate", "geo", default={}) or {}
             lat = _first(coords, "lat", "latitude") if isinstance(coords, dict) else None
             lon = _first(coords, "lon", "lng", "longitude") if isinstance(coords, dict) else None
+
+            loc = _first(d, "location", "city", "place", default="")
+            if isinstance(loc, dict):
+                loc = " ".join(
+                    str(v) for v in (
+                        _first(loc, "postal_code", "postalCode"),
+                        _first(loc, "city", "name", "area"),
+                    ) if v
+                )
+
+            length = _first(d, "length_feet", "length", "loa", "feet")
+            try:
+                length = float(length) if length is not None else None
+            except (TypeError, ValueError):
+                length = _extract_length_feet(str(length))
 
             listing = Listing(
                 finnkode=finnkode,
                 title=str(_first(d, "heading", "title", "name", default="")).strip(),
                 url=str(url),
-                price=_to_int_price(_first(d, "price", "price_total", "main_price")),
-                location=str(_first(d, "location", "city", default="")).strip(),
+                price=_to_int_price(_first(d, "price", "price_total", "main_price", "amount")),
+                location=str(loc).strip(),
                 lat=float(lat) if lat is not None else None,
                 lon=float(lon) if lon is not None else None,
+                length_feet=length,
             )
-            img = _first(d, "image", "main_image", default={})
+            img = _first(d, "image", "main_image", "img", default={})
+            if isinstance(img, list) and img:
+                img = img[0]
             if isinstance(img, dict):
-                img = _first(img, "url", "uri", default="")
+                img = _first(img, "url", "uri", "path", default="")
             if img:
                 listing.image_urls = [str(img)]
             out.append(listing)
         return out
+
+    def _read_json_states(self, page) -> list:
+        """Hent inline JSON-state fra siden (Finn er server-side rendret).
+
+        Ser etter <script>-tagger (f.eks. __NEXT_DATA__) som inneholder docs/
+        annonse-objekter, og returnerer parsede JSON-strukturer.
+        """
+        states: list = []
+        try:
+            scripts = page.eval_on_selector_all(
+                "script",
+                "els => els.map(s => ({t: s.type || '', c: s.textContent || ''}))",
+            )
+        except Exception:
+            return states
+        for s in scripts:
+            c = s.get("c") or ""
+            low = c.lower()
+            if not c or ('"docs"' not in c and '"ad_id"' not in c and '"adid"' not in low
+                         and "finnkode" not in low and '"ads"' not in c):
+                continue
+            data = None
+            stripped = c.strip()
+            if s.get("t") == "application/json" or stripped.startswith("{"):
+                try:
+                    data = json.loads(stripped)
+                except Exception:
+                    data = None
+            if data is None:
+                m = re.search(r"\{.*\}", c, re.DOTALL)
+                if m:
+                    try:
+                        data = json.loads(m.group())
+                    except Exception:
+                        data = None
+            if data is not None:
+                states.append(data)
+        return states
 
     def _harvest_docs_from_json(self, obj, found: list) -> None:
         """Rekursivt let etter en `docs`-liste i en JSON-struktur."""
@@ -219,10 +276,18 @@ class FinnScraper:
                     break
                 page.wait_for_timeout(250)
 
+            # Finn er server-side rendret: hent docs fra inline JSON-state.
+            if not captured:
+                for st in self._read_json_states(page):
+                    self._harvest_docs_from_json(st, captured)
+
             page_listings = self._parse_docs(captured)
+            src = "json"
             if not page_listings:
-                # Fallback: DOM-parsing av annonsekort.
+                # Siste fallback: DOM-parsing av annonsekort (kun finnkode/url).
                 page_listings = self._parse_dom(page)
+                src = "dom"
+            print(f"  side {pg}: {len(page_listings)} treff (kilde: {src}, docs={len(captured)})")
             if not page_listings:
                 break
 
@@ -312,7 +377,22 @@ class FinnScraper:
                             break
                 except Exception:
                     continue
+            # Siste fallback: synlig brødtekst (inneholder annonseteksten).
+            if sum(len(p) for p in desc_parts) < 80:
+                for sel in ("main", "body"):
+                    try:
+                        body = page.inner_text(sel)
+                        if body and len(body.strip()) > 80:
+                            desc_parts.append(body.strip())
+                            break
+                    except Exception:
+                        continue
             listing.description = "\n\n".join(dict.fromkeys(desc_parts))[:6000]
+            if not listing.title:
+                try:
+                    listing.title = (page.title() or "").split("|")[0].strip()
+                except Exception:
+                    pass
 
             # Bilder fra finncdn (galleri). Dedupe og foretrekk store varianter.
             try:
