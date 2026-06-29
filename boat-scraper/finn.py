@@ -205,13 +205,19 @@ class FinnScraper:
         for pg in range(1, self.cfg.max_pages + 1):
             captured.clear()
             url = self.cfg.search_url(pg)
+            # NB: bruk domcontentloaded – Finn når aldri "networkidle" (tracking/ws).
             try:
-                page.goto(url, wait_until="networkidle", timeout=45000)
+                page.goto(url, wait_until="domcontentloaded", timeout=30000)
             except Exception:
-                page.goto(url, wait_until="domcontentloaded", timeout=45000)
+                pass
             if pg == 1:
                 self._accept_consent(page)
-                page.wait_for_timeout(1500)
+
+            # Vent (begrenset) på at søke-JSON er fanget, ev. at kort dukker opp.
+            for _ in range(24):  # ~6s
+                if captured:
+                    break
+                page.wait_for_timeout(250)
 
             page_listings = self._parse_docs(captured)
             if not page_listings:
@@ -277,11 +283,11 @@ class FinnScraper:
         page = self._ctx.new_page()
         try:
             try:
-                page.goto(listing.url, wait_until="networkidle", timeout=45000)
+                page.goto(listing.url, wait_until="domcontentloaded", timeout=30000)
             except Exception:
-                page.goto(listing.url, wait_until="domcontentloaded", timeout=45000)
+                pass
             self._accept_consent(page)
-            page.wait_for_timeout(800)
+            page.wait_for_timeout(600)
 
             # Beskrivelse: meta + synlig tekst fra hovedinnhold.
             desc_parts: list[str] = []

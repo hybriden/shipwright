@@ -27,7 +27,7 @@ permissions:
 
 concurrency:
   group: boat-scraper
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   scan:

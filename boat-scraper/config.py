@@ -70,7 +70,7 @@ class Config:
     from_email: str = _env_str("FROM_EMAIL", "Finn-varsler <onboarding@resend.dev>")
 
     # --- Diverse ---
-    request_delay_s: float = _env_float("REQUEST_DELAY_S", 1.5)
+    request_delay_s: float = _env_float("REQUEST_DELAY_S", 0.8)
     headless: bool = _env_str("HEADLESS", "1") != "0"
     user_agent: str = _env_str(
         "USER_AGENT",
