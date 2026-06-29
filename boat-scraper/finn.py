@@ -29,6 +29,7 @@ class Listing:
     price: int | None = None
     length_feet: float | None = None
     location: str = ""
+    postal_code: str = ""
     lat: float | None = None
     lon: float | None = None
     distance_km: float | None = None
@@ -477,6 +478,28 @@ class FinnScraper:
                     loc = self._deep_find(st, {"postalName", "addressLocality", "city", "municipality"})
                     if loc:
                         listing.location = str(loc)
+
+            # Finn eksponerer ikke koordinater, men postnummer + poststed finnes i
+            # HTML (f.eks. ...&postalCode=1580" ...>Rygge</a>). Hent dem og geokod.
+            if listing.lat is None:
+                try:
+                    html = page.content()
+                except Exception:
+                    html = ""
+                if not listing.postal_code:
+                    mpc = re.search(r"postalCode=(\d{4})", html)
+                    if mpc:
+                        listing.postal_code = mpc.group(1)
+                if not listing.location:
+                    mpl = re.search(r'postalCode=\d{4}"[^>]*>([^<]{2,40})</a>', html)
+                    if mpl:
+                        listing.location = mpl.group(1).strip()
+                if listing.postal_code or listing.location:
+                    from geocode import geocode
+
+                    coords = geocode(listing.postal_code, listing.location)
+                    if coords:
+                        listing.lat, listing.lon = coords
 
             if listing.distance_km is None and listing.lat is not None and listing.lon is not None:
                 listing.distance_km = round(
