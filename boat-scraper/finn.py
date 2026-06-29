@@ -281,38 +281,46 @@ class FinnScraper:
         page.on("response", on_response)
 
         for pg in range(1, self.cfg.max_pages + 1):
-            captured.clear()
             url = self.cfg.search_url(pg)
-            # NB: bruk domcontentloaded – Finn når aldri "networkidle" (tracking/ws).
-            try:
-                page.goto(url, wait_until="domcontentloaded", timeout=30000)
-            except Exception:
-                pass
-            if pg == 1:
-                self._accept_consent(page)
+            page_listings: list[Listing] = []
+            # Finn hydrerer av og til tregt / viser samtykke -> prøv siden på nytt.
+            attempts = 3 if pg == 1 else 1
+            for attempt in range(attempts):
+                captured.clear()
+                # NB: domcontentloaded – Finn når aldri "networkidle" (tracking/ws).
+                try:
+                    page.goto(url, wait_until="domcontentloaded", timeout=30000)
+                except Exception:
+                    pass
+                if pg == 1 and attempt == 0:
+                    self._accept_consent(page)
 
-            # Vent (begrenset) på at søke-JSON er fanget, ev. at kort dukker opp.
-            for _ in range(24):  # ~6s
-                if captured:
+                # Vent på at annonsekortene faktisk rendres (eller JSON fanges).
+                try:
+                    page.wait_for_selector("a[href*='/item/']", timeout=15000)
+                except Exception:
+                    pass
+                for _ in range(8):  # gi nettverks-JSON en sjanse
+                    if captured:
+                        break
+                    page.wait_for_timeout(250)
+
+                # Finn er server-side rendret: hent docs fra inline JSON-state.
+                if not captured:
+                    for st in self._read_json_states(page):
+                        self._harvest_docs_from_json(st, captured)
+
+                if os.environ.get("DEBUG_FINN") and pg == 1 and captured:
+                    top = captured[0]
+                    print("DEBUG doc keys:", sorted(top.keys()) if isinstance(top, dict) else type(top))
+                    print("DEBUG doc sample:", json.dumps(top, ensure_ascii=False)[:2500])
+
+                page_listings = self._parse_docs(captured) or self._parse_dom(page)
+                if page_listings:
                     break
-                page.wait_for_timeout(250)
+                page.wait_for_timeout(2500)  # kort pause før nytt forsøk
 
-            # Finn er server-side rendret: hent docs fra inline JSON-state.
-            if not captured:
-                for st in self._read_json_states(page):
-                    self._harvest_docs_from_json(st, captured)
-
-            if os.environ.get("DEBUG_FINN") and pg == 1 and captured:
-                top = captured[0]
-                print("DEBUG doc keys:", sorted(top.keys()) if isinstance(top, dict) else type(top))
-                print("DEBUG doc sample:", json.dumps(top, ensure_ascii=False)[:2500])
-
-            page_listings = self._parse_docs(captured)
-            src = "json"
-            if not page_listings:
-                # Siste fallback: DOM-parsing av annonsekort (kun finnkode/url).
-                page_listings = self._parse_dom(page)
-                src = "dom"
+            src = "json" if captured else "dom"
             print(f"  side {pg}: {len(page_listings)} treff (kilde: {src}, docs={len(captured)})")
             if not page_listings:
                 break
