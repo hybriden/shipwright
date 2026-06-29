@@ -60,7 +60,7 @@ jobs:
           EVAL_MODEL: ${{ vars.EVAL_MODEL }}
           MIN_SCORE: ${{ vars.MIN_SCORE }}
           DEBUG_FINN: "1"
-          MAX_EVAL: "3"
+          MAX_EVAL: "1"
         run: python main.py
 
       - name: Last opp rapport

@@ -495,6 +495,18 @@ class FinnScraper:
                     f"lat={listing.lat} lon={listing.lon} dist={listing.distance_km} "
                     f"loc='{listing.location}'"
                 )
+                if not getattr(self, "_dbg_geo_done", False):
+                    self._dbg_geo_done = True
+                    try:
+                        html = page.content()
+                    except Exception:
+                        html = ""
+                    print("DEBUG desc[:300]:", listing.description[:300].replace("\n", " "))
+                    for kw in ('"lat"', "latitude", "coordinate", '"position"', "postalCode",
+                               "postal_code", '"city"', "addressLocality", '"location"', "geo"):
+                        idx = html.find(kw)
+                        print(f"DEBUG html[{kw}]:",
+                              html[max(0, idx - 30):idx + 110].replace("\n", " ") if idx >= 0 else "NOT FOUND")
         finally:
             page.close()
         return listing
