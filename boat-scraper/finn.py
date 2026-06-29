@@ -224,6 +224,25 @@ class FinnScraper:
                 states.append(data)
         return states
 
+    def _deep_find(self, obj, keys, _depth=0):
+        """Returner første verdi for en av `keys` i en nøstet JSON-struktur."""
+        if _depth > 9:
+            return None
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                if k in keys and isinstance(v, (str, int, float)) and v not in (None, ""):
+                    return v
+            for v in obj.values():
+                r = self._deep_find(v, keys, _depth + 1)
+                if r is not None:
+                    return r
+        elif isinstance(obj, list):
+            for v in obj:
+                r = self._deep_find(v, keys, _depth + 1)
+                if r is not None:
+                    return r
+        return None
+
     def _harvest_docs_from_json(self, obj, found: list) -> None:
         """Rekursivt let etter en `docs`-liste i en JSON-struktur."""
         if isinstance(obj, dict):
@@ -427,6 +446,43 @@ class FinnScraper:
                 except Exception:
                     pass
 
+            # Pris/koordinater/sted fra detaljsidens inline JSON + JSON-LD.
+            states = self._read_json_states(page)
+            try:
+                ld = page.eval_on_selector_all(
+                    "script[type='application/ld+json']",
+                    "els => els.map(s => s.textContent || '')",
+                )
+                for t in ld:
+                    try:
+                        states.append(json.loads(t))
+                    except Exception:
+                        continue
+            except Exception:
+                pass
+            for st in states:
+                if listing.price is None:
+                    listing.price = _to_int_price(
+                        self._deep_find(st, {"price", "amount", "priceExposed", "total_price"})
+                    )
+                if listing.lat is None:
+                    la = self._deep_find(st, {"latitude", "lat"})
+                    lo = self._deep_find(st, {"longitude", "lng", "lon"})
+                    if la is not None and lo is not None:
+                        try:
+                            listing.lat, listing.lon = float(la), float(lo)
+                        except (TypeError, ValueError):
+                            pass
+                if not listing.location:
+                    loc = self._deep_find(st, {"postalName", "addressLocality", "city", "municipality"})
+                    if loc:
+                        listing.location = str(loc)
+
+            if listing.distance_km is None and listing.lat is not None and listing.lon is not None:
+                listing.distance_km = round(
+                    haversine_km(self.cfg.origin_lat, self.cfg.origin_lon, listing.lat, listing.lon), 1
+                )
+
             if listing.length_feet is None:
                 listing.length_feet = _extract_length_feet(
                     listing.title + " " + listing.description
@@ -435,8 +491,9 @@ class FinnScraper:
             if os.environ.get("DEBUG_FINN"):
                 print(
                     f"DEBUG detail {listing.finnkode}: desc_len={len(listing.description)} "
-                    f"imgs={len(listing.image_urls)} loc='{listing.location}' "
-                    f"title='{listing.title[:40]}'"
+                    f"imgs={len(listing.image_urls)} price={listing.price} "
+                    f"lat={listing.lat} lon={listing.lon} dist={listing.distance_km} "
+                    f"loc='{listing.location}'"
                 )
         finally:
             page.close()
