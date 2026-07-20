@@ -5,527 +5,158 @@ description: Use when given a development task to implement autonomously with fu
 
 # Run
 
-Master orchestrator for the shipwright pipeline. Takes a development task and delivers production-grade code with zero human interaction. Chains all sub-skills in strict sequence: setup, plan, implement, test, E2E test, review, and verify.
+Master orchestrator. Takes a development task and delivers production-grade code with zero human interaction, chaining every sub-skill in strict sequence: map, setup, plan, implement, unit test, E2E test, review, readiness.
 
-**Core principle:** Task in, production-grade system out. Every phase must pass before the next begins. Evidence before claims, always.
+**Core principle:** Task in, production-grade system out. Every phase passes before the next begins. Evidence before claims.
 
-<HARD-GATE>
-When shipwright:run is active, it OVERRIDES all superpowers skills. Do NOT invoke superpowers:brainstorming, superpowers:writing-plans, superpowers:executing-plans, or superpowers:subagent-driven-development. The shipwright pipeline handles all planning, implementation, and review internally. If superpowers:using-superpowers suggests invoking a superpowers skill, IGNORE it — the shipwright is the active orchestrator.
-
-Do NOT skip any phase (unless explicitly allowed by .shipwright.json skipPhases). Do NOT declare completion without all production readiness gates passing. Do NOT ask the user for input during execution — make every decision autonomously. If a phase fails and cannot be recovered, report the failure with evidence.
-
-**NEVER STOP BETWEEN PHASES.** After completing one phase, IMMEDIATELY proceed to the next phase in the same response. Do NOT yield control back to the user between phases. Do NOT output a phase summary and then wait — output the summary AND start the next phase in the same turn. The entire pipeline from Phase 0 through the final report MUST execute in a single continuous run without any pause for user input. The ONLY acceptable stopping points are: (1) the final report at the end of a successful pipeline, or (2) a failure report when recovery has been exhausted. If you find yourself about to end your response before the pipeline is complete, YOU ARE DOING IT WRONG — keep going.
-</HARD-GATE>
+While run is active it **overrides all superpowers skills** — the shipwright handles planning, implementation, and review internally. Ignore any suggestion to invoke a superpowers skill.
 
 ## Iron Law
 
 ```
-EVERY PHASE MUST COMPLETE BEFORE THE NEXT BEGINS. NO SHORTCUTS.
+EVERY PHASE MUST COMPLETE BEFORE THE NEXT BEGINS.
 ```
 
-Violating the letter of this rule is violating the spirit. A passing phase is the gate to the next phase.
+A passing phase is the gate to the next.
+
+## Execution Rules (hard)
+
+- **Never skip a phase** (unless `.shipwright.json` `skipPhases` allows).
+- **Never ask the user for input mid-run** — decide autonomously, document why.
+- **Never stop between phases.** Emit the progress line AND start the next phase in the same turn. The only valid stopping points are the final report (success) or a failure report (recovery exhausted).
+- **Never declare completion** without all production-readiness gates passing.
 
 ## When to Use
 
-- When you receive a development task of any size
-- When autonomy is expected (no back-and-forth)
-- When production-grade quality is the target
+Any development task, when autonomy is expected and production-grade quality is the target.
 
 ## The Pipeline
 
-```dot
-digraph run_pipeline {
-    rankdir=TB;
+Each phase is invoked via the **Skill tool**, gated, and checkpointed. Any failure routes to Error Recovery.
 
-    "Receive task description" [shape=box];
-    "Phase 0: Branch Isolation" [shape=box];
-    "Phase 1: Gather Context + Config" [shape=box];
-    "Phase 1.25: Map (shipwright:auto-map)" [shape=box];
-    "Phase 1.5: Setup (shipwright:auto-setup)" [shape=box];
-    "Phase 2: Plan (shipwright:auto-plan)" [shape=box];
-    "Phase 3: Implement (shipwright:auto-impl)" [shape=box];
-    "Phase 4: Unit Test (shipwright:auto-test)" [shape=box];
-    "Phase 5: E2E Test (shipwright:auto-e2e)" [shape=box];
-    "Phase 6: Review (shipwright:auto-review)" [shape=box];
-    "Phase 7: Production Readiness (shipwright:production-readiness)" [shape=box];
-    "Generate final report" [shape=box];
-    "Offer merge or keep branch" [shape=doublecircle];
-    "Phase failed?" [shape=diamond];
-    "Attempt recovery (1 retry)" [shape=box];
-    "Recovery succeeded?" [shape=diamond];
-    "Report failure with evidence" [shape=doublecircle];
+| # | Phase | Skill |
+|---|---|---|
+| 0 | Branch isolation | inline |
+| 1 | Gather context + config | inline |
+| 1.25 | Map | auto-map |
+| 1.5 | Setup | auto-setup |
+| 2 | Plan | auto-plan |
+| 3 | Implement | auto-impl |
+| 4 | Unit test | auto-test |
+| 5 | E2E test | auto-e2e |
+| 6 | Review | auto-review |
+| 7 | Production readiness | production-readiness |
 
-    "Receive task description" -> "Phase 0: Branch Isolation";
-    "Phase 0: Branch Isolation" -> "Phase 1: Gather Context + Config";
-    "Phase 1: Gather Context + Config" -> "Phase 1.25: Map (shipwright:auto-map)";
-    "Phase 1.25: Map (shipwright:auto-map)" -> "Phase 1.5: Setup (shipwright:auto-setup)";
-    "Phase 1.5: Setup (shipwright:auto-setup)" -> "Phase 2: Plan (shipwright:auto-plan)";
-    "Phase 2: Plan (shipwright:auto-plan)" -> "Phase 3: Implement (shipwright:auto-impl)";
-    "Phase 3: Implement (shipwright:auto-impl)" -> "Phase 4: Unit Test (shipwright:auto-test)";
-    "Phase 4: Unit Test (shipwright:auto-test)" -> "Phase 5: E2E Test (shipwright:auto-e2e)";
-    "Phase 5: E2E Test (shipwright:auto-e2e)" -> "Phase 6: Review (shipwright:auto-review)";
-    "Phase 6: Review (shipwright:auto-review)" -> "Phase 7: Production Readiness (shipwright:production-readiness)";
-    "Phase 7: Production Readiness (shipwright:production-readiness)" -> "Generate final report";
-    "Generate final report" -> "Offer merge or keep branch";
+Then: final report → offer merge / keep branch for PR / discard.
 
-    "Phase 1.25: Map (shipwright:auto-map)" -> "Phase failed?" [style=dashed];
-    "Phase 1.5: Setup (shipwright:auto-setup)" -> "Phase failed?" [style=dashed];
-    "Phase 2: Plan (shipwright:auto-plan)" -> "Phase failed?" [style=dashed];
-    "Phase 3: Implement (shipwright:auto-impl)" -> "Phase failed?" [style=dashed];
-    "Phase 4: Unit Test (shipwright:auto-test)" -> "Phase failed?" [style=dashed];
-    "Phase 5: E2E Test (shipwright:auto-e2e)" -> "Phase failed?" [style=dashed];
-    "Phase 6: Review (shipwright:auto-review)" -> "Phase failed?" [style=dashed];
-    "Phase 7: Production Readiness (shipwright:production-readiness)" -> "Phase failed?" [style=dashed];
-    "Phase failed?" -> "Attempt recovery (1 retry)";
-    "Attempt recovery (1 retry)" -> "Recovery succeeded?";
-    "Recovery succeeded?" -> "Resume at failed phase" [label="yes" style=dashed];
-    "Resume at failed phase" -> "Offer merge or keep branch" [label="pipeline completes" style=dashed];
-    "Recovery succeeded?" -> "Report failure with evidence" [label="no"];
-}
-```
+## Phase Tracking (mandatory, every phase)
 
-## Checklist
-
-You MUST create a task for each phase and complete them in order:
-
-1. **Branch isolation** — create feature branch, note original branch
-2. **Gather context** — scan codebase, detect tech stack, read .shipwright.json
-3. **Map** — invoke auto-map to generate architecture map with task-focused lens
-4. **Setup** — invoke auto-setup for dependencies, env, build verification
-5. **Plan** — invoke auto-plan to decompose task (consumes architecture map)
-6. **Implement** — invoke auto-impl to execute plan via subagents (consumes task lenses from map)
-7. **Unit test** — invoke auto-test to verify and improve coverage
-8. **E2E test** — invoke auto-e2e for user-facing verification
-9. **Review** — invoke auto-review for two-stage code review
-10. **Production readiness** — invoke production-readiness for final gate
-11. **Report** — generate report, offer merge/keep branch
+1. `TaskCreate` "Phase N: [name]"; set `in_progress`.
+2. Invoke the sub-skill via the **Skill tool** — never read its SKILL.md and follow it inline (that pollutes context and breaks phase isolation).
+3. When its gate passes: `TaskUpdate` → completed; create a checkpoint (see `../_shared/checkpoints.md`); emit the progress line; **immediately start the next phase** — no gap, same turn.
 
 ## Progress Updates
 
-Output progress at every phase transition and within long-running phases:
+Emit a plain-text line at every transition; the user should see continuous progress, not silence:
 
 ```
-[shipwright] Phase 0/9: Creating branch shipwright/add-user-auth
-[shipwright] Phase 1/10: Gathering context (detected: Node.js + Vitest + Express)
-[shipwright] Phase 1.25/10: Mapping architecture (12 modules, 3 hot spots, task lens: 120 lines)
-[shipwright] Phase 1.5/10: Setting up environment (npm ci)
-[shipwright] Phase 2/10: Planning (decomposed into 5 tasks)
-[shipwright] Phase 3/10: Implementing task 1/5 — UserModel
-[shipwright] Phase 3/10: Implementing task 2/5 — AuthService
-[shipwright] Phase 3/10: Implementing task 3/5 — AuthController
-[shipwright] Phase 3/10: Implementing task 4/5 — AuthMiddleware
-[shipwright] Phase 3/10: Implementing task 5/5 — Routes
-[shipwright] Phase 4/10: Testing (coverage: 62% -> 84%)
-[shipwright] Phase 5/10: E2E testing (web app detected, 8 scenarios)
-[shipwright] Phase 6/10: Reviewing (spec: ✅, quality: cycle 1/3)
-[shipwright] Phase 7/10: Production readiness (8/10 gates passed, fixing...)
-[shipwright] COMPLETE: All gates passed. Branch: shipwright/add-user-auth
+[shipwright] Phase 3/8: Implementing task 2/5 — AuthService
+[shipwright] Phase 4/8: Testing (coverage 62% → 84%)
+[shipwright] COMPLETE: all gates passed. Branch: shipwright/add-user-auth
 ```
 
-**Output these as plain text between tool calls.** The user should see continuous progress, not silence.
+## Depth Adapts to Task Size
 
-## Phase Tracking (MANDATORY)
+All phases run every time; only their depth scales. Estimate size from the plan's file/task count. Adapt depth, not breadth — a 1-file fix still runs every gate, just lighter.
 
-Before executing ANY phase, you MUST:
-1. Create a task via TaskCreate: "Phase N: [name]"
-2. Set task status to `in_progress` via TaskUpdate
-3. Invoke the sub-skill via the `Skill` tool (NOT by reading the SKILL.md and following it inline)
-4. Wait for the skill invocation to complete
-5. Update the task status to `completed` via TaskUpdate
-6. **Create a checkpoint:** `git tag "shipwright/phase-N-[name]"` — so the pipeline can roll back or resume if a later phase fails
-7. Output the progress update text
-8. Only then proceed to the next phase
-
-**NEVER skip the Skill tool invocation.** Reading a skill's SKILL.md file and following its instructions inline is NOT the same as invoking it as a skill. Inline execution pollutes the orchestrator's context and breaks isolation between phases.
-
-**NEVER PAUSE BETWEEN PHASES.** Step 8 ("proceed to the next phase") means immediately — in the same response, with no gap. After updating a task to `completed`, create the next task and invoke the next skill WITHOUT ending your turn. You are a pipeline, not a conversation.
-
-## Pipeline Adaptation
-
-The pipeline runs all phases every time, but the *depth* of each phase adapts to the task size:
-
-| Signal | Small Task (1-3 files) | Medium Task (4-10 files) | Large Task (10+ files) |
-|--------|----------------------|------------------------|----------------------|
+| Signal | Small (1-3 files) | Medium (4-10) | Large (10+) |
+|---|---|---|---|
 | Plan tasks | 1-3 | 3-8 | 8+ |
-| Impl model default | sonnet | default | opus for architecture tasks |
-| Test coverage iterations | Max 2 | Max 3 | Max 3 |
-| E2E scenarios | 2-3 focused | 5-8 with adversarial | 10+ with stateful journeys |
-| Review fidelity scope | Top 2 functions | Top 5 functions | Top 5 + all public APIs |
-| Load testing | Skip (unless server) | Light (20 users, 30s) | Full (100 users, 60s) |
-| Gate 11 depth | Quick sentence check | Full requirement table | Full table + implicit requirements |
-
-**Detection:** Estimate task size from the plan's file count and task count. If the plan has 2 tasks touching 2 files, it's small. If it has 12 tasks touching 15 files, it's large.
-
-**This is not about skipping gates.** Every gate still runs. But a 1-file bug fix doesn't need 10 E2E scenarios and a load test. Adapt the depth, not the breadth.
+| Impl model | sonnet | default | opus for architecture |
+| Coverage iterations | 2 | 3 | 3 |
+| E2E scenarios | 2-3 focused | 5-8 + adversarial | 10+ stateful journeys |
+| Review fidelity scope | top 2 fns | top 5 fns | top 5 + all public APIs |
+| Load test | skip unless server | light (20u/30s) | full (100u/60s) |
+| Gate 11 depth | quick check | full table | full + implicit reqs |
 
 ## Cross-Phase Signal Propagation
 
-Each phase produces signals that downstream phases should use. The orchestrator is responsible for passing these signals forward:
+Don't invoke skills blindly — pass forward what each phase learned:
 
-| Source Phase | Signal | Consuming Phase | How Used |
-|-------------|--------|----------------|----------|
-| Map | Architecture map + task lens | Plan, Impl, Review, Test, Debug, Verify | Module boundaries, dependency graph, hot spots, compressed subagent context |
-| Map | Data models + contract gaps | Plan, Test, Review | Atomic change groups, contract tests, blast radius |
-| Setup | Environment fingerprint | Debug | Distinguishes code bugs from env bugs |
-| Setup | Pre-flight findings | Plan, Impl | Task decomposition constraints |
-| Plan | Task viability verdicts | Impl | Flagged tasks get more context or stronger models |
-| Impl | Inter-task learning log | Impl (next task) | Real interfaces, patterns, and surprises |
-| Impl | Cascading breakage incidents | Review | Indicates wrong decomposition |
-| Test | Honesty check results + testability audit | Review, Prod Readiness | Downstream knows which tests are shape-only |
-| E2E | Evidence evaluation verdicts | Prod Readiness | Gate 3 knows which evidence is proven vs superficial |
-| Review | Behavioral fidelity + plan retrospective | Prod Readiness, Plan (next run) | Quality signals and feedback loop |
-
-**Implementation:** After each phase completes, extract the signals listed above and include them in the context for the next phase's skill invocation. Don't just invoke skills blindly — pass what was learned.
-
-## Pipeline Checkpoint System
-
-After each phase completes successfully, create a checkpoint. Checkpoints enable rollback to the last known-good state and resumption after interruption.
-
-### Creating Checkpoints
-
-After each phase passes its gate:
-
-```bash
-git tag "shipwright/phase-N-[phase-name]" -m "Phase N complete: [summary]"
-```
-
-Example checkpoint sequence:
-```
-shipwright/phase-1.25-map
-shipwright/phase-1.5-setup
-shipwright/phase-2-plan
-shipwright/phase-3-impl
-shipwright/phase-4-test
-shipwright/phase-5-e2e
-shipwright/phase-6-review
-shipwright/phase-7-readiness
-```
-
-### Rollback to Checkpoint
-
-When a phase fails and recovery also fails:
-
-1. Identify the last successful checkpoint: `git tag -l "shipwright/phase-*" | tail -1`
-2. Roll back: `git reset --hard [checkpoint-tag]`
-3. Report what was lost and why
-4. If the failure is in a late phase (review, readiness), the rollback preserves all implementation work — only the failing phase's changes are lost
-
-### Resume from Checkpoint
-
-If the pipeline is interrupted (context limit, timeout, crash):
-
-1. On restart, check for existing checkpoint tags: `git tag -l "shipwright/phase-*"`
-2. If checkpoints exist, identify the last completed phase
-3. Resume from the next phase — don't re-run completed phases
-4. Re-read the plan from `docs/plans/` and the architecture map from `docs/architecture-map.md` to restore context
-
-### Cleanup
-
-After pipeline completes (success or failure):
-```bash
-git tag -l "shipwright/phase-*" | xargs git tag -d
-```
-
-Checkpoint tags are internal bookkeeping — they should not persist after the pipeline run.
+| From | Signal | To | Use |
+|---|---|---|---|
+| Map | Map + task lens | all | boundaries, deps, hot spots, compressed context |
+| Map | Data models + contract gaps | plan, test, review | atomic groups, contract tests, blast radius |
+| Setup | Env fingerprint | debug | code bug vs env bug |
+| Setup | Pre-flight findings | plan, impl | decomposition constraints |
+| Plan | Task viability verdicts | impl | flagged tasks get more context / stronger model |
+| Impl | Inter-task learning log | impl (next task) | real interfaces, patterns, surprises |
+| Impl | Cascading breakage incidents | review | wrong-decomposition signal |
+| Test | Honesty + testability results | review, readiness | which tests are shape-only |
+| E2E | Evidence verdicts | readiness | Gate 3: proven vs superficial |
+| Review | Fidelity + plan retrospective | readiness, plan (next run) | quality signals, feedback loop |
 
 ## Phase 0: Branch Isolation
 
-Before any work begins, isolate the changes:
-
-1. Verify clean working tree (`git status`). If dirty, report and abort.
-2. Note the current branch as `originalBranch`
-3. Generate branch name: `shipwright/<task-slug>` (lowercase, hyphens, max 50 chars)
-   - Read `branch.prefix` from `.shipwright.json` if present (default: `shipwright`)
-4. Create and checkout the feature branch: `git checkout -b shipwright/<task-slug>`
-5. Output: `[shipwright] Phase 0/9: Creating branch shipwright/<task-slug>`
-
-**On pipeline failure:** All commits stay on the feature branch. The original branch is untouched. Report the branch name so the user can inspect or delete it.
-
-**On pipeline success:** Offer the user a choice (unless `branch.autoMerge` is true in config):
-- Merge into original branch
-- Keep the feature branch for PR
-- Discard the branch
+Require a clean tree (`git status`; if dirty, report and abort). Note the current branch as `originalBranch`. Create `shipwright/<task-slug>` (lowercase, hyphens, ≤50 chars; prefix from `.shipwright.json` `branch.prefix`) and check it out. **On failure:** all commits stay on the feature branch, original untouched — report the branch name. **On success:** offer merge / keep for PR / discard (unless `branch.autoMerge`).
 
 ## Phase 1: Gather Context + Config
 
-Before anything else, understand the battlefield:
+Read `.shipwright.json` (pass to all phases). Map structure (Glob), detect stack (package.json / requirements.txt / go.mod / Cargo.toml / …), find test infra + coverage setup, read CLAUDE.md / lint / editorconfig conventions, note git state, CI/CD, entry points. Output: a mental model + parsed config for downstream phases.
 
-1. **Config:** Read `.shipwright.json` if it exists. Pass config to all subsequent phases.
-2. **Project structure:** Use Glob to map all directories and files
-3. **Tech stack:** Read package.json/requirements.txt/go.mod/Cargo.toml/etc.
-4. **Test infrastructure:** Find test config, existing tests, coverage setup
-5. **Conventions:** Read CLAUDE.md, .editorconfig, linting config
-6. **Git state:** Note current branch (should be the new feature branch)
-7. **CI/CD:** Check for existing pipelines
-8. **Entry points:** Find main files, server start commands, CLI entry points
+## Phases 1.25–7
 
-**Output:** Mental model of the project + parsed config. Used to inform all subsequent phases.
+Invoke each sub-skill via the Skill tool, passing the signals from the table above. Each skill owns its own process — the orchestrator's job is to feed context in and gate the output:
 
-## Phase 1.25: Map
-
-Invoke `shipwright:auto-map` with:
-- The original task description (for task-scoped lens generation)
-- Project context from Phase 1 (tech stack, conventions)
-
-**Output:** Architecture map saved to `docs/architecture-map.md` + task-focused lens for subagent consumption.
-
-**Progress:** `[shipwright] Phase 1.25/10: Mapping architecture (N modules, N hot spots, task lens: N lines)`
-
-**The map is passed to every downstream phase.** It is the compressed structural understanding that keeps subagents oriented in large codebases.
-
-## Phase 1.5: Setup
-
-Invoke `shipwright:auto-setup` to:
-- Install dependencies
-- Configure environment files
-- Run database migrations (if applicable)
-- Verify the project builds
-- Verify the test suite can execute
-
-**Output:** Environment ready for implementation and testing.
-
-**Skip if:** `.shipwright.json` has `"setup"` in `skipPhases`.
-
-## Invoking Sub-Skills
-
-Use the `Skill` tool to invoke each sub-skill. This ensures proper context isolation. Do NOT read sub-skill SKILL.md files and follow them inline — invoke them as skills.
-
-## Phase 2: Plan
-
-Invoke `shipwright:auto-plan` with:
-- The original task description
-- Context gathered in Phase 1 (tech stack, conventions, test framework)
-- Any constraints from the user's request
-
-**Output:** Implementation plan saved to `docs/plans/`.
-
-## Phase 3: Implement
-
-Invoke `shipwright:auto-impl` with:
-- The plan from Phase 2
-- Project context from Phase 1
-
-**Output progress per task:** `[shipwright] Phase 3/10: Implementing task N/M — TaskName`
-
-**Output:** Working implementation with initial tests, committed to git.
-
-## Phase 4: Unit Test
-
-Invoke `shipwright:auto-test` to:
-- Run existing + new tests
-- Analyze coverage gaps
-- Write additional tests to meet coverage target
-- Verify all tests pass
-
-**Output progress:** `[shipwright] Phase 4/10: Testing (coverage: X% -> Y%)`
-
-**Output:** Comprehensive test suite meeting coverage targets.
-
-## Phase 5: E2E Test
-
-Invoke `shipwright:auto-e2e` to:
-- Detect app type (web/API/CLI/library)
-- Generate test scenarios from task description
-- Execute E2E tests with evidence capture
-- Report results
-
-**Output:** E2E test results with screenshots/captures as evidence.
-
-**If app type is library or `skipPhases` includes `"e2e"`:** Skip with documented justification.
-
-## Phase 6: Review
-
-Invoke `shipwright:auto-review` to:
-- Stage 1: Verify spec compliance
-- Stage 2: Verify code quality
-- Fix any issues found (max 3 cycles per stage)
-
-**Output progress:** `[shipwright] Phase 6/10: Reviewing (spec: ✅, quality: cycle N/3)`
-
-**Output:** Review report (APPROVED / APPROVED_WITH_NOTES).
-
-## Phase 7: Production Readiness
-
-Invoke `shipwright:production-readiness` to:
-- Run all 10 gates
-- Generate load test (if applicable)
-- Produce final report with evidence
-
-**Output:** Production readiness verdict with full evidence.
+- **1.25 Map** (auto-map) → `docs/architecture-map.md` + task lens.
+- **1.5 Setup** (auto-setup) → deps, env, migrations, build + test-suite-runs verification. Skip if `skipPhases` includes `setup`.
+- **2 Plan** (auto-plan) → plan in `docs/plans/`.
+- **3 Implement** (auto-impl) → committed code + tests, per-task progress.
+- **4 Unit test** (auto-test) → gap-fill to coverage target.
+- **5 E2E** (auto-e2e) → detect app type, run scenarios with evidence. Skip for libraries or `skipPhases: e2e`, with justification.
+- **6 Review** (auto-review) → spec → fidelity → architecture → quality, fixing issues (≤3 cycles/stage).
+- **7 Readiness** (production-readiness) → 11 gates + final report.
 
 ## Error Recovery
 
-If any phase fails, invoke `shipwright:auto-debug` to diagnose and resolve:
+On any phase failure, invoke **auto-debug** with full error context (command, output, stack trace, files).
 
-1. Pass the full error context to auto-debug (command, output, stack trace, files)
-2. Auto-debug executes its 6-phase process: reproduce, isolate, trace, hypothesize, fix, verify
-3. If auto-debug reports RESOLVED: resume the pipeline from the failed phase
-4. If auto-debug reports UNRESOLVED: attempt one manual recovery:
-   - Setup phase: try alternative install commands, check prerequisites
-   - Plan phase: re-analyze with broader context
-   - Impl phase: re-plan the failed task(s) and retry
-   - Test phase: investigate test assumptions
-   - E2E phase: fix app startup or interaction issues
-   - Review phase: fix identified issues and re-review
-   - Readiness phase: address failing gates
-5. If recovery fails:
-   - **Roll back to the last successful checkpoint:** `git reset --hard [last-checkpoint-tag]` — this preserves all work from completed phases while removing the failed phase's broken changes
-   - Generate a failure report with:
-     - What was accomplished before failure (list completed phases with checkpoint tags)
-     - Auto-debug investigation evidence (root cause analysis, hypotheses tested)
-     - Exact failure details
-     - What would need to change for success
-     - All work done so far (committed to the feature branch, rolled back to last good checkpoint)
-     - The feature branch name for inspection
-     - Which checkpoint the branch is rolled back to
+- **RESOLVED** → resume at the failed phase.
+- **UNRESOLVED** → one manual recovery attempt appropriate to the phase (setup: alt install; plan: broaden context; impl: re-plan the task; test: check assumptions; e2e: fix startup/interaction; review: fix + re-review; readiness: address the failing gate).
+- **Recovery fails** → roll back to the last checkpoint (`git reset --hard <tag>` — preserves completed phases) and write a failure report: phases completed (with tags), auto-debug evidence, exact failure, what would need to change, the branch name, and the rollback point.
 
-## Autonomous Decision Making
+## Autonomous Decision Defaults
 
-When faced with decisions, apply these defaults:
-- **Naming:** Follow existing project conventions, or language idioms if greenfield
-- **Architecture:** Match existing patterns, or use the simplest pattern that works
-- **Dependencies:** Prefer standard library, add external deps only when clearly needed
-- **Test framework:** Use what's already in the project, or the standard for the language
-- **Error handling:** Fail fast with useful messages, never swallow errors
-- **Logging:** Structured JSON for services, simple for CLIs
-- **File organization:** One responsibility per file, group by feature not by type
+Naming/architecture: match existing conventions, else language idiom / simplest pattern that works. Dependencies: prefer stdlib, add external only when clearly needed. Test framework: use the project's. Errors: fail fast with useful messages, never swallow. Logging: structured JSON for services, simple for CLIs. Files: one responsibility, grouped by feature.
 
 ## Pipeline Integrity Reflection
 
-After all phases complete but before generating the final report, perform one honest self-assessment:
+Before the final report, one honest self-assessment (documentation, not a gate — becomes the report's "Pipeline Quality" section):
 
-1. **"Did this pipeline produce real quality, or did it just check boxes?"**
-   - Did any phase rubber-stamp its output? (e.g., review approved on first pass with zero findings — either the code was perfect or the review was shallow)
-   - Did the test suite catch any real bugs during the pipeline, or did everything pass on the first try? (If everything passed first try, either the implementation was flawless or the tests aren't testing hard enough)
-   - Did E2E evidence actually prove features work, or just prove pages load?
+1. **Real quality or box-ticking?** Did any phase rubber-stamp — review approved first pass with zero findings, everything passed first try, E2E only proved pages load?
+2. **Where did it struggle, and why?** Repeated auto-debug → wrong plan. Many review findings → underpowered implementer. Hard-won coverage → testability problems.
+3. **Would I ship this with my name on it?** Re-read the diff for overall coherence — one author's voice, an approach a senior engineer would approve?
 
-2. **"Where did the pipeline struggle, and what does that mean?"**
-   - If auto-debug was invoked multiple times, the plan may have been wrong
-   - If review found many issues, the implementer subagent may have been underpowered
-   - If coverage was hard to achieve, the code may have testability problems
-   - Document these signals — they make future pipeline runs better
+## Retrospective (feedback loop)
 
-3. **"Would I ship this with my name on it?"**
-   - Read the git diff one more time. Not for individual issues (review already covered that) — for overall coherence.
-   - Does the code feel like one person wrote it, or like it was assembled by committee?
-   - Is the overall approach something a senior engineer would approve, or would they say "this works but I'd do it differently"?
-
-**This reflection is included in the final report as a "Pipeline Quality" section.** It's not a gate — it doesn't block shipping. But it's honest documentation that improves the pipeline over time.
-
-## Retrospective File (Feedback Loop)
-
-After the pipeline completes (success or failure), append learnings to `.shipwright-retrospective.md` in the project root. This file is read by `auto-plan` in future runs.
-
-**Format:**
-
-```markdown
-## Run: YYYY-MM-DD — [task slug]
-
-**Status:** COMPLETE | PARTIAL | FAILED
-**Task size:** small | medium | large
-
-### What went well
-- [Phase] — [what worked]
-
-### What went wrong
-- [Phase] — [what failed and why]
-
-### Plan quality
-- [From auto-review's Plan Retrospective section]
-
-### Signals for future runs
-- [Concrete lessons: "tasks touching src/utils always conflict", "this codebase needs mocking library for testability", "API endpoints need auth context in every subagent prompt"]
-```
-
-**Rules:**
-- Append, never overwrite. The file is a growing log.
-- Keep each entry concise (10-15 lines max).
-- Only record *actionable* lessons — things that would change how a future run is planned or executed.
-- If the file exceeds 100 entries, summarize the oldest 50 into a "Historical Summary" section and remove the individual entries.
-- Do not record session-specific details (exact error messages, specific file contents). Record patterns.
+Append to `.shipwright-retrospective.md` (read by auto-plan next run). Per run: status, task size, what went well/wrong per phase, plan-quality notes (from review), and **actionable** signals for future runs ("tasks touching src/utils always conflict"; "this codebase needs a mocking library"). Append-only, ≤15 lines/entry, patterns not session specifics; summarize the oldest 50 if it exceeds 100 entries.
 
 ## Report Format
 
-After all phases complete, output:
+Use the production-readiness Implementation Report (task, status, changes, gate table, evidence) plus these run-specific sections:
 
-```markdown
-# Implementation Report
+- **Branch** — feature + original.
+- **Pipeline Results** — per-phase status table with key metrics (Map/Setup/Plan/Impl/Tests/E2E/Review/Readiness).
+- **Pipeline Quality** — the integrity-reflection findings: phases that flagged issues vs passed first try, model escalations, dishonest tests dropped, fidelity concerns, plan-retrospective highlights, symptomatic fixes, Definition-of-Done verdict.
+- **Commits** — list.
 
-## Task
-[Original task description]
-
-## Status: COMPLETE | PARTIAL | FAILED
-
-## Branch
-- Feature branch: `shipwright/<task-slug>`
-- Original branch: `<original-branch>`
-
-## Summary
-[2-3 sentences: what was built, key decisions made]
-
-## Changes
-- Files created: [list]
-- Files modified: [list]
-- Total: +[added] -[removed] lines
-
-## Pipeline Results
-
-| Phase | Status | Details |
-|-------|--------|---------|
-| Map | ✅ | [module count] modules, [data model count] models, [hot spot count] hot spots, [contract gap count] contract gaps |
-| Setup | ✅ | [dependencies installed, build verified] |
-| Plan | ✅ | [task count] tasks, [atomic group count] atomic groups, [shared resource conflict count] conflicts resolved |
-| Implement | ✅ | [task count] tasks completed, [checkpoint count] checkpoints, [build verification count] builds verified |
-| Unit Tests | ✅ | [X] tests, [Y]% line coverage, [Z] contract tests written |
-| E2E Tests | ✅/N/A | [X] scenarios passed |
-| Code Review | ✅ | Spec: ✅, Fidelity: ✅, Architecture: ✅, Quality: ✅ |
-| Prod Readiness | ✅ | [X]/[Y] gates passed |
-
-## Production Readiness Gates
-[Full gate table from production-readiness]
-
-## Evidence
-[Test output, coverage numbers, screenshots, load test results]
-
-## Pipeline Quality
-- Phases that flagged issues: [list — indicates the pipeline is actually catching things]
-- Phases that passed first try: [list — either quality was high or the phase wasn't rigorous enough]
-- Model escalations: [count and which tasks]
-- Dishonest tests dropped: [count, if any]
-- Behavioral fidelity concerns found: [count, if any]
-- Plan retrospective highlights: [key learnings]
-- Symptomatic fixes applied: [count, locations, and deeper fix suggestions]
-- Definition of Done verdict: [SOLVED / PARTIALLY_SOLVED / WRONG_PROBLEM]
-
-## Commits
-[List of commits made during implementation]
-```
-
-## Red Flags - STOP
+## Red Flags — STOP
 
 | Thought | Reality |
-|---------|---------|
-| "I'll skip the plan, it's obvious" | Obvious tasks have hidden complexity. Plan it. |
-| "I need to ask the user about X" | No. Make the decision. Document why. |
-| "Recovery failed, try again" | One recovery attempt. Then report failure. |
-| "I'll work on the main branch" | Never. Create a feature branch first. |
-| "Every phase passed first try" | Either the code is perfect or the pipeline isn't probing hard enough. Reflect on which. |
-| "I'll update the user before continuing" | No. Output progress text and immediately start the next phase. Never yield between phases. |
-
-## Integration
-
-This skill is the entry point. It invokes:
-- **shipwright:auto-map** — Phase 1.25
-- **shipwright:auto-setup** — Phase 1.5
-- **shipwright:auto-plan** — Phase 2
-- **shipwright:auto-impl** — Phase 3
-- **shipwright:auto-test** — Phase 4
-- **shipwright:auto-e2e** — Phase 5
-- **shipwright:auto-review** — Phase 6
-- **shipwright:production-readiness** — Phase 7
-- **shipwright:auto-debug** — Error recovery (any phase)
-- **shipwright:auto-verify** — Iterative runtime verification (standalone, invoke when task involves external system integration)
-
-Each sub-skill is independently usable but designed to chain in this order.
-
-**Configuration:** See `shipwright:auto-setup` (`./shipwright-config.md`) for `.shipwright.json` reference.
+|---|---|
+| "I'll skip the plan, it's obvious" | Obvious tasks hide complexity. Plan it. |
+| "I need to ask the user about X" | Decide it. Document why. |
+| "Recovery failed, try again" | One attempt, then report failure. |
+| "I'll work on main" | Never. Feature branch first. |
+| "Every phase passed first try" | Perfect code, or a pipeline not probing hard enough? Reflect. |
+| "I'll update the user, then continue" | No. Emit the progress line and start the next phase in the same turn. |

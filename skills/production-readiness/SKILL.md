@@ -5,323 +5,88 @@ description: "Use when a final production readiness verdict is needed before shi
 
 # Production Readiness
 
-Final verification gate. Runs every check required to declare code production-grade: tests pass, coverage met, E2E verified, review approved, security scanned, load tested (if applicable), and all definition-of-done criteria satisfied.
+Final verification gate. Every check required to declare code production-grade: tests pass, coverage met, E2E verified, review approved, security scanned, load tested (if applicable), and every definition-of-done criterion satisfied.
 
-**Core principle:** Production is unforgiving. Every gate exists because skipping it has caused an outage. Pass all gates or don't ship.
+**Core principle:** Production is unforgiving. Every gate exists because skipping it has caused an outage. Pass all relevant gates or don't ship. **Verification only — this skill does NOT fix issues** (it reports; run routes fixes to auto-debug).
 
-<HARD-GATE>
-This skill is part of the shipwright pipeline. Do NOT invoke superpowers:verification-before-completion, superpowers:finishing-a-development-branch, or any other superpowers skill. The shipwright handles verification internally.
-</HARD-GATE>
+Part of the shipwright pipeline — do NOT invoke superpowers skills.
 
 ## Iron Law
 
 ```
-NO COMPLETION CLAIM WITHOUT ALL GATES PASSING
+NO COMPLETION CLAIM WITHOUT ALL RELEVANT GATES PASSING
 ```
 
-No exceptions. Not for "low-risk changes." Not for "it's just a config update." Not for "we'll fix it in the next release." All gates, every time.
+Not for "low-risk changes." Not for "just a config update." Not for "we'll fix it next release."
 
 ## When to Use
 
-- After `shipwright:auto-review` has approved the code
-- When invoked by `shipwright:run` as the final phase
-- When you need to verify production readiness of any codebase
+After auto-review approves; as run Phase 7; whenever a production-readiness verdict is needed.
 
 ## Gate Relevance Scoring
 
-Before running gates, classify the project type and score each gate's relevance. This prevents wasting cycles on gates that don't apply while ensuring relevant gates get full rigor.
+Classify the project type, then score each gate FULL / LIGHT / N/A before running — full rigor where it matters, no wasted cycles where it doesn't.
 
-| Gate | Web Server | API Server | CLI Tool | Library | Script |
-|------|-----------|-----------|---------|---------|--------|
-| 1: Unit Tests | FULL | FULL | FULL | FULL | FULL |
-| 2: Coverage | FULL | FULL | FULL | FULL | LIGHT |
-| 3: E2E Tests | FULL | FULL | FULL | N/A | N/A |
-| 4: Code Review | FULL | FULL | FULL | FULL | FULL |
-| 5: Security | FULL | FULL | LIGHT | LIGHT | LIGHT |
-| 6: Error Handling | FULL | FULL | FULL | FULL | LIGHT |
-| 7: Load Test | FULL | FULL | N/A | N/A | N/A |
-| 8: Code Hygiene | FULL | FULL | FULL | FULL | FULL |
-| 9: Logging | FULL | FULL | LIGHT | N/A | N/A |
-| 10: Degradation | FULL | FULL | LIGHT | N/A | N/A |
-| 11: Definition of Done | FULL | FULL | FULL | FULL | FULL |
+| Gate | Web | API | CLI | Library | Script |
+|---|---|---|---|---|---|
+| 1 Unit tests | FULL | FULL | FULL | FULL | FULL |
+| 2 Coverage | FULL | FULL | FULL | FULL | LIGHT |
+| 3 E2E | FULL | FULL | FULL | N/A | N/A |
+| 4 Code review | FULL | FULL | FULL | FULL | FULL |
+| 5 Security | FULL | FULL | LIGHT | LIGHT | LIGHT |
+| 6 Error handling | FULL | FULL | FULL | FULL | LIGHT |
+| 7 Load test | FULL | FULL | N/A | N/A | N/A |
+| 8 Code hygiene | FULL | FULL | FULL | FULL | FULL |
+| 9 Logging | FULL | FULL | LIGHT | N/A | N/A |
+| 10 Degradation | FULL | FULL | LIGHT | N/A | N/A |
+| 11 Definition of Done | FULL | FULL | FULL | FULL | FULL |
 
-- **FULL:** Execute the gate thoroughly with all checks.
-- **LIGHT:** Spot-check the most relevant items. Don't skip but don't exhaustively verify.
-- **N/A:** Skip with justification.
+FULL = all checks; LIGHT = spot-check key items; N/A = skip with justification. **Gate 11 is always FULL** — it's the only gate that checks intent. Config overrides (coverage, load, skips) from `.shipwright.json`.
 
-**Gate 11 is always FULL.** It's the only gate that checks intent. Never skip or lighten it.
+## Gates
 
-## Gates Checklist
+Every FULL gate must pass; LIGHT gates must have no critical findings; N/A needs a documented reason.
 
-Every FULL gate must pass. LIGHT gates must not have critical findings. N/A gates need documented justification.
+1. **Unit tests** — all pass, zero failures; no undocumented skips; no flaky tests (re-run if suspected).
+2. **Coverage** — line ≥80% + branch ≥80% (or target); no critical path at 0%; report saved as evidence.
+3. **E2E** — all auto-e2e scenarios passed with evidence; no console errors / failed requests (web); correct status codes (API); expected output (CLI). Libraries N/A (no user-facing entry point).
+4. **Code review** — spec PASS; quality APPROVED / APPROVED_WITH_NOTES; no unresolved Critical/Important; cycles documented.
+5. **Security** — by code inspection: no command/SQL injection, XSS, path traversal, hardcoded secrets, sensitive data in logs; auth on protected endpoints; input validation at boundaries; dependency audit (`npm audit --audit-level=critical` / `pip-audit` / `govulncheck ./...` / `cargo audit`).
+6. **Error handling** — all external calls (network/file/DB) handled; errors give useful context; not swallowed; graceful degradation for non-critical failures; user-facing errors don't leak internals.
+7. **Load test** (conditional — web/API/services; skip libraries/CLI/scripts): k6 (preferred) / artillery / ab-wrk. Default ramp 20→100 users over ~60s. Pass: p99 <500ms, error rate <1%, stable RSS (no leak), no connection exhaustion. Fail → document the bottleneck (missing pooling, sync I/O in request path, unbounded concurrency, missing cache, N+1).
+8. **Code hygiene** — new code has no TODO/FIXME/HACK, no commented-out blocks, no debug logging (console.log/print/debugger), no unused imports/vars; clear names; consistent formatting. (`grep -rn "TODO\|FIXME\|HACK\|console\.log\|debugger" [changed files]`)
+9. **Logging** (services) — key operations logged; appropriate levels; structured (JSON) format; no sensitive data; request/response at appropriate level.
+10. **Graceful degradation** — handles downstream failures; timeouts on all external calls; circuit breakers for critical deps (if applicable); clean startup/shutdown; no resource leaks.
+11. **Definition of Done — does this actually solve the problem?** Cross-references auto-review's spec findings against the *original task*; doesn't redo the analysis. (a) Re-read the original task — the user's actual words, not the plan. (b) Cross-reference vs auto-review: every distinct requirement covered? plan drift? implicit requirements (error messages, performance, edge cases, UX) neither addressed? (c) Confidence per uncovered requirement: HIGH (E2E/behavioral proof) / MEDIUM (exists, tests pass, limited evidence) / LOW (exists, no evidence) / NONE (missing). (d) Verdict: **SOLVED** (all HIGH/MEDIUM, no NONE) / **PARTIALLY_SOLVED** (some LOW or missing) / **WRONG_PROBLEM** (intent mismatch — a plan failure).
 
-**Configuration:** Read `.shipwright.json` in the project root for overrides to coverage targets, load test parameters, and skippable phases. See `shipwright:auto-setup` (`./shipwright-config.md`) for the full config reference.
+## Final Report
 
-### Gate 1: Unit Tests Pass
-
-```bash
-[project test command]
-```
-
-- All tests pass (zero failures)
-- No skipped tests without documented reason
-- No flaky tests (run twice if any intermittent failures suspected)
-
-### Gate 2: Coverage Meets Target
-
-```bash
-[project coverage command]
-```
-
-- Line coverage >= 80% (or project target)
-- Branch coverage >= 80% (or project target)
-- No critical paths with 0% coverage
-- Coverage report saved as evidence
-
-### Gate 3: E2E Tests Pass
-
-- All E2E scenarios from auto-e2e passed
-- Evidence (screenshots, response captures) available
-- No console errors or failed network requests (web apps)
-- All API endpoints return correct status codes
-- All CLI commands produce expected output
-- **Libraries:** Mark N/A with justification (libraries have no user-facing entry point)
-
-### Gate 4: Code Review Approved
-
-- Spec compliance: PASS
-- Code quality: APPROVED or APPROVED_WITH_NOTES
-- No unresolved Critical or Important issues
-- All review cycles documented
-
-### Gate 5: Security Scan
-
-Verify by code inspection:
-
-- [ ] No command injection (inputs to shell sanitized)
-- [ ] No SQL injection (queries parameterized)
-- [ ] No XSS (user content escaped)
-- [ ] No path traversal (file paths validated)
-- [ ] No hardcoded secrets (credentials, API keys, tokens)
-- [ ] No sensitive data in logs
-- [ ] Authentication/authorization on all protected endpoints
-- [ ] Input validation at all external boundaries
-- [ ] Dependencies don't have known critical vulnerabilities
-
-Check dependencies:
-```bash
-# Node.js
-npm audit --audit-level=critical
-
-# Python
-pip-audit || safety check
-
-# Go
-govulncheck ./...
-
-# Rust
-cargo audit
-```
-
-### Gate 6: Error Handling
-
-Verify by code inspection of all new/modified files:
-
-- [ ] All external calls (network, file, database) have error handling
-- [ ] Errors provide useful context (not generic "something went wrong")
-- [ ] Errors propagated correctly (not swallowed silently)
-- [ ] Graceful degradation for non-critical failures
-- [ ] User-facing errors don't leak internal details
-
-### Gate 7: Load Testing (Conditional)
-
-**Applies to:** Web servers, APIs, services handling concurrent requests.
-**Skip for:** Libraries, CLI tools, scripts, batch processors.
-
-**Tools (in preference order):**
-1. k6 (preferred — scriptable, lightweight)
-2. artillery (alternative — YAML config)
-3. ab/wrk (fallback — basic but available everywhere)
-
-**Default configuration:**
-```javascript
-// k6 script
-import http from 'k6/http';
-import { check, sleep } from 'k6';
-
-export const options = {
-  stages: [
-    { duration: '10s', target: 20 },   // ramp up
-    { duration: '40s', target: 100 },   // sustained load
-    { duration: '10s', target: 0 },     // ramp down
-  ],
-  thresholds: {
-    http_req_duration: ['p(99)<500'],    // p99 < 500ms
-    http_req_failed: ['rate<0.01'],      // error rate < 1%
-  },
-};
-
-export default function () {
-  // Test each endpoint
-  const res = http.get('[URL]');
-  check(res, { 'status is 200': (r) => r.status === 200 });
-  sleep(1);
-}
-```
-
-**Pass criteria:**
-- p99 latency < 500ms
-- Error rate < 1%
-- No memory leaks (stable RSS over test duration)
-- No connection exhaustion
-- Throughput within acceptable range for the use case
-
-**If load test fails:** Document the bottleneck. Common causes:
-- Missing connection pooling
-- Synchronous I/O in request path
-- Unbounded concurrent operations
-- Missing caching
-- N+1 query patterns
-
-### Gate 8: Code Hygiene
-
-Scan all new/modified files:
-
-- [ ] No TODO/FIXME/HACK comments in new code
-- [ ] No commented-out code blocks
-- [ ] No debug logging (console.log, print(), etc.) left in
-- [ ] No unused imports or variables
-- [ ] All new functions/methods have clear names (no documentation needed)
-- [ ] Consistent formatting with project standards
-
-```bash
-# Search for hygiene violations in new code
-grep -rn "TODO\|FIXME\|HACK\|console\.log\|debugger\|print(" [changed files]
-```
-
-### Gate 9: Logging and Observability
-
-For production services:
-
-- [ ] Key operations logged (startup, shutdown, errors, slow operations)
-- [ ] Log levels appropriate (ERROR for errors, WARN for degradation, INFO for operations)
-- [ ] Structured logging format (JSON preferred for production)
-- [ ] No sensitive data in logs (passwords, tokens, PII)
-- [ ] Request/response logging at appropriate level
-
-### Gate 10: Graceful Degradation
-
-- [ ] Application handles downstream service failures gracefully
-- [ ] Timeouts configured for all external calls
-- [ ] Circuit breaker pattern for critical dependencies (if applicable)
-- [ ] Application starts up and shuts down cleanly
-- [ ] No resource leaks (connections, file handles, memory)
-
-### Gate 11: Definition of Done — Does This Actually Solve the Problem?
-
-**This gate cross-references auto-review's spec compliance findings against the original task.** It does not redo the full analysis — it verifies nothing fell through the cracks.
-
-**Step 1: Re-read the original task description.** Not the plan. The *original words the user typed.*
-
-**Step 2: Cross-reference against auto-review findings.** The spec compliance review (Stage 1) already verified requirements sentence-by-sentence. Check:
-- Did the spec review cover every distinct requirement from the original task?
-- Did the plan introduce interpretations that drifted from the user's intent?
-- Are there implicit requirements (error messages, performance, edge cases, UX) that neither the plan nor the review addressed?
-
-**Step 3: Confidence assessment.** For any requirement not explicitly covered by auto-review's findings, assess:
-- **HIGH:** Demonstrated working through E2E or behavioral tests
-- **MEDIUM:** Exists and tests pass, but evidence is limited
-- **LOW:** Exists but no real evidence of correctness
-- **NONE:** Missing or broken
-
-**Step 4: Verdict.**
-- **SOLVED:** All requirements at HIGH or MEDIUM. No NONE entries.
-- **PARTIALLY_SOLVED:** Core requirements covered but some are LOW or missing.
-- **WRONG_PROBLEM:** Fundamental mismatch between user intent and what was built. This is a plan failure.
-
-## Generating the Final Report
-
-After evaluating all gates:
+Canonical Implementation Report — run reuses this and adds its own sections:
 
 ```markdown
 # Implementation Report
-
 ## Task
-[Original task description]
-
 ## Status: COMPLETE | PARTIAL | FAILED
-
-## Changes
-- Files created: [list with paths]
-- Files modified: [list with paths]
-- Lines added: [count]
-- Lines removed: [count]
-
+## Changes — files created/modified, +/- lines
 ## Production Readiness Gates
-
-| Gate | Status | Notes |
-|------|--------|-------|
-| Unit Tests | PASS/FAIL | X passed, Y failed |
-| Coverage | PASS/FAIL | Line: X%, Branch: Y% |
-| E2E Tests | PASS/FAIL/N/A | X scenarios, Y passed |
-| Code Review | PASS/FAIL | Spec: ✅, Fidelity: ✅, Quality: ✅ |
-| Security | PASS/FAIL | [findings] |
-| Error Handling | PASS/FAIL | [findings] |
-| Load Test | PASS/FAIL/N/A | p99: Xms, errors: Y% |
-| Code Hygiene | PASS/FAIL | [findings] |
-| Logging | PASS/FAIL/N/A | [findings] |
-| Graceful Degradation | PASS/FAIL/N/A | [findings] |
-| Definition of Done | SOLVED/PARTIALLY_SOLVED/WRONG_PROBLEM | [original task vs. what was built] |
-
-## Evidence
-- Test output: [summary]
-- Coverage report: [key numbers]
-- E2E screenshots: [list]
-- Load test results: [key metrics]
-- Security scan: [output]
-
+| Gate | Status | Notes |   (11 rows: PASS/FAIL/N/A + key metric)
+## Evidence — test output, coverage, E2E screenshots, load metrics, security scan
 ## Unresolved Issues
-[Any gates that failed or items that need human attention]
-
-## Recommendations
-[Post-deployment monitoring, follow-up tasks, known limitations]
+## Recommendations — monitoring, follow-ups, known limitations
 ```
 
 ## Integration
 
-Production-readiness is the final gate before shipping:
+run Phase 7; verification-only (invokes nothing to fix — it reports so run can route to auto-debug). Consumes coverage + honesty (auto-test), E2E evidence (auto-e2e), the review report + fidelity + boundary findings (auto-review), all code (auto-impl), the original task (auto-plan — Gate 11), and the map (auto-map). Produces the 11 gate verdicts, the final report, and pipeline-quality inputs for run.
 
-| Relationship | Skill | Data Flow |
-|-------------|-------|-----------|
-| **Consumes from** | `auto-test` | Coverage data (Gate 2), honesty check results, dropped test count |
-| **Consumes from** | `auto-e2e` | E2E evidence and verdicts (Gate 3), evidence evaluation verdicts |
-| **Consumes from** | `auto-review` | Review report (Gate 4), behavioral fidelity findings, architecture boundary violations |
-| **Consumes from** | `auto-impl` | All code changes on the feature branch |
-| **Consumes from** | `auto-plan` | Original task description (Gate 11 — Definition of Done) |
-| **Consumes from** | `auto-map` | Architecture map — hot spots, data models for security and boundary review |
-| **Produces for** | `shipwright:run` | Final verdict (COMPLETE/PARTIAL/FAILED), gate table, pipeline quality section |
+## Red Flags & Anti-Patterns — STOP
 
-**Invoked by:** `shipwright:run` (Phase 7)
-**Invokes:** Nothing — production-readiness is a verification-only skill, it does not fix issues
-**Signals produced:** Gate verdicts (11 gates), final implementation report, pipeline quality reflection
-**Signals consumed:** All prior phase outputs, `.shipwright.json` config for coverage/load test targets
-
-## Anti-Patterns
-
-**Gate skipping:** Marking gates as N/A without justification. Every N/A needs a documented reason. If most gates are N/A, the project type classification is wrong.
-
-**Premature completion:** Declaring COMPLETE because all technical gates pass without checking Gate 11 (Definition of Done). Technical correctness is not the same as solving the user's problem.
-
-**Lowering the bar:** Reducing coverage targets or load test thresholds to make gates pass. If the defaults are wrong for this project, configure them in `.shipwright.json` before running — don't adjust mid-pipeline.
-
-**Evidence-free gates:** Marking security or error handling gates as PASS based on "I read the code and it looks fine." These gates require specific checklist items verified with evidence (grep results, audit output, test results).
-
-## Red Flags - STOP
-
-| Thought | Reality |
-|---------|---------|
+| Thought / behavior | Reality |
+|---|---|
 | "All tests pass, ship it" | Tests are gate 1 of 11. Keep going. |
-| "It's just a small change" | Small changes cause big outages. All gates. |
-| "N/A for everything" | If most gates are N/A, you're skipping verification. Justify each. |
-| "All gates pass, we're done" | Did you check Gate 11? Does it actually solve the user's problem? |
+| "It's just a small change" | Small changes cause big outages. All relevant gates. |
+| "N/A for everything" | If most gates are N/A, the project-type classification is wrong. Justify each. |
+| "All gates pass, we're done" | Did you check Gate 11 — does it solve the user's problem? |
 | "The plan said X, we built X" | The plan is an intermediary. The user's words are the spec. |
+| Lowering coverage/load thresholds to pass | Configure defaults in `.shipwright.json` before running, never mid-pipeline. |
+| "Read the code, looks fine" for security/error gates | These need checklist items verified with evidence (grep, audit output, tests). |

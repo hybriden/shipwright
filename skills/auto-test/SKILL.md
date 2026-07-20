@@ -5,13 +5,11 @@ description: "Use when test coverage needs verification, gap analysis, or additi
 
 # Auto-Test
 
-Analyze implementation for test coverage gaps and write comprehensive tests to meet coverage targets. Covers unit tests, integration tests, edge cases, error paths, and boundary conditions.
+Analyze implementation for coverage gaps and write comprehensive tests to meet targets — unit, integration, edge cases, error paths, boundaries, and module-boundary contracts.
 
-**Core principle:** Tests are the proof that code works. No proof, no confidence. No confidence, no production.
+**Core principle:** Tests are the proof code works. No proof, no confidence; no confidence, no production.
 
-<HARD-GATE>
-This skill is part of the shipwright pipeline. Do NOT invoke superpowers:test-driven-development or any other superpowers skill. The shipwright enforces TDD internally via subagent prompts.
-</HARD-GATE>
+Part of the shipwright pipeline — do NOT invoke superpowers skills.
 
 ## Iron Law
 
@@ -19,274 +17,86 @@ This skill is part of the shipwright pipeline. Do NOT invoke superpowers:test-dr
 NO CODE WITHOUT TESTS. NO GREEN BAR WITHOUT RED BAR FIRST.
 ```
 
-Every line of implementation must be exercised by at least one test. Every test must have been red before it was green.
+Every line exercised by ≥1 test; every test red before it was green.
 
 ## When to Use
 
-- After `shipwright:auto-impl` has completed implementation
-- When invoked by `shipwright:run` as the testing phase
-- When you need to verify and improve test coverage on any codebase
+After auto-impl; as run Phase 4; standalone to verify or improve coverage.
 
 ## Process
 
-```dot
-digraph auto_test {
-    rankdir=TB;
-    "1: Detect test framework" [shape=box];
-    "2: Baseline coverage" [shape=box];
-    "3: Testability audit" [shape=box];
-    "Testable?" [shape=diamond];
-    "4: Refactor for testability" [shape=box, style=dashed];
-    "5: Gap analysis" [shape=box];
-    "6: Test writing" [shape=box];
-    "7: Test honesty check" [shape=box];
-    "8: Coverage verification" [shape=box];
-    "All tests pass?" [shape=diamond];
-    "Dispatch fix subagent" [shape=box];
-    "Coverage meets target?" [shape=diamond];
-    "Identify remaining gaps" [shape=box];
-    "Testing complete" [shape=doublecircle];
+Detect framework → baseline coverage → testability audit → (refactor if opt-in) → contract-boundary analysis → gap analysis → write tests → honesty check → verify (≤3 iterations).
 
-    "1: Detect test framework" -> "2: Baseline coverage";
-    "2: Baseline coverage" -> "3: Testability audit";
-    "3: Testability audit" -> "Testable?" ;
-    "Testable?" -> "5: Gap analysis" [label="yes"];
-    "Testable?" -> "4: Refactor for testability" [label="no, if opt-in"];
-    "4: Refactor for testability" -> "5: Gap analysis";
-    "5: Gap analysis" -> "6: Test writing";
-    "6: Test writing" -> "7: Test honesty check";
-    "7: Test honesty check" -> "8: Coverage verification";
-    "8: Coverage verification" -> "All tests pass?";
-    "All tests pass?" -> "Invoke auto-debug" [label="no"];
-    "Invoke auto-debug" -> "8: Coverage verification";
-    "All tests pass?" -> "Coverage meets target?" [label="yes"];
-    "Coverage meets target?" -> "Testing complete" [label="yes"];
-    "Coverage meets target?" -> "Identify remaining gaps" [label="no"];
-    "Identify remaining gaps" -> "6: Test writing";
-}
-```
+## Phase 1: Framework Detection
 
-### Phase 1: Framework Detection
+| Config | Framework | Coverage command |
+|---|---|---|
+| jest.config.* / package.json[jest] | Jest | `npx jest --coverage` |
+| vitest.config.* | Vitest | `npx vitest run --coverage` |
+| pytest.ini / pyproject[pytest] | Pytest | `pytest --cov --cov-report=term-missing` |
+| go.mod | Go test | `go test -coverprofile=coverage.out ./...` |
+| Cargo.toml | Cargo | `cargo tarpaulin` |
+| .rspec | RSpec | `bundle exec rspec` |
 
-Detect the test framework by reading project config:
+None detected → set up the language's standard framework.
 
-| File | Framework | Coverage Command |
-|------|-----------|-----------------|
-| `jest.config.*` / `package.json[jest]` | Jest | `npx jest --coverage` |
-| `vitest.config.*` | Vitest | `npx vitest run --coverage` |
-| `pytest.ini` / `pyproject.toml[pytest]` | Pytest | `pytest --cov --cov-report=term-missing` |
-| `go.mod` | Go test | `go test -coverprofile=coverage.out ./...` |
-| `Cargo.toml` | Cargo test | `cargo tarpaulin` |
-| `.rspec` | RSpec | `bundle exec rspec --format documentation` |
+## Phase 2: Baseline Coverage
 
-If no test framework detected, select the standard framework for the detected language and set it up.
+Run the full suite with coverage; capture total line %, branch %, per-file breakdown, and the specific uncovered lines/branches.
 
-### Phase 2: Baseline Coverage
+## Phase 3: Testability Audit
 
-Run the full test suite with coverage. Capture:
-- Total line coverage percentage
-- Total branch coverage percentage
-- Per-file coverage breakdown
-- Specific uncovered lines/branches
+For each file below target, read the source and ask: are the critical paths testable with available tools (mocking, DI, visibility)? Is core logic hidden in private/static methods? Too many injected deps to mock? Tight coupling (direct `new`, static external calls)? Global state/singletons? Verdict per file: **TESTABLE** / **PARTIALLY_TESTABLE** (blocker + proposed change) / **UNTESTABLE**.
 
-### Phase 3: Testability Audit
+Opportunistically: if the code replicates an external contract (API client, protocol, data format) you can positively identify, find its authoritative docs/spec and flag divergences as potential bugs. Don't guess.
 
-Before writing a single test, audit the code under test. For each file with coverage below the target:
+## Phase 4: Refactor for Testability (opt-in — `refactorForTestability: true`)
 
-1. **Read the source code** and answer these questions:
-   - Can the critical paths be tested with the available tools (mocking libs, DI, visibility)?
-   - Are there private/static methods hiding critical logic that should be exposed?
-   - Are there classes with too many injected dependencies to mock without a library?
-   - Are there tight couplings (direct `new` of dependencies, static calls to external systems) that prevent isolated testing?
-   - Does the code depend on global state, singletons, or ambient context?
+Otherwise skip and report untestable code in the output. Authorized: visibility changes (private → internal, with `InternalsVisibleTo` etc.); extract pure functions; add the ecosystem's standard mocking library; break static coupling via injectable abstractions; wire constructor DI. Constraints: preserve behavior (run the suite after each change), don't change public signatures, don't refactor already-testable code, commit refactors separately from test additions.
 
-2. **Identify external contracts:** If the code replicates or wraps an external system's contract (API client, protocol implementation, data format):
-   - Name the external contract being replicated
-   - Search for authoritative documentation (official docs, specs, RFCs)
-   - Flag any divergence between the implementation and the documented contract as a potential bug
-   - Note: This is opportunistic — only flag contracts you can positively identify. Do not guess.
+## Phase 4.5: Module Boundary Contract Analysis
 
-3. **Output a testability verdict per file:**
+**If a map exists** (per `../_shared/architecture-map.md`), for each dependency-graph boundary involving changed code: identify the contract (signatures, data-model shapes, request/response formats, event payloads, error types); check whether contract tests exist (tests importing BOTH modules, serialization round-trips, schema validation, the map's contract-test count); flag missing ones. Prioritize: boundaries with changed code (at risk now) > data models with >3 consumers > hot-spot modules > boundaries with no tests at all. These are the highest-priority tests — they catch cross-module breakage unit tests miss.
 
-| File | Verdict | Blockers | Proposed Changes |
-|------|---------|----------|-----------------|
-| `src/foo.ts` | TESTABLE | — | — |
-| `src/bar.ts` | PARTIALLY_TESTABLE | Private method `compute()` contains core logic | Extract to internal/package-private |
-| `src/baz.ts` | UNTESTABLE | 8 constructor dependencies, no DI container | Add mocking library or extract pure functions |
+## Phase 5: Gap Analysis
 
-If all files are TESTABLE, proceed to Phase 5. If any are PARTIALLY_TESTABLE or UNTESTABLE, proceed to Phase 4 (if enabled) or proceed to Phase 5 with the testable subset and document what couldn't be tested and why.
+Per below-target file: read it, list uncovered paths (untested functions/branches, error paths, edge cases — empty/null/overflow/boundary, integration points). Skip paths marked UNTESTABLE (if Phase 4 was skipped). Include contract-conformance gaps (Phase 3) and contract-test gaps (Phase 4.5, highest priority).
 
-### Phase 4: Refactor for Testability (opt-in)
+## Phase 6: Test Writing
 
-**Only runs when `refactorForTestability: true` in `.shipwright.json`.** When disabled, skip to Phase 5 and report untestable code in the final output.
+Dispatch test-writer subagents (`./test-writer-prompt.md`) per gap cluster. Cover: happy path; edge cases (empty, single, max, unicode, special chars); error paths (invalid input, failures, timeouts); boundaries (off-by-one, min/max, empty/full); integration; contract conformance (assert documented behavior, not current impl); and module-boundary contracts (serialization round-trips; feed module A's output to module B's input; error-contract agreement — tests importing BOTH modules).
 
-Execute the changes proposed by the testability audit. Authorized refactors:
+## Phase 7: Test Honesty Check (single pass)
 
-- **Visibility changes:** `private` → `internal`/`protected` (with `[InternalsVisibleTo]` for .NET, package-private for Java, etc.)
-- **Extract pure functions:** Pull logic out of classes with heavy dependencies into standalone, testable functions
-- **Add mocking library:** If no mocking library exists and tests require one, add the standard library for the ecosystem (Moq for .NET, unittest.mock for Python, jest built-in for JS/TS, etc.)
-- **Break static coupling:** Replace direct static calls with injectable abstractions where the static call is the only barrier to testing
-- **Wire DI:** Add constructor injection for dependencies that are currently `new`'d internally
+Per test file, a quick cognitive check — NOT a rewrite loop:
 
-**Constraints:**
-- Every refactor must preserve existing behavior — run the full test suite after each change
-- Do not change public API signatures
-- Do not refactor code that is already testable
-- Commit refactors separately from test additions with clear commit messages
+1. Does it call production code, or assert against a value the test constructed to mirror the logic?
+2. Would it fail if you mentally flipped a conditional / changed a return value?
+3. Shape or behavior? (Shape tests — types, key existence — count only as contract tests.)
 
-### Phase 4.5: Module Boundary Contract Analysis
+Verdict: **HONEST** / **SHAPE_ONLY** (contract only) / **DISHONEST**. Many DISHONEST → note for auto-review (its behavioral-fidelity check does the deeper analysis with code + tests together) and proceed.
 
-**If an architecture map exists** (`docs/architecture-map.md`), analyze module boundaries for missing contract tests. Contract tests verify that the interface between two modules works correctly — they catch the class of bugs where module A changes its output format and module B silently receives wrong data.
+## Phase 8: Coverage Verification
 
-**For each module boundary in the dependency graph where the changed code is involved:**
-
-1. **Identify the contract** — what does module A promise to provide to module B?
-   - Function signatures and return types
-   - Data model shapes (from the map's Data Models section)
-   - API request/response formats
-   - Event/message payload shapes
-   - Error types and error handling expectations
-
-2. **Check if contract tests exist:**
-   - Search for tests that import from BOTH modules involved in the boundary
-   - Search for serialization/deserialization round-trip tests for shared models
-   - Search for API schema validation tests
-   - Check the map's Test Infrastructure Classification for "Contract" test count per module
-
-3. **Flag missing contract tests:**
-   ```
-   Contract Test Gaps:
-   - auth-service → user-service: No tests verify that the user object auth-service
-     produces matches what user-service expects. If auth-service changes the user
-     shape, user-service will break with no test catching it.
-   - api-routes → order-service: API response format is tested in E2E but no
-     contract test verifies the serialization independently. A serialization change
-     would only be caught by slow E2E tests, not fast contract tests.
-   ```
-
-4. **Prioritize contract test writing:**
-   - Boundaries involving changed code (highest priority — these are at risk RIGHT NOW)
-   - Boundaries involving data models with > 3 consumers (high risk)
-   - Boundaries involving hot spot modules (high blast radius)
-   - Boundaries with no existing tests at all (invisible breakage)
-
-### Phase 5: Gap Analysis
-
-For each file with coverage below the target (default 80%):
-1. Read the file
-2. Identify uncovered code paths:
-   - Untested functions/methods
-   - Untested branches (if/else, switch cases)
-   - Untested error handling paths
-   - Untested edge cases (empty input, null, overflow, boundary values)
-   - Untested integration points
-3. Cross-reference with testability audit — skip paths marked UNTESTABLE (if Phase 4 was skipped)
-4. If an external contract was identified in Phase 3, ensure gap analysis includes contract-conformance test gaps (not just code coverage gaps)
-5. **Include contract test gaps from Phase 4.5** — missing module boundary tests are the highest-priority gaps because they catch cross-module breakage that unit tests miss
-
-### Phase 6: Test Writing
-
-Dispatch test writer subagents (see `./test-writer-prompt.md`) for each gap cluster. Group related gaps to avoid writing scattered, unfocused tests.
-
-**Test categories to cover:**
-- **Happy path:** Normal expected behavior
-- **Edge cases:** Empty input, single element, max values, unicode, special characters
-- **Error paths:** Invalid input, missing data, network failures, timeout
-- **Boundary conditions:** Off-by-one, min/max values, empty/full collections
-- **Integration:** Components working together correctly
-- **Contract conformance:** If an external contract was identified, tests that assert against the documented contract behavior, not just the current implementation
-- **Module boundary contracts:** For each contract gap identified in Phase 4.5, write tests that verify the interface between modules:
-  - Serialization round-trip tests for shared data models (serialize → deserialize → compare)
-  - Tests that call module A's output function and feed the result to module B's input function
-  - Tests that verify error contracts (module A throws ErrorType X, module B handles ErrorType X)
-  - These tests import from BOTH modules and verify they agree on the contract
-
-### Phase 7: Test Honesty Check (Single Pass)
-
-After writing tests, do a quick cognitive check before declaring coverage achieved. For each test file written, answer:
-
-1. **"Does this test actually call the production code, or is it testing its own fixtures?"**
-   - Flag any test where the expected value is a literal constructed inside the test that mirrors the production logic.
-
-2. **"If I introduced a bug in the implementation, would this test catch it?"**
-   - Mentally mutate the production code (flip a conditional, change a return value). Would the test fail?
-
-3. **"Is this testing shape or behavior?"**
-   - Shape tests (asserting types, keys exist) are valid only as contract tests. They must not count toward behavioral coverage.
-
-**Verdicts:**
-- **HONEST:** Test exercises production code and would catch real bugs.
-- **SHAPE_ONLY:** Test validates structure but not behavior. Acceptable for contract tests only.
-- **DISHONEST:** Test is self-referential or wouldn't catch any real bug. Flag for the review stage — auto-review's behavioral fidelity check will do the deeper analysis.
-
-**This is a quick single-pass check, not a rewrite loop.** If many tests are DISHONEST, note it for auto-review and proceed — the deeper honesty analysis belongs in the review stage where it can consider code and tests together.
-
-### Phase 8: Coverage Verification
-
-Run the full suite again. If coverage target met, complete. If not, repeat Phase 5-7 for remaining gaps.
-
-**Max 3 iterations.** If coverage target still not met after 3 rounds, report the gap with specific uncovered paths in the final report. Distinguish between:
-- Gaps from untestable code (documented in testability audit)
-- Gaps from insufficient test writing (actual coverage shortfall)
-- Gaps from dishonest tests that were dropped
+Re-run the full suite. Target met → done. Else repeat Phases 5-7 for remaining gaps. **Max 3 iterations**; if still short, report the specific uncovered paths, distinguishing: untestable code (from the audit) / insufficient test writing / dropped dishonest tests.
 
 ## Coverage Targets
 
-| Metric | Default Target | Config Key |
-|--------|---------------|-----------|
-| Line coverage | 80% | `coverage.line` |
-| Branch coverage | 80% | `coverage.branch` |
-| Function coverage | 90% | `coverage.function` |
-
-**Configuration:** Read `.shipwright.json` in the project root for overrides. See `shipwright:auto-setup` (`./shipwright-config.md`) for the full config reference. Also honors `testCommand` and `coverageCommand` fields.
-
-## Anti-Patterns
-
-**Do NOT write tests that:**
-- Test implementation details (private methods, internal state)
-- Mock everything (test real behavior where possible)
-- Test trivial getters/setters with no logic
-- Duplicate existing test coverage
-- Test framework code (trust your framework)
-- Use sleep/timeouts for async (use proper async patterns)
-- Assert against values the test itself constructed (self-referential tests)
-- Only check that a function returns *something* without verifying it's the *right* something
-
-**Do NOT:**
-- Write tests without running them
-- Accept a green bar without seeing red first
-- Write tests for untestable code without first auditing testability
-- Ship tests that wouldn't catch a real bug just to hit a coverage number
-- Count shape-only tests toward behavioral coverage
-
-## Red Flags - STOP
-
-| Thought | Reality |
-|---------|---------|
-| "80% is good enough" | Check the missing 20%. Is it error handling? That's the most important part. |
-| "I'll just test the happy path" | Happy paths rarely fail in production. Error paths do. |
-| "The test passes, so it works" | A test that can't fail is not a test. Would it catch a real bug? |
-| "I'll construct the expected output" | If you built both the input and expected output, you tested your own logic, not the code. |
-| "This code can't be tested" | It can — you just need to refactor it first. Audit before giving up. |
+Line 80% (`coverage.line`), branch 80% (`coverage.branch`), function 90% (`coverage.function`). Overrides plus `testCommand`/`coverageCommand` in `.shipwright.json`.
 
 ## Integration
 
-Auto-test bridges implementation and review, verifying that code is proven:
+run Phase 4. Consumes impl code + inter-task log (auto-impl) and the map (auto-map). Produces coverage data, the testability audit, honesty verdicts, and the contract-gap report for auto-review and production-readiness (Gate 2). Invokes auto-debug when new tests expose implementation bugs. See `./test-writer-prompt.md`.
 
-| Relationship | Skill | Data Flow |
-|-------------|-------|-----------|
-| **Consumes from** | `auto-impl` | Implementation code, inter-task learning log |
-| **Consumes from** | `auto-map` | Architecture map — module boundaries, dependency graph, data models, test infrastructure classification |
-| **Produces for** | `auto-review` | Testability audit results, honesty check results, coverage data |
-| **Produces for** | `production-readiness` | Coverage numbers (Gate 2), dropped dishonest tests count, contract test gap report |
-| **Produces for** | `auto-e2e` | Test results indicating which paths are unit-tested (E2E can focus on integration paths) |
-| **Invokes** | `auto-debug` | When newly written tests fail unexpectedly or expose implementation bugs |
+## Red Flags & Anti-Patterns — STOP
 
-**Invoked by:** `shipwright:run` (Phase 4)
-**Invokes:** `shipwright:auto-debug` (when tests fail due to implementation bugs, not test bugs)
-**Signals produced:** Coverage data, testability audit, honesty check verdicts, contract test gap analysis, dropped test count
-**Signals consumed:** Implementation, architecture map, `.shipwright.json` coverage targets
-
-## Prompt Template
-
-See `./test-writer-prompt.md` for the subagent prompt template.
+| Thought / behavior | Reality |
+|---|---|
+| "80% is good enough" | Check the missing 20% — often it's error handling, the most important part. |
+| "Just the happy path" | Happy paths rarely fail in production; error paths do. |
+| "The test passes, so it works" | A test that can't fail isn't a test. Would it catch a real bug? |
+| "I'll construct the expected output" | If you built both input and expected output, you tested your own logic. |
+| "This code can't be tested" | Audit first — it usually can, after a refactor. |
+| Mock everything / test private methods / trivial getters | Test real behavior at the public surface. |
+| Count shape-only tests toward behavioral coverage | They're contract tests only. |
+| Ship a passing test that wouldn't catch a bug | Zero tests > misleading tests. Drop it. |

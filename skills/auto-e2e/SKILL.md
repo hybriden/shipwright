@@ -5,13 +5,11 @@ description: "Use when user-facing behavior needs end-to-end verification throug
 
 # Auto-E2E
 
-Verify the complete user experience through end-to-end testing. Detects app type (web, API, CLI) and tests the full user journey with evidence capture.
+Verify the complete user experience end-to-end. Detect app type (web / API / CLI) and test the full user journey with evidence capture.
 
-**Core principle:** Unit tests prove components work. E2E tests prove the system works for users. Both are required.
+**Core principle:** Unit tests prove components work; E2E proves the system works for users. Both required.
 
-<HARD-GATE>
-This skill is part of the shipwright pipeline. Do NOT invoke any superpowers orchestration skill. The shipwright handles E2E testing internally.
-</HARD-GATE>
+Part of the shipwright pipeline — do NOT invoke superpowers skills. (Distinct from auto-verify: E2E proves features work in isolation, one pass, before/at delivery; auto-verify iterates against a real deployed system.)
 
 ## Iron Law
 
@@ -19,208 +17,85 @@ This skill is part of the shipwright pipeline. Do NOT invoke any superpowers orc
 NO COMPLETION CLAIM WITHOUT USER-FACING VERIFICATION
 ```
 
-If a user can interact with it, it must be tested the way a user would interact with it. Screenshots, response bodies, exit codes — evidence, not assumptions.
+If a user can interact with it, test it the way a user would — screenshots, response bodies, exit codes. Evidence, not assumptions.
 
 ## When to Use
 
-- After `shipwright:auto-test` has verified unit test coverage
-- When invoked by `shipwright:run` as the E2E phase
-- When you need to verify user-facing behavior of any application type
+After auto-test; as run Phase 5; standalone for any app.
 
 ## App Type Detection
 
-```dot
-digraph app_type {
-    "Analyze project" [shape=box];
-    "Has web server/frontend?" [shape=diamond];
-    "Has API endpoints?" [shape=diamond];
-    "Has CLI entry point?" [shape=diamond];
-    "Web App: Playwright MCP" [shape=box style=filled fillcolor=lightblue];
-    "API: HTTP testing" [shape=box style=filled fillcolor=lightgreen];
-    "CLI: Shell testing" [shape=box style=filled fillcolor=lightyellow];
-    "Library: Skip E2E" [shape=box style=filled fillcolor=lightgray];
+- **Web:** index.html, React/Vue/Svelte/Angular, Express/Fastify/Next with views, vite/webpack config → Playwright MCP
+- **API:** routes without views, OpenAPI spec, REST/GraphQL endpoints → HTTP testing
+- **CLI:** bin/, commander/yargs/argparse/clap, shebangs → shell testing
+- **Library:** only exports, no entry point → skip E2E (with justification)
 
-    "Analyze project" -> "Has web server/frontend?";
-    "Has web server/frontend?" -> "Web App: Playwright MCP" [label="yes"];
-    "Has web server/frontend?" -> "Has API endpoints?" [label="no"];
-    "Has API endpoints?" -> "API: HTTP testing" [label="yes"];
-    "Has API endpoints?" -> "Has CLI entry point?" [label="no"];
-    "Has CLI entry point?" -> "CLI: Shell testing" [label="yes"];
-    "Has CLI entry point?" -> "Library: Skip E2E" [label="no"];
-}
-```
+Both web + API → test both. `.shipwright.json` `e2eType` overrides detection; `skipPhases: e2e` skips the skill.
 
-**Detection signals:**
-- Web: `index.html`, React/Vue/Svelte/Angular imports, Express/Fastify/Next.js with views, `vite.config`, `webpack.config`
-- API: Express/Fastify/Flask/Django routes without views, OpenAPI spec, REST/GraphQL endpoints
-- CLI: `bin/` directory, `commander`/`yargs`/`argparse`/`clap` imports, shebang lines
-- Library: Only exports, no entry point, published to package registry
+## Phase 1: App Analysis
 
-**If both web and API:** Test both. Web tests for user-facing pages, API tests for programmatic endpoints.
+Read `.shipwright.json` (`e2eType`, `startCommand`); detect app type; find the start command + entry URL/port/command; read the task description to know what flows exist.
 
-## Process
+## Phase 2: Scenario Generation
 
-### Phase 1: App Analysis
+Derive scenarios from the task + acceptance criteria + plan tasks + detected routes/pages/commands. Per scenario: name, steps (ordered user interactions), expected outcome, evidence to capture.
 
-1. Read `.shipwright.json` if present — check `e2eType` (overrides auto-detection) and `startCommand`
-2. If `skipPhases` includes `"e2e"`, skip this entire skill with documented justification
-3. Detect app type (see detection above, unless overridden by config)
-4. Find the start command (`npm start`, `python app.py`, `go run .`, etc.)
-5. Identify the entry URL/port/command
-6. Read the original task description to understand what user flows exist
+## Phase 2.5: Scenario Validation
 
-### Phase 2: Scenario Generation
+Before executing, validate:
+- **Adversarial coverage** — ≥1 adversarial + 1 failure-mode scenario per feature (real users don't follow prescribed flows).
+- **Behavioral depth** — each scenario exercises the specific implemented behavior, not just "a page loads"; every acceptance criterion → ≥1 scenario.
+- **Stateful journeys** — ≥1 multi-step create → verify → edit → verify → delete → verify for stateful features.
+- **Grounded expected results** — document how you know the correct result (criteria, seed data, computation, contract docs); if unknown, at least test consistency/reasonableness.
 
-Derive test scenarios from:
-- Original task description and acceptance criteria
-- The implementation plan's task list
-- Detected routes/pages/commands
-
-**For each scenario, define:**
-- Name: descriptive of the user action
-- Steps: ordered user interactions
-- Expected outcome: what the user should see/receive
-- Evidence: what to capture
-
-### Phase 2.5: Scenario Validation
-
-Before executing scenarios, validate them for completeness and groundedness:
-
-1. **Adversarial coverage:** Real users don't follow prescribed flows. Add at least one adversarial scenario per feature (wrong input, interrupted flow, unexpected navigation) and one failure-mode scenario (what happens when the feature fails?).
-
-2. **Behavioral depth:** Every scenario must exercise the *specific behavior* that was implemented, not just verify a page loads or an endpoint responds. Cross-reference every scenario against the original task's acceptance criteria — every criterion needs at least one scenario.
-
-3. **Stateful journeys:** For features involving state changes, include at least one multi-step journey (e.g., create → verify → edit → verify → delete → verify).
-
-4. **Expected results grounded in evidence:** For each scenario, document *how you know what the correct result is*:
-   - From acceptance criteria, seed data, computation, or contract documentation
-   - If you can't determine the correct result, test at least for consistency and reasonableness
-
-**Adversarial scenario patterns:**
+Adversarial patterns:
 
 | Category | Web | API | CLI |
-|----------|-----|-----|-----|
-| Double-submit | Click submit twice rapidly | POST same request twice | Run command twice on same input |
-| Invalid input | Paste script tags, 10MB text, empty required fields | `null` body, wrong content-type, oversized payload | Negative numbers, empty strings, paths with special chars |
-| Interrupted flow | Navigate away mid-form, back after submit | Cancel request mid-stream | Ctrl+C during processing |
-| Authorization | Access admin pages without auth | Hit protected endpoints without token | Run privileged commands as unprivileged user |
+|---|---|---|---|
+| Double-submit | click submit twice | POST twice | run twice on same input |
+| Invalid input | script tags, 10MB text, empty required | null body, wrong content-type, oversized | negative numbers, empty, special chars |
+| Interrupted | navigate away mid-form | cancel mid-stream | Ctrl+C during processing |
+| Authorization | admin pages without auth | protected endpoint without token | privileged command as unprivileged |
 
-### Phase 3: Test Execution
+## Phase 3: Execution
 
-#### Web Apps (Playwright MCP)
+**Web (Playwright MCP):** navigate → snapshot (elements exist) → interact (click / fill_form / type) → snapshot (state changed) → screenshot (evidence) → console_messages (no JS errors) → network_requests (calls succeeded). Cover navigation, forms (submit/validation/success), error states (404/500/network), responsiveness (375px, 768px), a11y (ARIA names, labels, focus/keyboard via snapshots).
 
-Use these MCP tools in sequence:
+**API (curl / HTTP):** valid input (200/201), invalid (400 + useful message), auth (401/403), edge cases (empty/missing/oversized), response schemas, headers (CORS, content-type).
 
-1. `browser_navigate` - Go to the page
-2. `browser_snapshot` - Capture the accessibility tree (verify elements exist)
-3. `browser_click` / `browser_fill_form` / `browser_type` - Interact
-4. `browser_snapshot` - Verify state after interaction
-5. `browser_take_screenshot` - Capture visual evidence
-6. `browser_console_messages` - Check for JS errors
-7. `browser_network_requests` - Verify API calls succeeded
+**CLI (shell):** valid args (output + exit 0), invalid (helpful error + exit ≠0), no args (usage), --help, edge cases (empty/long/special), output format.
 
-**Test these flows:**
-- Navigation: all pages load, links work, routing correct
-- Forms: submission, validation errors, success states
-- Error states: 404, server errors, network failures
-- Responsiveness: resize to mobile (375px) and tablet (768px)
-- Accessibility: verify ARIA labels, focus order, keyboard navigation via snapshots
+## Phase 4: Evidence Collection
 
-#### API Testing
+Web: screenshots at key states + console errors + network failures. API: full response bodies for failures, status codes, response times. CLI: stdout, stderr, exit codes. Store in the report with inline references.
 
-Use `curl` or language-specific HTTP clients via Bash:
+## Phase 5: Evidence Evaluation
 
-1. Test each endpoint with valid input (200/201 responses)
-2. Test with invalid input (400 responses with useful error messages)
-3. Test authentication flows (401/403 for unauthorized)
-4. Test edge cases (empty body, missing fields, oversized payload)
-5. Verify response schemas match expectations
-6. Check headers (CORS, content-type, cache-control)
+Before marking any scenario PASS, apply the evidence-evaluation gate (`../_shared/evidence-evaluation.md`) — verify correct DATA, not just that the system responded. A feature-behavior scenario lacking proof of correct output → add verification steps before proceeding.
 
-#### CLI Testing
+## Phase 6: Results
 
-Use Bash tool:
+Report each scenario with pass/fail + evidence + verdict. Any critical scenario fails → E2E phase failed.
 
-1. Test with valid arguments (correct output, exit code 0)
-2. Test with invalid arguments (helpful error message, exit code != 0)
-3. Test with no arguments (usage message)
-4. Test --help flag
-5. Test edge cases (empty input, very long input, special characters)
-6. Verify output format (JSON, table, plain text as expected)
+## Starting the App
 
-### Phase 4: Evidence Collection
-
-**For every scenario, capture:**
-- Web: screenshots at key states, console errors, network failures
-- API: full response bodies for failures, status codes, response times
-- CLI: stdout, stderr, exit codes
-
-**Store evidence in report with inline references.**
-
-### Phase 5: Evidence Evaluation
-
-Before declaring scenarios passed, evaluate the evidence honestly:
-
-1. **"Does this evidence prove the feature works, or just that the system responds?"** A screenshot of a page loading, a 200 status, or exit code 0 prove the system runs — not that the feature is correct.
-
-2. **"Did I verify computed output, not just presence?"** Check that results are *correct* for the query, not just that result elements appear.
-
-3. **"Would this evidence convince a skeptical reviewer?"** Evidence must show correct results, not just absence of errors.
-
-If any feature-behavior scenario lacks evidence of correct output, add more verification steps before proceeding.
-
-### Phase 6: Results
-
-Report all scenarios with pass/fail, evidence, and evidence evaluation. If any critical scenario fails, mark E2E phase as failed.
-
-## Starting the Application
-
-Before testing, start the app:
-1. Run the start command in background
-2. Wait for the server to be ready (poll health endpoint or check port)
-3. Set a timeout (30s default) — if app doesn't start, invoke `shipwright:auto-debug` with the startup error context
-4. After all tests, stop the app
-
-**For web apps that need building first:** Run build command, then start.
-
-## Anti-Patterns
-
-**Do NOT write E2E scenarios that:**
-- Only verify pages load without testing feature behavior
-- Assert only HTTP status codes without checking response content
-- Take screenshots as proof without verifying what's in the screenshot
-- Test only the happy path and declare the feature "works"
-- Skip failure-mode testing ("what happens when it goes wrong?")
-- Duplicate unit test coverage instead of testing user journeys
-
-## Red Flags - STOP
-
-| Thought | Reality |
-|---------|---------|
-| "The page loaded, so the feature works" | Loading and working are different things. Verify the output. |
-| "200 OK means it's correct" | 200 means the server didn't crash. Check the response body. |
-| "Screenshots are overkill" | Screenshots prove the page renders, not that it works. Verify content. |
-| "I'll just check one happy path" | Users don't only follow happy paths. Test errors too. |
-| "Unit tests already cover this" | Unit tests cover components. E2E tests cover user flows. Different. |
+Run the start command in background; poll a health endpoint/port until ready (30s timeout → auto-debug with the startup error); stop the app after tests. Web apps needing a build → build then start.
 
 ## Integration
 
-Auto-e2e verifies user-facing behavior after unit tests pass:
+run Phase 5. Consumes the task's acceptance criteria (auto-plan), unit results (auto-test — focus E2E on integration paths, not re-testing unit logic), and the start command + app type (auto-setup). Produces scenario results + evidence verdicts (PROVEN/SUPERFICIAL/INSUFFICIENT) for production-readiness (Gate 3) and auto-review. Invokes auto-debug on startup failure or scenario crashes. See `./e2e-tester-prompt.md`.
 
-| Relationship | Skill | Data Flow |
-|-------------|-------|-----------|
-| **Consumes from** | `auto-test` | Unit test results — E2E focuses on integration paths, not re-testing unit-covered logic |
-| **Consumes from** | `auto-plan` | Plan's acceptance criteria — scenarios are derived from these |
-| **Consumes from** | `auto-setup` | Start command, app type detection |
-| **Produces for** | `production-readiness` | E2E evidence and verdicts (Gate 3), evidence evaluation verdicts (PROVEN/SUPERFICIAL/INSUFFICIENT) |
-| **Produces for** | `auto-review` | E2E results inform spec compliance — did the feature actually work for users? |
-| **Invokes** | `auto-debug` | When the app fails to start, scenarios crash, or unexpected runtime errors occur |
+## Red Flags & Anti-Patterns — STOP
 
-**Invoked by:** `shipwright:run` (Phase 5)
-**Invokes:** `shipwright:auto-debug` (on app startup failure or scenario crashes)
-**Signals produced:** E2E scenario results with evidence, evidence evaluation verdicts, app type classification
-**Signals consumed:** Task description, acceptance criteria, start command, `.shipwright.json` e2eType config
+| Thought / behavior | Reality |
+|---|---|
+| "The page loaded, so it works" | Loading ≠ working. Verify the output. |
+| "200 OK means correct" | 200 means the server didn't crash. Check the body. |
+| "Screenshots are overkill" | They prove rendering, not correctness. Verify content. |
+| "One happy path is enough" | Users don't only follow happy paths. Test errors + failure modes. |
+| "Unit tests already cover this" | Units cover components; E2E covers user journeys. Different. |
+| Duplicate unit coverage as E2E | Test journeys, not re-test unit logic. |
 
 ## Prompt Template
 
-See `./e2e-tester-prompt.md` for the subagent prompt template.
+See `./e2e-tester-prompt.md`.

@@ -8,106 +8,44 @@ Agent tool (general-purpose):
   prompt: |
     You are performing end-to-end testing on a running application.
 
-    ## App Type
-
-    [web | api | cli]
-
-    ## App Details
-
-    Start command: [exact command to start the app]
-    Entry point: [URL, base API path, or CLI command]
-    Working directory: [exact path]
+    ## App
+    Type [web|api|cli] · start [command] · entry [URL / base path / command] · dir [path]
 
     ## Test Scenarios
-
-    [List of scenarios to test, each with:]
-    - Name: [descriptive name]
-    - Steps: [ordered user actions]
-    - Expected: [what should happen]
-    - Evidence: [what to capture]
+    [each: name · steps (ordered user actions) · expected · evidence to capture]
 
     ## Original Task Description
-
-    [The user's original task — use this to understand WHAT the user cares about]
+    [the user's words — what they actually care about]
 
     ## Your Job
-
-    ### For Web Apps
-
-    1. Start the app (if not already running)
-    2. For each scenario:
-       a. Use browser_navigate to go to the page
-       b. Use browser_snapshot to verify the page loaded correctly
-       c. Perform interactions (browser_click, browser_fill_form, browser_type)
-       d. Use browser_snapshot after each interaction to verify state
-       e. Use browser_take_screenshot for visual evidence
-       f. Check browser_console_messages for JS errors
-       g. Check browser_network_requests for failed API calls
-    3. Test responsiveness:
-       a. browser_resize to 375x812 (mobile)
-       b. browser_snapshot and browser_take_screenshot
-       c. browser_resize to 768x1024 (tablet)
-       d. browser_snapshot and browser_take_screenshot
-    4. Test accessibility basics via browser_snapshot:
-       a. Verify interactive elements have accessible names
-       b. Verify form inputs have labels
-       c. Check for heading hierarchy
-
-    ### For APIs
-
-    1. Start the server (if not already running)
-    2. For each endpoint:
-       a. Test with valid input — verify 200/201 status and correct response body
-       b. Test with invalid input — verify 400 status and useful error message
-       c. Test without auth (if applicable) — verify 401/403
-       d. Test edge cases — empty body, missing fields, wrong types
-    3. Verify response headers (content-type, CORS if applicable)
-    4. Measure response times (flag anything > 1s)
-
-    ### For CLIs
-
-    1. For each command/subcommand:
-       a. Run with valid args — verify output and exit code 0
-       b. Run with invalid args — verify error message and exit code != 0
-       c. Run with --help — verify usage info
-       d. Run with edge case input — empty, special chars, very long
-    2. Verify output format matches expectations
+    Web: per scenario — browser_navigate → browser_snapshot (loaded correctly) → interact
+    (browser_click / fill_form / type) → browser_snapshot after each → browser_take_screenshot →
+    browser_console_messages (JS errors) → browser_network_requests (failed calls). Also test
+    responsiveness (resize 375x812, 768x1024) and a11y basics (accessible names, input labels,
+    heading hierarchy).
+    API: per endpoint — valid input (200/201 + correct body), invalid (400 + useful message), no
+    auth if applicable (401/403), edge cases (empty body, missing fields, wrong types). Verify
+    headers (content-type, CORS) and response times (flag >1s).
+    CLI: per command — valid args (output + exit 0), invalid (error + exit ≠0), no args + --help
+    (usage), edge cases (empty, special chars, very long). Verify output format.
 
     ## Evidence Standards
+    Always verify computed output, not just presence — results correct for the query, submissions
+    produce the right data, responses contain the right values. Capture: web screenshots at each
+    state change; API full response for non-2xx AND verified content for 2xx; CLI stdout + stderr +
+    exit code; plus all error states and slow responses.
 
-    - Web: screenshot at every significant state change
-    - API: capture full response for any non-2xx status AND verify correct content for 2xx responses
-    - CLI: capture full stdout + stderr + exit code AND verify output correctness
-    - Always capture: error states, unexpected behavior, slow responses
-    - ALWAYS verify computed output, not just presence — check that search results are correct for the query, form submissions produce the right data, API responses contain the right values
+    ## Evidence Self-Evaluation (per scenario, before reporting)
+    1. Does it prove the *feature* works, or just that the page/endpoint/CLI runs? (A screenshot
+       proves rendering; 200 proves a response; exit 0 proves no crash — none prove correctness.)
+    2. Would a skeptic accept it? "I screenshotted the page" ✗; "the screenshot shows the 4 expected
+       results" ✓.
+    Classify: PROVEN (correct behavior, verified output) / SUPERFICIAL (runs, correctness unverified
+    — OK only for infra like "page loads") / INSUFFICIENT (add real verification).
 
-    ## Evidence Self-Evaluation
-
-    Before reporting, for each piece of evidence ask:
-
-    1. Does this evidence prove the *feature* works, or just that the *page/endpoint/CLI* runs?
-       - A screenshot of a page loading proves rendering, not behavior.
-       - A 200 OK proves the server responded, not that the response is correct.
-       - An exit code of 0 proves no crash, not that the output is right.
-
-    2. Would a skeptical reviewer accept this as proof?
-       - If someone asked "how do you know X works?" and your answer is "I took a screenshot of the page" — that's not convincing. Show the correct output.
-
-    Classify each scenario:
-    - PROVEN: evidence demonstrates correct behavior with verified output
-    - SUPERFICIAL: runs without errors but doesn't verify correctness (acceptable only for infrastructure: page loads, server starts)
-    - INSUFFICIENT: doesn't demonstrate anything meaningful — add real verification
-
-    ## Report Format
-
-    When done, report:
-    - **Status:** DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED
-    - Scenarios tested: [count]
-    - Passed: [count]
-    - Failed: [count with details]
-    - **Evidence quality:** X proven, Y superficial, Z insufficient
-    - Evidence: [list of screenshots/captures with descriptions and what each proves]
-    - Issues found: [list with severity]
-    - App startup: [success/failure, time to ready]
-    - Performance notes: [slow pages, slow endpoints, slow commands]
+    ## Report
+    - Status: DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED
+    - Scenarios tested / passed / failed (with details); evidence quality (X proven, Y superficial,
+      Z insufficient); evidence list (what each proves); issues (with severity); app startup (success
+      + time to ready); performance notes.
 ```
