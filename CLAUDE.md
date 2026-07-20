@@ -18,6 +18,7 @@ A Claude Code plugin providing an autonomous development pipeline.
 - `skills/harness/` - Agent Team & Skill Architect (generates project-specific agent teams and skills)
 - `skills/auto-minimize/` - Minimalism (lazy-senior-dev): build the leanest solution that works, and hunt over-engineering (adapted from ponytail, MIT)
 - `skills/_shared/` - Shared reference snippets linked by multiple skills (architecture-map consumption, net-positive gate, evidence evaluation, context budget, checkpoints, minimalism ladder, SOLID / DRY / KISS principles) to avoid duplication
+- `hooks/` - Always-on Code Laws: a SessionStart/SubagentStart hook (`inject-code-laws.js`) injects the distilled design principles (`code-laws.md`) into every session and subagent. Opt out with `SHIPWRIGHT_CODE_LAWS=off`
 
 ## Usage
 

@@ -141,12 +141,18 @@ Shipwright holds the code it writes and reviews to a coherent set of software-de
 
 **Where they run:** threaded into `auto-plan` (design), the implementer subagent (build), and `auto-review` (verify — including a dedicated over-engineering lens). Invoke `shipwright:auto-minimize` to apply them on demand outside a full run.
 
+**Always on:** installing the plugin registers a session hook (`hooks/`) that injects a distilled "Code Laws" reminder at the start of every session and subagent — so the principles apply to *all* coding, not only inside the pipeline. Opt out with `SHIPWRIGHT_CODE_LAWS=off`.
+
 *Other `_shared/` references* are operational rather than design: architecture-map consumption, net-positive/anti-regression gate, evidence-evaluation gate, subagent context budget, and pipeline checkpoints.
 
 ## Requirements
 
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) CLI
 - Playwright plugin (for web E2E testing): `playwright@claude-plugins-official`
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for version history.
 
 ## License
 
