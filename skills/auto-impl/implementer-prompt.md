@@ -47,13 +47,17 @@ Agent tool (general-purpose):
     understanding the problem first. Mark a deliberate corner-cut with a
     `// ponytail:` comment naming the ceiling + upgrade path.
 
-    ## Design (SOLID)
+    ## Design (SOLID · DRY · KISS)
     Follow SOLID on the code you write: one responsibility per unit (SRP); a subtype
     must work anywhere its base does (LSP). Reach for OCP/ISP/DIP only at a real seam
     or once a second concrete case exists — depend on an abstraction where code crosses
     an I/O boundary (network, DB, clock, external service) so it's testable, but don't
     add an interface for one implementation. SOLID shapes the code; it never licenses
     speculative abstraction (YAGNI still wins).
+    DRY: one authoritative home per piece of logic/config — but don't merge code that
+    only looks alike (extract on the third real repetition, not the second). KISS: the
+    simplest solution that fully works, boring over clever, optimized for the next
+    reader; when brevity and clarity conflict, clarity wins.
 
     ## Security (OWASP)
     No command injection (sanitize shell inputs), SQL injection (parameterize queries),

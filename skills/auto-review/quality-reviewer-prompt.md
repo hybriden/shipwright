@@ -19,8 +19,9 @@ Agent tool (general-purpose):
       Flag violations that hurt correctness or testability — not missing abstractions for
       hypothetical futures. Well-defined interfaces; independently testable; follows the plan's
       structure; flag new files >300 logic lines.
-    - Code quality: clear consistent names; readable without comments; focused functions; no
-      duplication, dead code, or unused imports; follows conventions.
+    - Code quality (DRY/KISS): clear consistent names; readable without comments (boring over
+      clever); focused functions; one home per piece of logic — but don't flag look-alike code
+      that changes for different reasons; no dead code or unused imports; follows conventions.
     - Security (OWASP): command/SQL injection, XSS, path traversal, hardcoded secrets, endpoint
       auth, input validation at boundaries.
     - Error handling: all external boundaries protected; useful context; not swallowed; graceful
