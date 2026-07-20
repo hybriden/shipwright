@@ -13,8 +13,12 @@ Agent tool (general-purpose):
     [impl summary] · [git diff or files + line ranges; base SHA → HEAD] · [detected patterns]
 
     ## Review For
-    - Architecture/design: one responsibility per file; well-defined interfaces; independently
-      testable; follows the plan's structure; flag new files >300 logic lines.
+    - Architecture/design (SOLID): one responsibility per unit (SRP); subtypes honor their
+      base's contract (LSP); depend on abstractions at real I/O seams, not concretes (DIP); no
+      fat interfaces (ISP); extend without editing working code where a second case exists (OCP).
+      Flag violations that hurt correctness or testability — not missing abstractions for
+      hypothetical futures. Well-defined interfaces; independently testable; follows the plan's
+      structure; flag new files >300 logic lines.
     - Code quality: clear consistent names; readable without comments; focused functions; no
       duplication, dead code, or unused imports; follows conventions.
     - Security (OWASP): command/SQL injection, XSS, path traversal, hardcoded secrets, endpoint
