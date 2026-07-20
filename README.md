@@ -101,7 +101,8 @@ Create `.shipwright.json` in your project root to customize behavior. All fields
   "loadTest": { "users": 100, "duration": "60s", "p99": 500 },
   "e2eType": "auto",
   "branch": { "prefix": "shipwright", "autoMerge": false },
-  "dotnetSkills": { "enabled": true, "installTool": true }
+  "dotnetSkills": { "enabled": true, "installTool": true },
+  "reactDoctor": { "enabled": true, "scope": "changed" }
 }
 ```
 
@@ -161,6 +162,16 @@ In **.NET projects only**, Shipwright dynamically taps [managedcode/dotnet-skill
 **Requires** the .NET SDK. The `dotnet-skills` CLI is installed globally on first use (like `dotnet-ef`); disable that with `dotnetSkills.installTool: false`.
 
 **Opt out** entirely with `SHIPWRIGHT_DOTNET_SKILLS=off` or `.shipwright.json` `dotnetSkills.enabled: false`. Filter with `dotnetSkills.only` / `exclude`; control freshness with `refreshDays` and network use with `bundled`. See the [config reference](skills/auto-setup/shipwright-config.md).
+
+## React Health (verify gate)
+
+In **React projects only**, `auto-review` runs [react-doctor](https://github.com/millionco/react-doctor) (Modified-MIT, by the Million.js team) as a **deterministic verify gate over the diff** — a different model than the .NET integration: not injected guidance, but a scanner whose concrete findings become review issues.
+
+- **Diff-scoped & local-only.** Runs `npx react-doctor --json --no-score --no-telemetry --scope changed --base <branch>` — it judges only the change under review (not pre-existing debt) and **never phones home** (react-doctor calls a score/share API by default; Shipwright always disables it).
+- **Evidence, not prose.** `error`-severity findings (missing effect cleanup, `<img>` without alt, direct state mutation, index-as-key, stale effect deps, setState-in-render, …) are routed to the implementer to fix, then re-scanned under the anti-regression gate. Warnings are fixed when clearly correct, noted otherwise.
+- **No vendoring.** react-doctor is fetched transiently via `npx`; nothing is copied in. Canonical runner: `hooks/react/react-doctor.js`; protocol: `skills/_shared/react-doctor.md`.
+
+**Requires** Node/`npx`. Its security coverage is thin (it won't catch every XSS), so it augments — not replaces — the other review stages. **Opt out** with `.shipwright.json` `reactDoctor.enabled: false`; tune `scope` / `blocking` / `categories` there too.
 
 ## Requirements
 

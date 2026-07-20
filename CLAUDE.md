@@ -17,9 +17,10 @@ A Claude Code plugin providing an autonomous development pipeline.
 - `skills/production-readiness/` - Final verification gate
 - `skills/harness/` - Agent Team & Skill Architect (generates project-specific agent teams and skills)
 - `skills/auto-minimize/` - Minimalism (lazy-senior-dev): build the leanest solution that works, and hunt over-engineering (adapted from ponytail, MIT)
-- `skills/_shared/` - Shared reference snippets linked by multiple skills (architecture-map consumption, net-positive gate, evidence evaluation, context budget, checkpoints, minimalism ladder, SOLID / DRY / KISS principles, dotnet-skills consumption protocol) to avoid duplication
+- `skills/_shared/` - Shared reference snippets linked by multiple skills (architecture-map consumption, net-positive gate, evidence evaluation, context budget, checkpoints, minimalism ladder, SOLID / DRY / KISS principles, dotnet-skills consumption protocol, react-doctor verify gate) to avoid duplication
 - `hooks/` - Always-on Code Laws: a SessionStart/SubagentStart hook (`inject-code-laws.js`) injects the distilled design principles (`code-laws.md`) into every session and subagent. Opt out with `SHIPWRIGHT_CODE_LAWS=off`
 - `hooks/dotnet/` - Dynamic .NET skills (`.NET projects only`): `detect.js` (near-zero-cost .NET gate), `engine.js` (acquisition engine — drives the official managedcode/dotnet-skills CLI to install project-matched skills into an out-of-repo cache, builds an index), and `inject-dotnet-skills.js` (SessionStart/SubagentStart hook that injects the index). Nothing is vendored; skills are Read on demand. Opt out with `SHIPWRIGHT_DOTNET_SKILLS=off`. Wired into `run` Phase 1.75 and consumed via `skills/_shared/dotnet-skills.md`.
+- `hooks/react/` - React verify gate (`React projects only`): `react-doctor.js` runs millionco/react-doctor as a deterministic static analyzer over the diff (local-only: `--no-score --no-telemetry`; diff-scoped: `--scope changed --base`), parses its JSON, and returns normalized findings. Consumed by `auto-review` (Stage 2.6 React Health) via `skills/_shared/react-doctor.md`. Nothing vendored (react-doctor via npx). Opt out with `.shipwright.json` `reactDoctor.enabled: false`.
 
 ## Usage
 

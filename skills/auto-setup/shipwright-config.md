@@ -38,6 +38,14 @@ All implementor skills check for `.shipwright.json` in the project root. Every f
     "refreshDays": 7,
     "only": [],
     "exclude": []
+  },
+  "reactDoctor": {
+    "enabled": true,
+    "scope": "changed",
+    "blocking": "error",
+    "categories": [],
+    "version": "latest",
+    "maxWarnings": 40
   }
 }
 ```
@@ -113,6 +121,20 @@ Dynamic use of managedcode/dotnet-skills in .NET projects (ignored in non-.NET p
 | `dotnetSkills.only` | string[] | [] | If non-empty, restrict the injected index to these skill ids/names |
 | `dotnetSkills.exclude` | string[] | [] | Drop these skill ids/names from the injected index |
 
+### React Doctor
+
+Deterministic react-doctor verify gate in React projects (ignored elsewhere). Runs local-only (never phones home). See `_shared/react-doctor.md`.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `reactDoctor.enabled` | boolean | true | Master switch for the React verify gate |
+| `reactDoctor.scope` | string | `"changed"` | `"changed"` (diff vs base) or `"full"` (whole project) |
+| `reactDoctor.base` | string | auto | Git ref for changed-scope; omit to auto-detect |
+| `reactDoctor.blocking` | string | `"error"` | Severity that trips non-zero exit: `"error"`, `"warning"`, `"none"` |
+| `reactDoctor.categories` | string[] | [] | Limit to these categories (e.g. `["Bugs","Accessibility"]`); [] = all |
+| `reactDoctor.version` | string | `"latest"` | react-doctor version to run via npx (pin for reproducibility) |
+| `reactDoctor.maxWarnings` | number | 40 | Cap warnings in the rendered block (errors are never capped) |
+
 ## Which Skills Read Config
 
 | Skill | Fields Used |
@@ -120,7 +142,8 @@ Dynamic use of managedcode/dotnet-skills in .NET projects (ignored in non-.NET p
 | `auto-setup` | `setupCommand`, `buildCommand`, `testCommand`, `envFile` |
 | `auto-test` | `testCommand`, `coverageCommand`, `coverage.*`, `refactorForTestability` |
 | `auto-e2e` | `startCommand`, `e2eType`, `skipPhases` |
-| `auto-review` | (none — uses defaults) |
+| `auto-review` | `reactDoctor.*` (React projects) |
 | `production-readiness` | `coverage.*`, `loadTest.*`, `skipPhases` |
 | `run` | `skipPhases`, `branch.*`, `dotnetSkills.*`, all (passes to sub-skills) |
 | dotnet-skills hook + engine | `dotnetSkills.*` |
+| react-doctor runner | `reactDoctor.*` |

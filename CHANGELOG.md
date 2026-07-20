@@ -2,6 +2,11 @@
 
 All notable changes to Shipwright. Format follows [Keep a Changelog](https://keepachangelog.com/); the project adheres to [Semantic Versioning](https://semver.org/). Versions track the `version` field in `.claude-plugin/plugin.json`.
 
+## [3.8.0] — 2026-07-20
+
+- Added a **React verify gate** — in React projects only, `auto-review` (new Stage 2.6 "React Health") runs [millionco/react-doctor](https://github.com/millionco/react-doctor) (Modified-MIT) as a **deterministic static analyzer over the diff**, and treats its findings as evidence. Unlike the .NET integration (injected guidance), this is a scanner: `error`-severity findings are routed to the implementer and re-scanned under the anti-regression gate. New `hooks/react/react-doctor.js` runner — **local-only** (`--no-score --no-telemetry`, never phones home), **diff-scoped** (`--scope changed --base`, with a changed→full fallback when there is no git base), reads `.shipwright.json`, normalizes/renders findings; fetched transiently via `npx` (nothing vendored).
+- New `_shared/react-doctor.md` protocol; `.shipwright.json` `reactDoctor` block (`enabled`/`scope`/`base`/`blocking`/`categories`/`version`/`maxWarnings`); opt out with `reactDoctor.enabled: false`. Empirically validated on a controlled fixture: caught 6/8 planted bugs + 2 bonus real a11y issues with zero false positives on clean idiomatic code (~0.5s scan). Coverage is not exhaustive (thin on security), so it augments rather than replaces the other review stages.
+
 ## [3.7.0] — 2026-07-20
 
 - Added **dynamic .NET skills** — in .NET projects only, Shipwright taps [managedcode/dotnet-skills](https://github.com/managedcode/dotnet-skills) (MIT) for idiomatic .NET guidance **without vendoring any content**. New `hooks/dotnet/`: `detect.js` (near-zero-cost, pure-fs .NET gate — no process spawns, so non-.NET repos pay nothing), `engine.js` (drives the official `dotnet-skills` CLI via `install --auto` to install project-matched skills into an out-of-repo cache at `~/.claude/.shipwright/dotnet-skills/<project>/`, keeping the repo tree clean; builds a compact index; honors `.shipwright.json`), and `inject-dotnet-skills.js` (SessionStart/SubagentStart hook injecting the `[dotnet-skills]` index; ~45 ms, never installs).

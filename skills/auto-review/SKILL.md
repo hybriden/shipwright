@@ -25,7 +25,7 @@ After auto-test + auto-e2e; as run Phase 6; whenever code needs verification aga
 
 ## Process
 
-Gather (plan, impl report, git diff) → Stage 1 spec compliance (≤3 cycles) → Stage 2 behavioral fidelity → Stage 2.5 architecture boundaries → Stage 3 quality (≤3 cycles) → Stage 3.5 over-engineering lens → Stage 4 plan feedback → verdict. Reviewers verify by reading code, never by trusting the impl report. After any fix, re-dispatch the reviewer — fixes introduce new issues ~30% of the time.
+Gather (plan, impl report, git diff) → Stage 1 spec compliance (≤3 cycles) → Stage 2 behavioral fidelity → Stage 2.5 architecture boundaries → Stage 2.6 React health (React projects) → Stage 3 quality (≤3 cycles) → Stage 3.5 over-engineering lens → Stage 4 plan feedback → verdict. Reviewers verify by reading code, never by trusting the impl report. After any fix, re-dispatch the reviewer — fixes introduce new issues ~30% of the time.
 
 ## Stage 1: Spec Compliance
 
@@ -58,6 +58,12 @@ Output: fidelity concerns (treated as CRITICAL) or CLEAN.
 
 Output: architectural concerns (CRITICAL — this is the cascading-breakage cause) or CLEAN.
 
+## Stage 2.6: React Health (React projects only)
+
+**If `package.json` has a `react` dependency**, run the deterministic react-doctor gate over the diff per `../_shared/react-doctor.md` (local-only, `--scope changed --base <base>`). Treat `error`-severity findings as **Important** (or Critical for security/data-correctness rules) → dispatch the implementer to fix the exact `file:line` + rule, then re-scan and hold the net-positive line. Fix clearly-correct warnings (`no-array-index-as-key`, `exhaustive-deps`, `no-direct-state-mutation`), note the rest. Skip silently for non-React projects, `reactDoctor.enabled: false`, or when react-doctor is unavailable (no npx/offline). Its coverage isn't exhaustive (thin on security) — your own Stage 1-3 checks still apply.
+
+Output: react-doctor findings (with severities + resolution) or CLEAN/UNAVAILABLE.
+
 ## Stage 3: Code Quality
 
 Only after Stages 1, 2, and 2.5 pass. Dispatch the quality reviewer (`./quality-reviewer-prompt.md`) with the impl summary, git diff (base→HEAD), conventions, fidelity findings, and map context. Checks: SOLID design (`../_shared/solid.md`) — SRP/LSP always, OCP/ISP/DIP only at real seams; DRY/KISS (`../_shared/dry-kiss.md`) — one home per piece of logic, simplest obvious solution; clear names + readability; OWASP top 10; error handling at all external boundaries; no TODO/FIXME/HACK in new code; production-appropriate logging; no hardcoded values that should be config; tests verify behavior; structure follows plan + conventions; no boundary violations; backward-compatible model changes; hot-spot changes have contract tests. In .NET projects, also check changed .NET code against the patterns/anti-patterns of any matched `[dotnet-skills]` skill (Read its `SKILL.md`; see `../_shared/dotnet-skills.md`) — treat clear violations as Important. Severity: **Critical** (security, data loss, broken — must fix) / **Important** (poor patterns, missing error handling, bad naming — should fix) / **Minor** (style — note). Critical or Important → implementer fixes → re-review (max 3 cycles). Only Minor → approve with notes.
@@ -77,6 +83,7 @@ Surface issues that are *plan* problems, not implementation problems: multiple t
 ### Spec Compliance — PASS/FAIL, cycles N/3, issues resolved / unresolved
 ### Behavioral Fidelity — CLEAN/CONCERNS_FOUND, discrepancies, resolved?
 ### Architecture Boundaries — CLEAN/VIOLATIONS_FOUND, new deps / model changes / hot spots / config
+### React Health — CLEAN/ISSUES_FOUND/UNAVAILABLE (React only) — react-doctor errors/warnings, resolved?
 ### Code Quality — APPROVED/APPROVED_WITH_NOTES, cycles N/3, Critical/Important/Minor counts, strengths
 ### Over-Engineering — net: -N lines possible (or "Lean already"), findings applied?
 ### Plan Retrospective — decomposition, criteria, context sufficiency, suggestions
@@ -89,7 +96,7 @@ Use auto-impl's `implementer-prompt.md`. Provide the specific issues (with file:
 
 ## Integration
 
-run Phase 6. Consumes git diff + impl report (auto-impl), testability + honesty + coverage (auto-test), the plan + original task (auto-plan), the map (auto-map), and E2E evidence (auto-e2e). Produces the review report + fidelity + boundary findings for production-readiness, and the plan retrospective for auto-plan (next run) / `.shipwright-retrospective.md`. Invokes implementer subagents to fix issues.
+run Phase 6. Consumes git diff + impl report (auto-impl), testability + honesty + coverage (auto-test), the plan + original task (auto-plan), the map (auto-map), and E2E evidence (auto-e2e). In React projects, runs the deterministic react-doctor gate (`../_shared/react-doctor.md`). Produces the review report + fidelity + boundary findings for production-readiness, and the plan retrospective for auto-plan (next run) / `.shipwright-retrospective.md`. Invokes implementer subagents to fix issues.
 
 ## Red Flags & Anti-Patterns — STOP
 
