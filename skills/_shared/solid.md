@@ -11,7 +11,7 @@ Shared reference for the design/build/review steps (auto-plan, implementer promp
 | **D** Dependency Inversion | Depend on abstractions at real seams | High-level logic hard-wired to a concrete I/O dependency, untestable without it → inject it behind a small interface |
 
 **Apply pragmatically:**
-- **SRP and LSP always hold** — a unit doing two jobs, or a subtype that breaks its base's contract, is a bug regardless of size.
+- **SRP and LSP always hold** — a unit doing two jobs, or a subtype that breaks its base's contract, is a bug regardless of size. Split a large monolithic module by feature/domain into single-responsibility units — this refines minimalism's "fewest files": the fewest files that each stay one-responsibility, never one giant file.
 - **OCP, ISP, DIP earn their abstraction** only at a real seam or a second concrete case. One implementation needs no interface (the YAGNI line). DIP pays off wherever code crosses an I/O boundary (network, DB, clock, filesystem, external service) you'll want to test or mock.
 - If applying a principle *adds* code with no second case and no test/seam benefit, that's over-engineering — stop.
 

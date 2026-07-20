@@ -122,6 +122,27 @@ Each skill is independently usable:
 | `shipwright:harness` | Agent Team & Skill Architect — generates project-specific agent teams |
 | `shipwright:auto-minimize` | Minimalism — build the leanest solution that works, hunt over-engineering |
 
+## Design Principles
+
+Shipwright holds the code it writes and reviews to a coherent set of software-design principles. Each is defined **once** in `skills/_shared/` and applied automatically across planning, implementation, and review — no configuration, no opt-in.
+
+| Principle | Defined in | Governs | In one line |
+|-----------|-----------|---------|-------------|
+| **Minimalism** (lazy senior dev) | `_shared/minimalism.md` | *amount* of code | The best code is code never written — reuse → stdlib → native → one line → only then write. Adapted from [ponytail](https://github.com/DietrichGebert/ponytail) (MIT). |
+| **SOLID** | `_shared/solid.md` | *structure* | SRP/LSP always hold; OCP/ISP/DIP earn their abstraction only at a real seam or a second concrete case. |
+| **DRY** | `_shared/dry-kiss.md` | *single source of truth* | One home per piece of knowledge — but never merge coincidental look-alikes (rule of three). |
+| **KISS** | `_shared/dry-kiss.md` | *clarity* | The simplest solution that fully works; boring over clever, optimized for the next reader. |
+
+**They're reconciled, not just stacked.** The principles pull in different directions, so each defers explicitly where they collide:
+
+- **Abstraction is earned, never speculative.** SOLID, DRY, and minimalism share one test — extract an abstraction at a real I/O seam or on the second/third concrete case, not for a hypothetical future. A wrong abstraction costs more than a little duplication.
+- **Clarity beats terseness.** When KISS (most obvious) and minimalism (least code) conflict, clarity wins — a cryptic one-liner fails KISS.
+- **Safety is never cut.** Input validation at trust boundaries, data-loss handling, security, accessibility, and understanding the problem are never simplified away.
+
+**Where they run:** threaded into `auto-plan` (design), the implementer subagent (build), and `auto-review` (verify — including a dedicated over-engineering lens). Invoke `shipwright:auto-minimize` to apply them on demand outside a full run.
+
+*Other `_shared/` references* are operational rather than design: architecture-map consumption, net-positive/anti-regression gate, evidence-evaluation gate, subagent context budget, and pipeline checkpoints.
+
 ## Requirements
 
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) CLI

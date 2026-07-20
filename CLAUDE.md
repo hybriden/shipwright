@@ -26,3 +26,7 @@ Invoke `shipwright:run` with a task description. The system handles everything a
 ## Philosophy
 
 Zero human interaction during execution. Evidence-based completion only. Every phase must pass before the next begins.
+
+## Design Principles
+
+Code is held to a single-sourced set of design principles in `skills/_shared/`, applied automatically across planning, implementation, and review: **minimalism** (least code — reuse/stdlib/native first), **SOLID** (structure), and **DRY/KISS** (one source of truth, simplest clear solution). They reconcile explicitly — abstraction is earned at a real seam or second concrete case (never speculative), clarity beats terseness, and the safety carve-outs (trust-boundary validation, data-loss handling, security, accessibility, understanding the problem) are never simplified away. See the README "Design Principles" section for the full table.
