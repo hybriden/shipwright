@@ -120,6 +120,7 @@ Each skill is independently usable:
 | `shipwright:auto-debug` | Systematic root cause analysis with proven fixes |
 | `shipwright:production-readiness` | Final verification gate |
 | `shipwright:harness` | Agent Team & Skill Architect — generates project-specific agent teams |
+| `shipwright:auto-minimize` | Minimalism — build the leanest solution that works, hunt over-engineering |
 
 ## Requirements
 

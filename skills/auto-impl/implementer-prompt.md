@@ -39,6 +39,14 @@ Agent tool (general-purpose):
     patterns. Improve code you touch, but don't restructure beyond your task. If a file
     grows beyond plan intent, STOP and report DONE_WITH_CONCERNS.
 
+    ## Minimalism
+    Build the minimum that works: reuse existing code → stdlib → native platform
+    feature → installed dep → one line → only then new code. No unrequested
+    abstractions; deletion over addition; fewest files. Never cut: input validation
+    at trust boundaries, data-loss handling, security, accessibility, or
+    understanding the problem first. Mark a deliberate corner-cut with a
+    `// ponytail:` comment naming the ceiling + upgrade path.
+
     ## Security (OWASP)
     No command injection (sanitize shell inputs), SQL injection (parameterize queries),
     XSS (escape user content), path traversal (validate paths), or hardcoded secrets.

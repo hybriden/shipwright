@@ -25,7 +25,7 @@ After auto-test + auto-e2e; as run Phase 6; whenever code needs verification aga
 
 ## Process
 
-Gather (plan, impl report, git diff) → Stage 1 spec compliance (≤3 cycles) → Stage 2 behavioral fidelity → Stage 2.5 architecture boundaries → Stage 3 quality (≤3 cycles) → Stage 4 plan feedback → verdict. Reviewers verify by reading code, never by trusting the impl report. After any fix, re-dispatch the reviewer — fixes introduce new issues ~30% of the time.
+Gather (plan, impl report, git diff) → Stage 1 spec compliance (≤3 cycles) → Stage 2 behavioral fidelity → Stage 2.5 architecture boundaries → Stage 3 quality (≤3 cycles) → Stage 3.5 over-engineering lens → Stage 4 plan feedback → verdict. Reviewers verify by reading code, never by trusting the impl report. After any fix, re-dispatch the reviewer — fixes introduce new issues ~30% of the time.
 
 ## Stage 1: Spec Compliance
 
@@ -62,6 +62,10 @@ Output: architectural concerns (CRITICAL — this is the cascading-breakage caus
 
 Only after Stages 1, 2, and 2.5 pass. Dispatch the quality reviewer (`./quality-reviewer-prompt.md`) with the impl summary, git diff (base→HEAD), conventions, fidelity findings, and map context. Checks: single responsibility per file; clear names + readability; OWASP top 10; error handling at all external boundaries; no TODO/FIXME/HACK in new code; production-appropriate logging; no hardcoded values that should be config; tests verify behavior; structure follows plan + conventions; no boundary violations; backward-compatible model changes; hot-spot changes have contract tests. Severity: **Critical** (security, data loss, broken — must fix) / **Important** (poor patterns, missing error handling, bad naming — should fix) / **Minor** (style — note). Critical or Important → implementer fixes → re-review (max 3 cycles). Only Minor → approve with notes.
 
+## Stage 3.5: Over-Engineering Lens
+
+Hunt only complexity to delete — separate from correctness/security (Stages 1-3). Per finding, one line: `L<n>: <tag> <what>. <replacement>.` with tags **delete / stdlib / native / yagni / shrink**; end with `net: -N lines possible`, or `Lean already. Ship.` if nothing to cut. See `../_shared/minimalism.md`. Treat findings as Important — dispatch the implementer to delete/shrink, then re-verify tests still pass. Never flag the required test/coverage as bloat.
+
 ## Stage 4: Plan Feedback
 
 Surface issues that are *plan* problems, not implementation problems: multiple tasks editing the same files (wrong seams), criteria that couldn't be verified as written (vague), repeated NEEDS_CONTEXT (plan lacked info), over/under-engineering (wrong task scope). Doesn't block (the code is already fixed) — output as a "Plan Retrospective" so plan quality improves over time.
@@ -74,6 +78,7 @@ Surface issues that are *plan* problems, not implementation problems: multiple t
 ### Behavioral Fidelity — CLEAN/CONCERNS_FOUND, discrepancies, resolved?
 ### Architecture Boundaries — CLEAN/VIOLATIONS_FOUND, new deps / model changes / hot spots / config
 ### Code Quality — APPROVED/APPROVED_WITH_NOTES, cycles N/3, Critical/Important/Minor counts, strengths
+### Over-Engineering — net: -N lines possible (or "Lean already"), findings applied?
 ### Plan Retrospective — decomposition, criteria, context sufficiency, suggestions
 ### Overall: APPROVED | APPROVED_WITH_NOTES | NEEDS_ATTENTION
 ```

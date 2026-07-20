@@ -39,6 +39,8 @@ Read prior "Plan Retrospective" sections in `docs/plans/*` and `.shipwright-retr
 
 Guided by the map: decompose **along module boundaries** (not feature lines), order by the **build dependency graph** (upstream before dependents), flag hot-spot tasks (extra context + stronger model), include 1-hop neighbor interfaces in each task's context, and reference the map's patterns explicitly.
 
+**Plan the minimal solution** (per `../_shared/minimalism.md`): reuse / stdlib / native before new code, no unrequested abstractions, the fewest tasks that actually solve it. Never simplify away the safety carve-outs listed there.
+
 **Atomic change groups — must change together or not at all:**
 - Interface + all implementations (splitting → build failures between tasks)
 - Data model + all consumers (splitting → half the codebase sees the old shape)

@@ -16,7 +16,8 @@ A Claude Code plugin providing an autonomous development pipeline.
 - `skills/auto-verify/` - Iterative runtime verification with architecture-aware context, anti-regression gate, and stateful resource management
 - `skills/production-readiness/` - Final verification gate
 - `skills/harness/` - Agent Team & Skill Architect (generates project-specific agent teams and skills)
-- `skills/_shared/` - Shared reference snippets linked by multiple skills (architecture-map consumption, net-positive gate, evidence evaluation, context budget, checkpoints) to avoid duplication
+- `skills/auto-minimize/` - Minimalism (lazy-senior-dev): build the leanest solution that works, and hunt over-engineering (adapted from ponytail, MIT)
+- `skills/_shared/` - Shared reference snippets linked by multiple skills (architecture-map consumption, net-positive gate, evidence evaluation, context budget, checkpoints, minimalism ladder) to avoid duplication
 
 ## Usage
 
