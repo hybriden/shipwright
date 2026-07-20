@@ -10,6 +10,13 @@
             "commandWindows": "if (Get-Command node -ErrorAction SilentlyContinue) { node \"$env:CLAUDE_PLUGIN_ROOT\\hooks\\inject-code-laws.js\" SessionStart }",
             "timeout": 5,
             "statusMessage": "Loading shipwright code laws..."
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/dotnet/inject-dotnet-skills.js\" SessionStart",
+            "commandWindows": "if (Get-Command node -ErrorAction SilentlyContinue) { node \"$env:CLAUDE_PLUGIN_ROOT\\hooks\\dotnet\\inject-dotnet-skills.js\" SessionStart }",
+            "timeout": 5,
+            "statusMessage": "Checking for .NET skills..."
           }
         ]
       }
@@ -23,6 +30,13 @@
             "commandWindows": "if (Get-Command node -ErrorAction SilentlyContinue) { node \"$env:CLAUDE_PLUGIN_ROOT\\hooks\\inject-code-laws.js\" SubagentStart }",
             "timeout": 5,
             "statusMessage": "Loading shipwright code laws..."
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/dotnet/inject-dotnet-skills.js\" SubagentStart",
+            "commandWindows": "if (Get-Command node -ErrorAction SilentlyContinue) { node \"$env:CLAUDE_PLUGIN_ROOT\\hooks\\dotnet\\inject-dotnet-skills.js\" SubagentStart }",
+            "timeout": 5,
+            "statusMessage": "Checking for .NET skills..."
           }
         ]
       }

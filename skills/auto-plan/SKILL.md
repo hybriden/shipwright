@@ -41,6 +41,8 @@ Guided by the map: decompose **along module boundaries** (not feature lines), or
 
 **Plan the minimal solution** (per `../_shared/minimalism.md`): reuse / stdlib / native before new code, no unrequested abstractions, the fewest tasks that actually solve it. Never simplify away the safety carve-outs listed there. Structure the design to SOLID (`../_shared/solid.md`) — separate responsibilities (SRP) and place abstractions at real I/O seams, but not before a second concrete case earns them. Keep it DRY and simple (`../_shared/dry-kiss.md`): one home per piece of logic, the simplest solution that works.
 
+**In .NET projects**, decompose along idiomatic .NET seams and, when a `[dotnet-skills]` index is present, note which matched skill each task should consult (e.g. an EF task → `entity-framework-core`). Protocol: `../_shared/dotnet-skills.md`.
+
 **Atomic change groups — must change together or not at all:**
 - Interface + all implementations (splitting → build failures between tasks)
 - Data model + all consumers (splitting → half the codebase sees the old shape)

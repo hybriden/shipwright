@@ -30,6 +30,14 @@ All implementor skills check for `.shipwright.json` in the project root. Every f
   "branch": {
     "prefix": "implementor",
     "autoMerge": false
+  },
+  "dotnetSkills": {
+    "enabled": true,
+    "installTool": true,
+    "bundled": true,
+    "refreshDays": 7,
+    "only": [],
+    "exclude": []
   }
 }
 ```
@@ -59,7 +67,7 @@ All implementor skills check for `.shipwright.json` in the project root. Every f
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `skipPhases` | string[] | [] | Phases to skip: `"e2e"`, `"loadTest"`, `"setup"` |
+| `skipPhases` | string[] | [] | Phases to skip: `"e2e"`, `"loadTest"`, `"setup"`, `"dotnetSkills"` |
 
 Only these phases can be skipped. Plan, implement, test, review, and production-readiness cannot be skipped.
 
@@ -92,6 +100,19 @@ Only these phases can be skipped. Plan, implement, test, review, and production-
 | `branch.prefix` | string | `"implementor"` | Feature branch prefix |
 | `branch.autoMerge` | boolean | false | Auto-merge on success (vs offer choice) |
 
+### .NET Skills
+
+Dynamic use of managedcode/dotnet-skills in .NET projects (ignored in non-.NET projects). Env `SHIPWRIGHT_DOTNET_SKILLS=off` disables the whole feature regardless of these.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `dotnetSkills.enabled` | boolean | true | Master switch for the .NET Skills feature |
+| `dotnetSkills.installTool` | boolean | true | Allow `dotnet tool install --global dotnet-skills` when the CLI is missing |
+| `dotnetSkills.bundled` | boolean | true | Use the CLI's offline catalog (false = fetch the latest catalog; needs network) |
+| `dotnetSkills.refreshDays` | number | 7 | Injected index older than this is flagged stale |
+| `dotnetSkills.only` | string[] | [] | If non-empty, restrict the injected index to these skill ids/names |
+| `dotnetSkills.exclude` | string[] | [] | Drop these skill ids/names from the injected index |
+
 ## Which Skills Read Config
 
 | Skill | Fields Used |
@@ -101,4 +122,5 @@ Only these phases can be skipped. Plan, implement, test, review, and production-
 | `auto-e2e` | `startCommand`, `e2eType`, `skipPhases` |
 | `auto-review` | (none — uses defaults) |
 | `production-readiness` | `coverage.*`, `loadTest.*`, `skipPhases` |
-| `run` | `skipPhases`, `branch.*`, all (passes to sub-skills) |
+| `run` | `skipPhases`, `branch.*`, `dotnetSkills.*`, all (passes to sub-skills) |
+| dotnet-skills hook + engine | `dotnetSkills.*` |

@@ -37,8 +37,9 @@ Detect framework → baseline coverage → testability audit → (refactor if op
 | go.mod | Go test | `go test -coverprofile=coverage.out ./...` |
 | Cargo.toml | Cargo | `cargo tarpaulin` |
 | .rspec | RSpec | `bundle exec rspec` |
+| *.csproj / *.sln (xunit/nunit/mstest) | dotnet test | `dotnet test --collect:"XPlat Code Coverage"` |
 
-None detected → set up the language's standard framework.
+None detected → set up the language's standard framework. In .NET projects, when a `[dotnet-skills]` index lists a test skill (e.g. `xunit`), Read its `SKILL.md` before writing tests — per `../_shared/dotnet-skills.md`.
 
 ## Phase 2: Baseline Coverage
 

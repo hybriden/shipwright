@@ -2,6 +2,11 @@
 
 All notable changes to Shipwright. Format follows [Keep a Changelog](https://keepachangelog.com/); the project adheres to [Semantic Versioning](https://semver.org/). Versions track the `version` field in `.claude-plugin/plugin.json`.
 
+## [3.7.0] — 2026-07-20
+
+- Added **dynamic .NET skills** — in .NET projects only, Shipwright taps [managedcode/dotnet-skills](https://github.com/managedcode/dotnet-skills) (MIT) for idiomatic .NET guidance **without vendoring any content**. New `hooks/dotnet/`: `detect.js` (near-zero-cost, pure-fs .NET gate — no process spawns, so non-.NET repos pay nothing), `engine.js` (drives the official `dotnet-skills` CLI via `install --auto` to install project-matched skills into an out-of-repo cache at `~/.claude/.shipwright/dotnet-skills/<project>/`, keeping the repo tree clean; builds a compact index; honors `.shipwright.json`), and `inject-dotnet-skills.js` (SessionStart/SubagentStart hook injecting the `[dotnet-skills]` index; ~45 ms, never installs).
+- Wired into `run` as **Phase 1.75 (.NET Skills)** with a "dotnet lens" signal to plan/impl/test/review, a single-sourced consumption protocol (`_shared/dotnet-skills.md`) referenced by `auto-plan`/`auto-impl`/`auto-test`/`auto-review`, and an `auto-test` framework-detection row for `dotnet test`. New `.shipwright.json` `dotnetSkills` block (`enabled`, `installTool`, `bundled`, `refreshDays`, `only`, `exclude`); opt out with `SHIPWRIGHT_DOTNET_SKILLS=off`. Skills are Read on demand from the cache — never copied into the repo.
+
 ## [3.6.0] — 2026-07-20
 
 - Added an **always-on Code Laws hook**: a `SessionStart` (startup/resume/clear/compact) + `SubagentStart` hook injects a distilled version of the design principles into every session and subagent, so they apply to *all* coding — not only inside the pipeline. Cross-platform (node, with a PowerShell variant); opt out with `SHIPWRIGHT_CODE_LAWS=off`. Added `hooks/` and the `hooks` field in `plugin.json`.

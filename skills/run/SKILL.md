@@ -40,6 +40,7 @@ Each phase is invoked via the **Skill tool**, gated, and checkpointed. Any failu
 | 1 | Gather context + config | inline |
 | 1.25 | Map | auto-map |
 | 1.5 | Setup | auto-setup |
+| 1.75 | .NET skills (only if .NET) | inline |
 | 2 | Plan | auto-plan |
 | 3 | Implement | auto-impl |
 | 4 | Unit test | auto-test |
@@ -88,6 +89,7 @@ Don't invoke skills blindly — pass forward what each phase learned:
 | Map | Map + task lens | all | boundaries, deps, hot spots, compressed context |
 | Map | Data models + contract gaps | plan, test, review | atomic groups, contract tests, blast radius |
 | Setup | Env fingerprint | debug | code bug vs env bug |
+| .NET skills | dotnet lens (matched skill paths) | plan, impl, test, review | Read the matched dotnet-skills SKILL.md on demand for idiomatic .NET patterns |
 | Setup | Pre-flight findings | plan, impl | decomposition constraints |
 | Plan | Task viability verdicts | impl | flagged tasks get more context / stronger model |
 | Impl | Inter-task learning log | impl (next task) | real interfaces, patterns, surprises |
@@ -102,7 +104,20 @@ Require a clean tree (`git status`; if dirty, report and abort). Note the curren
 
 ## Phase 1: Gather Context + Config
 
-Read `.shipwright.json` (pass to all phases). Map structure (Glob), detect stack (package.json / requirements.txt / go.mod / Cargo.toml / …), find test infra + coverage setup, read CLAUDE.md / lint / editorconfig conventions, note git state, CI/CD, entry points. Output: a mental model + parsed config for downstream phases.
+Read `.shipwright.json` (pass to all phases). Map structure (Glob), detect stack (package.json / requirements.txt / go.mod / Cargo.toml / *.csproj / *.sln / …), find test infra + coverage setup, read CLAUDE.md / lint / editorconfig conventions, note git state, CI/CD, entry points. Output: a mental model + parsed config for downstream phases.
+
+## Phase 1.75: .NET Skills (conditional — .NET stacks only)
+
+Run **only** when Phase 1 detected a .NET stack (`*.csproj`/`*.sln`/`global.json`/`Directory.*.props`). Skip silently otherwise, or when `skipPhases` includes `dotnetSkills`, `.shipwright.json` `dotnetSkills.enabled` is `false`, or `SHIPWRIGHT_DOTNET_SKILLS=off`. This phase changes **nothing in the repo** (the cache is out-of-repo) — no checkpoint.
+
+**Purpose:** make project-matched skills from managedcode/dotnet-skills available on demand, without vendoring. Shipwright injects only an index; subagents Read the relevant `SKILL.md` themselves. Protocol: `../_shared/dotnet-skills.md`.
+
+1. **Acquire.** The always-on dotnet-skills hook surfaces the exact command in context — a line beginning `node "…/engine.js" acquire --project "…"`. Run it (shell tool). It installs the CLI if allowed, then writes project-matched skills to the out-of-repo cache. Add `--no-bundled` to fetch the latest catalog when online. If no such line is present (hook disabled/absent), skip this phase.
+2. **Degrade, never block.** The command prints `{ ok, reason, count }`. `reason` of `no-dotnet` / `no-tool` / `disabled` = skills unavailable → note it and continue the pipeline normally (they are an enhancement, not a gate).
+3. **Build the dotnet lens.** Read the refreshed index (`node "…/engine.js" index --project "<root>" --md`). From the task, pick the skills whose `USE FOR:` matches (e.g. EF/migrations → `entity-framework-core` + `optimizing-ef-core-queries`; tests → `xunit`; web API → `aspnet-core`). Record their `SKILL.md` paths — this is the lens propagated to plan/impl/test/review.
+4. **Pass forward.** Downstream subagents already receive the full index via the SubagentStart hook; when dispatching, additionally point each at the specific matched skill(s) for its task so it Reads that guidance before writing .NET code.
+
+Progress line: `[shipwright] Phase 1.75: .NET skills — N project-matched skills cached` (or `— unavailable (no SDK/tool)`).
 
 ## Phases 1.25–7
 
@@ -110,6 +125,7 @@ Invoke each sub-skill via the Skill tool, passing the signals from the table abo
 
 - **1.25 Map** (auto-map) → `docs/architecture-map.md` + task lens.
 - **1.5 Setup** (auto-setup) → deps, env, migrations, build + test-suite-runs verification. Skip if `skipPhases` includes `setup`.
+- **1.75 .NET skills** (inline, **only if the stack is .NET**) → make managedcode/dotnet-skills available on demand. See Phase 1.75 below. Skip for non-.NET, `skipPhases: dotnetSkills`, `dotnetSkills.enabled: false`, or `SHIPWRIGHT_DOTNET_SKILLS=off`.
 - **2 Plan** (auto-plan) → plan in `docs/plans/`.
 - **3 Implement** (auto-impl) → committed code + tests, per-task progress.
 - **4 Unit test** (auto-test) → gap-fill to coverage target.
@@ -158,5 +174,6 @@ Use the production-readiness Implementation Report (task, status, changes, gate 
 | "I need to ask the user about X" | Decide it. Document why. |
 | "Recovery failed, try again" | One attempt, then report failure. |
 | "I'll work on main" | Never. Feature branch first. |
+| "I'll copy the .NET skill's content into the repo" | Never. Read the cached SKILL.md on demand; it stays out-of-repo and refreshes from upstream. |
 | "Every phase passed first try" | Perfect code, or a pipeline not probing hard enough? Reflect. |
 | "I'll update the user, then continue" | No. Emit the progress line and start the next phase in the same turn. |

@@ -33,6 +33,8 @@ Use `./implementer-prompt.md`. Always paste the **full task text** — never mak
 
 **Task lens:** if `docs/architecture-map.md` exists, extract a ≤150-line lens per subagent — the task's modules (interfaces + responsibilities), 1-hop neighbor interfaces, relevant hot spots and patterns. Pass the lens, not the full map (their context is precious). Hot-spot tasks get the full dependency chain and a stronger model.
 
+**dotnet lens:** in .NET projects, when a `[dotnet-skills]` index is present, point the subagent at the matched skill(s) for its task (its `SKILL.md` path) so it Reads that idiomatic guidance before writing EF/ASP.NET/DI/test code. Reference the path — never copy the content. Protocol: `../_shared/dotnet-skills.md`.
+
 ## Inter-Task Learning
 
 Maintain a running log; after each task record: files created/modified, interfaces exposed (with signatures), patterns established (naming, error handling, imports), surprises (deviations from the plan), and integrity-check findings. Feed it forward to task N+1 so later tasks use the **real** interfaces previous tasks created — not what the plan predicted. This prevents the #1 subagent failure: assuming task N-1 built exactly what the plan said.

@@ -28,6 +28,8 @@ Then describe your task. The system handles everything autonomously:
 7. **Code Review** — Two-stage: spec compliance first, then code quality
 8. **Production Readiness** — 10-gate verification including load testing, security, and error handling
 
+In .NET projects, a **.NET Skills** step (between Setup and Plan) makes project-matched skills from [managedcode/dotnet-skills](https://github.com/managedcode/dotnet-skills) available on demand — see [.NET Skills](#net-skills) below.
+
 Any failure at any phase triggers **auto-debug** automatically — no manual intervention needed.
 
 Progress updates throughout:
@@ -98,7 +100,8 @@ Create `.shipwright.json` in your project root to customize behavior. All fields
   "startCommand": "npm start",
   "loadTest": { "users": 100, "duration": "60s", "p99": 500 },
   "e2eType": "auto",
-  "branch": { "prefix": "shipwright", "autoMerge": false }
+  "branch": { "prefix": "shipwright", "autoMerge": false },
+  "dotnetSkills": { "enabled": true, "installTool": true }
 }
 ```
 
@@ -144,6 +147,20 @@ Shipwright holds the code it writes and reviews to a coherent set of software-de
 **Always on:** installing the plugin registers a session hook (`hooks/`) that injects a distilled "Code Laws" reminder at the start of every session and subagent — so the principles apply to *all* coding, not only inside the pipeline. Opt out with `SHIPWRIGHT_CODE_LAWS=off`.
 
 *Other `_shared/` references* are operational rather than design: architecture-map consumption, net-positive/anti-regression gate, evidence-evaluation gate, subagent context budget, and pipeline checkpoints.
+
+## .NET Skills
+
+In **.NET projects only**, Shipwright dynamically taps [managedcode/dotnet-skills](https://github.com/managedcode/dotnet-skills) (MIT) for idiomatic .NET guidance (EF Core, ASP.NET Core, xUnit, Aspire, DI, …) — **without vendoring any of it**. The skill content stays in an out-of-repo cache, sourced from the official CLI and refreshed from upstream; Shipwright injects only a compact index and Reads the relevant `SKILL.md` on demand.
+
+**How it works**
+
+1. **Near-zero-cost gate.** A session/subagent hook checks for .NET markers (`*.csproj`/`*.sln`/`global.json`/`Directory.*.props`) with a pure-filesystem scan — no process spawns. Non-.NET repos see nothing and pay nothing.
+2. **Acquire.** In a .NET repo, `shipwright:run`'s **.NET Skills** phase runs the official `dotnet-skills` CLI (`install --auto`) to install project-matched skills into `~/.claude/.shipwright/dotnet-skills/<project>/` — scanning the project but writing only to that cache, so your repo tree stays clean.
+3. **Inject + consume.** The hook injects a `[dotnet-skills]` index (name → description → path) into every .NET session and subagent. `auto-plan`/`auto-impl`/`auto-test`/`auto-review` Read the one matched `SKILL.md` on demand — never copying it in. Protocol: `skills/_shared/dotnet-skills.md`.
+
+**Requires** the .NET SDK. The `dotnet-skills` CLI is installed globally on first use (like `dotnet-ef`); disable that with `dotnetSkills.installTool: false`.
+
+**Opt out** entirely with `SHIPWRIGHT_DOTNET_SKILLS=off` or `.shipwright.json` `dotnetSkills.enabled: false`. Filter with `dotnetSkills.only` / `exclude`; control freshness with `refreshDays` and network use with `bundled`. See the [config reference](skills/auto-setup/shipwright-config.md).
 
 ## Requirements
 
