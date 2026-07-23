@@ -57,7 +57,7 @@ Stateful resources are the #1 source of false passes. Inventory ALL of them befo
 
 **Pre-iteration checklist:** all resources accessible + in clean state (verified), app builds + starts, health checks respond. Any failure → fix before entering the loop.
 
-## Phase 2: Deploy & Verify (iteration loop, max 20)
+## Phase 2: Deploy & Verify (iteration loop, max 20 — `../_shared/loop.md`)
 
 1. **Reset state** — reset ALL inventory resources, then confirm each with its verify-clean command (a silent reset failure leaves stale state → false passes). Never verify against stale state.
 2. **Deploy** — build, start/import, poll until ready (curl until 200/302).
@@ -68,7 +68,7 @@ Stateful resources are the #1 source of false passes. Inventory ALL of them befo
 
 ## Anti-Regression & Circular-Fix Detection
 
-Each iteration must be net-positive vs the previous — apply `../_shared/net-positive-gate.md` (baseline = passing checks + unit tests before the iteration; a previously-passing check now failing = revert). Track the Fix History table; the circle signals and high-water-mark revert are in the shared reference. Progress stall: same issues as last iteration → the fix was wrong, investigate differently; fixes N but introduces N → the approach may be wrong; 3 consecutive no-progress iterations → report PARTIAL with the fix history.
+This is a Shipwright iteration loop (`../_shared/loop.md`): the runbook + Fix History table are its **State**, the checklist its **progress metric**, VERIFIED/PARTIAL/FAILED its **termination** verdicts. Each iteration must be net-positive vs the previous — apply `../_shared/net-positive-gate.md` (baseline = passing checks + unit tests before the iteration; a previously-passing check now failing = revert). Track the Fix History table; the stall signals and high-water-mark revert live in `../_shared/loop.md` and `net-positive-gate.md` — on any stall (3 consecutive no-progress iterations, oscillation, or a repeatedly-changed file) report PARTIAL with the fix history rather than retrying.
 
 ## Iteration Budget
 

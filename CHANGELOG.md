@@ -2,6 +2,11 @@
 
 All notable changes to Shipwright. Format follows [Keep a Changelog](https://keepachangelog.com/); the project adheres to [Semantic Versioning](https://semver.org/). Versions track the `version` field in `.claude-plugin/plugin.json`.
 
+## [3.9.0] — 2026-07-23
+
+- Added a shared **iteration loop contract** (`_shared/loop.md`) — the single-sourced anatomy every Shipwright loop instantiates: **State** (the durable record carried across iterations), **Step** (one coherent change + real evidence), **Gate** (net-positive or roll back), **Progress + stall detection** (a monotonic metric plus canonical circle/no-progress signals), and **Termination** (exactly three exits — SUCCESS / BUDGET / STALL — with an escalation ladder; non-success reports PARTIAL and never fakes success or loops forever). `auto-debug` (3 hypotheses), `auto-impl` (3 attempts/task), `auto-review` (3 cycles/stage), and `auto-verify` (20 iterations) now reference the one contract and fill in only their own budget and verdict words.
+- Pure DRY consolidation — **no behavioral change**. The contract *composes* the existing `net-positive-gate.md` (the Gate) and `evidence-evaluation.md` (the evidence bar) rather than duplicating them, and removes the divergent stall-detection prose that had been re-specified in each looping skill.
+
 ## [3.8.0] — 2026-07-20
 
 - Added a **React verify gate** — in React projects only, `auto-review` (new Stage 2.6 "React Health") runs [millionco/react-doctor](https://github.com/millionco/react-doctor) (Modified-MIT) as a **deterministic static analyzer over the diff**, and treats its findings as evidence. Unlike the .NET integration (injected guidance), this is a scanner: `error`-severity findings are routed to the implementer and re-scanned under the anti-regression gate. New `hooks/react/react-doctor.js` runner — **local-only** (`--no-score --no-telemetry`, never phones home), **diff-scoped** (`--scope changed --base`, with a changed→full fallback when there is no git base), reads `.shipwright.json`, normalizes/renders findings; fetched transiently via `npx` (nothing vendored).

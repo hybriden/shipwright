@@ -65,7 +65,7 @@ Build a tool inventory (CLI, validators, scripts, start command) **once** during
 
 ## Anti-Circle & Debug Budget
 
-Read `references/safety-mechanisms.md` for full rules. Always: maintain a fix-history log; max 3 hypotheses; if a fix fails the net-positive gate, roll back immediately (see `../_shared/net-positive-gate.md`).
+This is a Shipwright iteration loop (`../_shared/loop.md`): the fix-history log is its **State**, 3 hypotheses its **budget**, RESOLVED/UNRESOLVED its **termination** verdicts. Read `references/safety-mechanisms.md` for full rules. Always: maintain a fix-history log; max 3 hypotheses; if a fix fails the net-positive gate, roll back immediately (see `../_shared/net-positive-gate.md`).
 
 ## Phase 1: Reproduce
 

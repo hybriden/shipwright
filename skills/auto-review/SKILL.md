@@ -25,7 +25,7 @@ After auto-test + auto-e2e; as run Phase 6; whenever code needs verification aga
 
 ## Process
 
-Gather (plan, impl report, git diff) → Stage 1 spec compliance (≤3 cycles) → Stage 2 behavioral fidelity → Stage 2.5 architecture boundaries → Stage 2.6 React health (React projects) → Stage 3 quality (≤3 cycles) → Stage 3.5 over-engineering lens → Stage 4 plan feedback → verdict. Reviewers verify by reading code, never by trusting the impl report. After any fix, re-dispatch the reviewer — fixes introduce new issues ~30% of the time.
+Gather (plan, impl report, git diff) → Stage 1 spec compliance (≤3 cycles) → Stage 2 behavioral fidelity → Stage 2.5 architecture boundaries → Stage 2.6 React health (React projects) → Stage 3 quality (≤3 cycles) → Stage 3.5 over-engineering lens → Stage 4 plan feedback → verdict. Reviewers verify by reading code, never by trusting the impl report. After any fix, re-dispatch the reviewer — fixes introduce new issues ~30% of the time. Each fix-and-re-review cycle is a Shipwright iteration loop (`../_shared/loop.md`): 3 cycles is its **budget**, open findings its **progress metric**, APPROVED/NEEDS_ATTENTION its **termination** verdicts.
 
 ## Stage 1: Spec Compliance
 

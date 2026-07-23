@@ -25,7 +25,7 @@ After auto-plan produces a plan; as the run implementation phase; whenever you h
 
 ## Process
 
-For each task in order: dispatch implementer → integrity-check the DONE claim → build gate → full test suite → net-positive gate → checkpoint → next. On BLOCKED, re-plan the task. On failure, dispatch a fix subagent (≤3 attempts, escalating the model).
+For each task in order: dispatch implementer → integrity-check the DONE claim → build gate → full test suite → net-positive gate → checkpoint → next. On BLOCKED, re-plan the task. On failure, dispatch a fix subagent (≤3 attempts, escalating the model). Each task runs as a Shipwright iteration loop (`../_shared/loop.md`): the inter-task learning log is its **State**, 3 attempts its **budget**, and every retry must change something (see Error Recovery) — its **escalation ladder**.
 
 ## Dispatching Subagents
 
