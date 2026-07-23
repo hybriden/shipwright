@@ -70,7 +70,7 @@ Fails → give feedback and re-dispatch; don't run the suite hoping it catches f
 
 ## Build Verification Gate (before the test suite)
 
-Run the build (`buildCommand`, or auto-detected: `dotnet build` / `npm run build` / `cargo build` / `go build ./...`). Build fails → do NOT run tests (build errors cascade into meaningless failures). Check whether the task changed a shared interface/model/upstream module without updating consumers, or split an atomic change group; dispatch a fix subagent with the build error + the build-dependency chain from the map.
+Run the build using the command auto-setup already detected (`.shipwright.json` `buildCommand`, passed forward from setup — don't re-derive it); only when running standalone without a setup signal, auto-detect (`dotnet build` / `npm run build` / `cargo build` / `go build ./...`). Build fails → do NOT run tests (build errors cascade into meaningless failures). Check whether the task changed a shared interface/model/upstream module without updating consumers, or split an atomic change group; dispatch a fix subagent with the build error + the build-dependency chain from the map.
 
 ## Net-Positive Gate (after tests pass)
 

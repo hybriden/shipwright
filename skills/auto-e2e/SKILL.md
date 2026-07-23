@@ -59,11 +59,11 @@ Adversarial patterns:
 
 ## Phase 3: Execution
 
-**Web (Playwright MCP):** navigate → snapshot (elements exist) → interact (click / fill_form / type) → snapshot (state changed) → screenshot (evidence) → console_messages (no JS errors) → network_requests (calls succeeded). Cover navigation, forms (submit/validation/success), error states (404/500/network), responsiveness (375px, 768px), a11y (ARIA names, labels, focus/keyboard via snapshots).
+Probe by app type per `../_shared/runtime-probing.md` (the base tools + assertions for web/API/CLI). Add this E2E-specific breadth on top of the base matrix:
 
-**API (curl / HTTP):** valid input (200/201), invalid (400 + useful message), auth (401/403), edge cases (empty/missing/oversized), response schemas, headers (CORS, content-type).
-
-**CLI (shell):** valid args (output + exit 0), invalid (helpful error + exit ≠0), no args (usage), --help, edge cases (empty/long/special), output format.
+- **Web:** cover navigation, forms (submit/validation/success), error states (404/500/network), responsiveness (375px, 768px), a11y (ARIA names, labels, focus/keyboard via snapshots).
+- **API:** valid (200/201) + invalid (400 + useful message) + auth (401/403) + edge cases (empty/missing/oversized); assert response schemas and headers (CORS, content-type).
+- **CLI:** valid args (exit 0), invalid (helpful error + exit ≠0), no args (usage), `--help`, edge cases (empty/long/special), output format.
 
 ## Phase 4: Evidence Collection
 

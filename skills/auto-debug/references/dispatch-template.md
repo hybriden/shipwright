@@ -2,7 +2,7 @@
 
 ## Dispatch as Subagent
 
-When called from auto-impl or other skills, dispatch as a subagent:
+When called from auto-impl or other skills, dispatch as a subagent. (Step 7's app-type probing mirrors `../../_shared/runtime-probing.md`, condensed inline because the subagent can't resolve `_shared/` — keep the two in sync.)
 
 ```
 Agent tool (general-purpose):

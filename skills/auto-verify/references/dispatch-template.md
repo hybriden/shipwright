@@ -2,7 +2,7 @@
 
 ## Dispatch as Subagent
 
-When other skills need runtime verification, dispatch auto-verify as a subagent:
+When other skills need runtime verification, dispatch auto-verify as a subagent. (Step 2d's app-type probing mirrors `../../_shared/runtime-probing.md`, condensed inline because the subagent can't resolve `_shared/` — keep the two in sync.)
 
 ```
 Agent tool (general-purpose):

@@ -1,6 +1,6 @@
 # Specialized Verification Strategies
 
-Domain-specific verification patterns for auto-verify. Load this reference when the system under test matches one of these categories.
+Domain-specific verification patterns for auto-verify. Load this reference when the system under test matches one of these categories. For base web/API/CLI/DB probing, see `../../_shared/runtime-probing.md` — this file is the specialized deep layer on top of it.
 
 ## CMS / Content Management Systems
 

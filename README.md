@@ -148,7 +148,7 @@ Shipwright holds the code it writes and reviews to a coherent set of software-de
 
 **Always on:** installing the plugin registers a session hook (`hooks/`) that injects a distilled "Code Laws" reminder at the start of every session and subagent — so the principles apply to *all* coding, not only inside the pipeline. Opt out with `SHIPWRIGHT_CODE_LAWS=off`.
 
-*Other `_shared/` references* are operational rather than design: architecture-map consumption, net-positive/anti-regression gate, the **iteration loop contract** (`_shared/loop.md` — the shared anatomy every auto-debug/impl/review/verify loop instantiates: State / Step / Gate / Progress+stall / Termination), evidence-evaluation gate, subagent context budget, and pipeline checkpoints.
+*Other `_shared/` references* are operational rather than design: architecture-map consumption, net-positive/anti-regression gate, the **iteration loop contract** (`_shared/loop.md` — the shared anatomy every auto-debug/impl/review/verify loop instantiates: State / Step / Gate / Progress+stall / Termination), evidence-evaluation gate, runtime probing by app type (`_shared/runtime-probing.md`), project-tool discovery (`_shared/project-tools.md`), subagent context budget, and pipeline checkpoints.
 
 ## Self-Evaluation Loop
 

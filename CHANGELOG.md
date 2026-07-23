@@ -2,6 +2,11 @@
 
 All notable changes to Shipwright. Format follows [Keep a Changelog](https://keepachangelog.com/); the project adheres to [Semantic Versioning](https://semver.org/). Versions track the `version` field in `.claude-plugin/plugin.json`.
 
+## [3.11.0] — 2026-07-23
+
+- **DRY consolidation of runtime verification.** Extracted two shared references that had been re-specified across skills: `_shared/runtime-probing.md` (the app-type → tools/assertions matrix — web→Playwright, API→curl status+body, CLI→exit code+stdout, DB→queries, library→consumer test) and `_shared/project-tools.md` (the "scan `tools/`·`scripts/`·`Makefile`·package.json scripts·… then run on real input and validate with the project's own tools" discovery pattern). `auto-e2e`, `auto-verify`, and `auto-debug` now reference the one probing matrix — each keeping only its own framing (e2e adds coverage breadth; verify adds stateful-journey + domain deep layer); `auto-debug` and `auto-verify` reference the one tool-discovery pattern. The two subagent dispatch templates intentionally retain a condensed inline copy (prompt text sent to subagents that can't resolve `_shared/`), with sync notes on both sides.
+- **Consume, don't re-derive:** `auto-impl`'s build gate now uses the build command `auto-setup` already detected (`.shipwright.json` `buildCommand`), auto-detecting only when run standalone. No behavioral change.
+
 ## [3.10.0] — 2026-07-23
 
 - Added the **outer evaluation loop** — a new standalone skill `auto-eval` that closes the self-improvement loop over the pipeline itself. It runs Shipwright against a task suite and **scores each run from the artifacts the pipeline already emits** (production-readiness gate table, run's Pipeline Quality reflection, E2E/verify evidence verdicts, and the plan retrospective) across five 0–2 dimensions — Outcome, Honesty, Evidence, Efficiency, Plan fidelity — then feeds **cross-run** weaknesses back into `.shipwright-retrospective.md` (already read by `auto-plan`). A dimension with no backing artifact scores 0 and flags a pipeline *observability gap*.

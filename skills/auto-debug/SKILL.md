@@ -59,9 +59,7 @@ Detect the category and apply its fast path:
 
 ### Project tool discovery (MANDATORY)
 
-Before any verification, discover the project's own tools — they verify real behavior that generic test commands can't. Scan: `tools/`/`scripts/`/`bin/`/`cli/`; `package.json` scripts (`build`, `lint`, `validate`, `check`, `migrate`); `Makefile`/`Taskfile`/`justfile`; `*.csproj` CLI projects; `cmd/` (Go); `[project.scripts]` (Python); `[[bin]]` (Rust); `docker-compose.yml` health checks; README "how to run"; `.shipwright.json` commands.
-
-Build a tool inventory (CLI, validators, scripts, start command) **once** during triage, then use it throughout — especially for input→output tools: run on representative input, validate the output with the project's own validators, compare before/after the fix.
+Before any verification, build the project's tool inventory per `../_shared/project-tools.md` — **once** during triage, then reuse it throughout. These tools verify real behavior generic test commands can't; for input→output tools especially, run on representative input and compare the output before/after the fix with the project's own validators.
 
 ## Anti-Circle & Debug Budget
 
@@ -136,7 +134,7 @@ Every fix must be proven through automated verification. A fix without proof is 
 
 **Layer 1 — Regression test (always):** write a test that FAILS without the fix and PASSES with it. Name by behavior ("should return empty array when filter matches no items"), not "test bug #42." **Prove causation:** revert fix → test fails; re-apply → test passes. If it passes both ways, the test proves nothing — rewrite it.
 
-**Layer 2 — Runtime verification (when applicable):** use the Phase 0 project tools FIRST (run the CLI/validator on real input, compare before/after). Then, for the app type: web → Playwright (`browser_snapshot`, `browser_take_screenshot`, `browser_console_messages`, `browser_network_requests`); API → send the triggering request + edge cases, verify status/body/headers; CLI → verify stdout/stderr/exit code + edge cases; library → integration test as a consumer would. Capture output as evidence.
+**Layer 2 — Runtime verification (when applicable):** use the Phase 0 project tools FIRST (run the CLI/validator on real input, compare before/after). Then probe by app type per `../_shared/runtime-probing.md` (web → Playwright; API → triggering request + edge cases; CLI → stdout/stderr/exit code + edge cases; library → integration test as a consumer would). Capture output as evidence.
 
 **Layer 3 — Broader impact (fix touches shared code):** identify all consumers, run their tests, write smoke tests where none exist, verify no behavior changed.
 
