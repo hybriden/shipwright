@@ -97,6 +97,24 @@ description: "[aggressive trigger description]"
 [How this skill connects to other skills and agents]
 ```
 
+### Frontmatter Fields
+
+`name` and `description` are the only required fields (the description is the trigger — see above). Modern Claude Code skills support more, all optional — use them when they earn their place:
+
+| Field | Use |
+|---|---|
+| `when_to_use` | A second natural-language trigger hint, complementing `description` |
+| `user-invocable` | Expose as a `/name` slash command |
+| `disable-model-invocation` | Only fire when explicitly invoked, never auto-triggered |
+| `argument-hint` / `arguments` | Declare arguments for slash-command use |
+| `allowed-tools` / `disallowed-tools` | Constrain the tools available while the skill runs |
+| `model` / `effort` | Pin a model tier (`../../_shared/model-selection.md`) / reasoning effort |
+| `context: fork` | Run the skill in a forked context so it doesn't pollute the main thread |
+| `agent` | Run the skill in a specific subagent type |
+| `hooks` | Wire lifecycle hooks (e.g. `SkillInvoked`) |
+
+Don't set fields speculatively — add one only when it earns its place (minimalism).
+
 ### Structural Rules
 
 1. **Iron Law comes early.** It's the first thing Claude reads after the summary. It sets the tone for everything that follows.

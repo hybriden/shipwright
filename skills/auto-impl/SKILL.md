@@ -41,7 +41,7 @@ Maintain a running log; after each task record: files created/modified, interfac
 
 ## Model Selection & Escalation
 
-Start with the least capable model that fits; escalate only for capability gaps, never for information gaps.
+Per `../_shared/model-selection.md`: start with the least capable model that fits; escalate only for capability gaps, never for information gaps.
 
 | Task | Start model |
 |---|---|

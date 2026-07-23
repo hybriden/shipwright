@@ -1,60 +1,26 @@
 # Agent Design Patterns
 
-Comprehensive taxonomy of agent team architectures, execution modes, and separation criteria. Reference this when designing team architecture in Phase 2.
+Comprehensive taxonomy of agent team architectures, execution modes, and separation criteria. Reference this when designing team architecture in Phase 2. (Per-agent model choice: see `../../_shared/model-selection.md`.)
 
 ## Two Execution Modes
 
-### Agent Teams (Default)
+### Subagents (Default — use this for virtually everything)
 
-**Mechanism:** `TeamCreate` + `SendMessage` + `TaskCreate`/`TaskUpdate`
+**Mechanism:** the `Agent` tool (renamed from `Task` in v2.1.63; `Task(...)` still works as a backward-compatible alias).
 
-Agent Teams create independent Claude Code instances that can communicate directly with each other. Each teammate:
-- Has its own context window (no shared memory pollution)
-- Can send messages to any other teammate
-- Can create and update shared tasks
-- Persists across the conversation until explicitly dismissed
-
-**Use when:**
-- 2+ agents need to communicate during execution
-- Agents need to share discoveries mid-task (not just at the end)
-- The workflow benefits from agents challenging each other's work
-- Real-time coordination is needed (e.g., reviewer finding issues while implementer is still working)
-
-**Architecture:**
-```
-┌─────────────────────────────────────┐
-│           Orchestrator              │
-│  (creates team, assigns tasks,     │
-│   monitors progress)               │
-├──────┬──────────┬──────────┬───────┤
-│      ↓          ↓          ↓       │
-│  Agent A    Agent B    Agent C     │
-│      ↕          ↕          ↕       │
-│  (direct communication between     │
-│   teammates via SendMessage)       │
-└─────────────────────────────────────┘
-```
-
-### Subagents (Lightweight)
-
-**Mechanism:** `Agent` tool calls
-
-Subagents are spawned by the main agent, execute a task, and return results. They:
-- Cannot communicate with each other
-- Return results only to the spawning agent
+The orchestrator spawns a subagent, which executes a task and returns its result. Subagents:
+- Have their own context window (no shared-memory pollution)
+- Return results to the spawning agent — the orchestrator is the hub
 - Can run in the background (`run_in_background: true`)
-- Are destroyed after returning their result
+- Can be followed up / continued via `SendMessage` (`to: <agent-id-or-name>`)
+- Do NOT talk to each other — every discovery routes through the orchestrator
 
-**Use when:**
-- Agents work independently and don't need inter-agent communication
-- Tasks are embarrassingly parallel (each agent has complete context)
-- The main agent is the sole coordinator and integrator
-- Simplicity is preferred over communication capability
+**Use when:** almost always. Any workflow where the orchestrator can be the sole coordinator and integrator — which is the vast majority of real work.
 
 **Architecture:**
 ```
 ┌──────────────────────────────────┐
-│         Main Agent               │
+│         Orchestrator             │
 │  (spawns subagents, collects     │
 │   results, integrates)           │
 ├────────┬───────────┬─────────────┤
@@ -65,24 +31,52 @@ Subagents are spawned by the main agent, execute a task, and return results. The
 │   Result A     Result B          │
 │        ↓           ↓             │
 │  ┌─────────────────────┐        │
-│  │  Main Agent merges  │        │
+│  │ Orchestrator merges │        │
 │  └─────────────────────┘        │
 └──────────────────────────────────┘
 ```
 
+### Agent Teams (Experimental — opt-in)
+
+**Mechanism:** `SendMessage` (peer-to-peer between teammates) + a shared task list (`TaskCreate`/`TaskGet`/`TaskList`/`TaskUpdate`). Enabled only with the env var `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`.
+
+Teammates are separate Claude Code sessions, each with its own context window. **Spawning and cleanup are automatic** — the lead uses the `Agent` tool internally on a natural-language request; there is no explicit create/delete step. (`TeamCreate`/`TeamDelete` were removed in v2.1.178.) Each teammate can message any other teammate directly and read/write the shared task list.
+
+**Use ONLY when:** agents genuinely must coordinate peer-to-peer mid-task — share discoveries live, challenge each other's work, or react in real time (e.g. a reviewer flagging issues while the implementer is still working) — AND the experimental flag is enabled.
+
+**Known limitations:** no session resumption with in-process teammates; task-status can lag.
+
+**Architecture:**
+```
+┌─────────────────────────────────────┐
+│           Orchestrator (lead)       │
+│  (assigns tasks, monitors progress; │
+│   spawn/cleanup is automatic)       │
+├──────┬──────────┬──────────┬───────┤
+│      ↓          ↓          ↓       │
+│  Agent A    Agent B    Agent C     │
+│      ↕          ↕          ↕       │
+│  (direct communication between     │
+│   teammates via SendMessage)       │
+└─────────────────────────────────────┘
+```
+
 ### Decision Matrix
 
-| Criterion | Agent Teams | Subagents |
-|-----------|------------|-----------|
-| Inter-agent communication needed | ✅ Required | ❌ Not possible |
-| Independent parallel tasks | ✅ Works | ✅ Simpler |
-| Discovery sharing mid-task | ✅ Native | ❌ Not possible |
-| Coordination overhead | Higher | Lower |
+| Criterion | Subagents (default) | Agent Teams (experimental) |
+|-----------|--------------------|-----------------------------|
+| Recommended for | Virtually everything | Rare genuine peer-to-peer cases |
+| Inter-agent communication | ❌ Orchestrator relays | ✅ Direct peer `SendMessage` |
+| Independent parallel tasks | ✅ Simpler | ✅ Works |
+| Discovery sharing mid-task | Via orchestrator | ✅ Native |
+| Coordination overhead | Lower | Higher |
 | Context isolation | ✅ Separate windows | ✅ Separate windows |
-| Setup complexity | Higher (TeamCreate, protocols) | Lower (just Agent calls) |
-| Fault tolerance | Better (teammates can compensate) | Weaker (main agent must handle) |
+| Setup | Just `Agent` calls | Automatic — set `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`, no TeamCreate step |
+| Fault tolerance | Orchestrator must handle | Teammates can compensate |
 
-**Rule of thumb:** If you draw the data flow and any arrow goes between two non-orchestrator agents, you need Agent Teams.
+**Default to Subagents.** Reach for Agent Teams only when a live peer link is essential and the flag is on.
+
+**Rule of thumb:** If you draw the data flow and an arrow goes between two non-orchestrator agents, that's the *experimental* Agent Teams path — enable the flag only if the live peer link is truly essential. By default, route every peer discovery back through the orchestrator.
 
 ## Six Architecture Patterns
 
@@ -102,7 +96,7 @@ Sequential dependent phases where each phase's output feeds the next.
 **Example:** Document production
 - Research Agent → Outline Agent → Writing Agent → Editing Agent
 
-**Execution mode:** Either. Agent Teams if phases need to communicate backwards (e.g., editor asking writer for clarification). Subagents if strictly forward-flowing.
+**Execution mode:** Subagents (default) — strictly forward-flowing phases; the orchestrator passes each phase's output to the next. Backward communication (an editor asking the writer for clarification mid-flight) is the experimental Agent Teams case; by default, loop back through the orchestrator.
 
 **Pitfalls:**
 - Bottleneck: slowest phase sets the pace. Consider parallelizing within phases.
@@ -129,11 +123,11 @@ Parallel independent analysis converging into an integrated result.
 - Community Sources Agent → ├→ Research Integrator
 - Technical Analysis Agent → ┘
 
-**Execution mode:** Agent Teams STRONGLY preferred. Agents frequently discover information that other agents need. With SendMessage, Agent A can share "I found X" immediately, and Agent B can adjust its search. With Subagents, these discoveries are locked until all agents return.
+**Execution mode:** Subagents (default) — fan out parallel subagents, let each return, and the orchestrator integrates. Only if agents must share discoveries *while still running* (Agent A finds X and Agent B must adjust its search immediately) does the experimental Agent Teams path help; otherwise discoveries surface at return and the orchestrator reconciles.
 
 **Pitfalls:**
 - Integration is the hard part. The integrator needs clear criteria for resolving conflicts between agents.
-- Unbalanced agents: one agent finishes in 10 seconds, another takes 5 minutes. Use TaskUpdate to track progress.
+- Unbalanced agents: one finishes in 10 seconds, another in 5 minutes — the orchestrator waits for the slowest. In experimental teams, `TaskUpdate` surfaces live progress.
 - Redundant work: agents may cover the same ground. Define clear boundaries in agent definitions.
 
 ### Pattern 3: Expert Pool
@@ -157,7 +151,7 @@ Context-dependent routing to specialists based on input characteristics.
 - Performance Expert: reviews algorithms, database queries, caching
 - Architecture Expert: reviews patterns, coupling, abstractions
 
-**Execution mode:** Subagents preferred. The router (main agent) examines the input, decides which experts to invoke, and collects their reports. Experts don't need to communicate — they analyze independently.
+**Execution mode:** Subagents. The router (orchestrator) examines the input, decides which experts to invoke, and collects their reports. Experts analyze independently — no peer communication needed.
 
 **Pitfalls:**
 - Routing errors: if the router misclassifies the input, the wrong expert is invoked. Define clear routing criteria.
@@ -184,7 +178,7 @@ Generate-then-validate loop with bounded retries.
 - If issues found → Implementer fixes → Reviewer re-checks
 - Max 3 cycles → escalate if not resolved
 
-**Execution mode:** Either. Agent Teams if the reviewer should explain issues in real-time. Subagents if the review cycle is batch-oriented.
+**Execution mode:** Subagents (default) — the orchestrator runs the producer, passes its output to the reviewer, and relays issues back for the next cycle. Real-time reviewer-to-producer commentary is the experimental Agent Teams case; a batch review loop through the orchestrator is simpler and usually enough.
 
 **Critical rule:** ALWAYS bound the retry loop. Max 2-3 cycles. If the producer can't satisfy the reviewer in 3 cycles, the issue is fundamental — escalate, don't loop.
 
@@ -214,7 +208,7 @@ Central coordinator with dynamic task distribution and shared task list.
 - Workers claim tasks, execute, report completion
 - Supervisor monitors progress, redistributes if workers are slow/stuck
 
-**Execution mode:** Agent Teams required. Workers need to update the shared task list, and the supervisor needs to monitor and redistribute dynamically.
+**Execution mode:** Subagents (default) — the orchestrator *is* the supervisor: it holds the task list, dispatches work to interchangeable worker subagents, collects completions, and redistributes. A truly dynamic peer team where workers claim from a shared list themselves needs the experimental Agent Teams flag (`TaskCreate`/`TaskList`/`TaskUpdate`) — use it only when worker self-coordination genuinely beats orchestrator dispatch.
 
 **Pitfalls:**
 - Task dependencies: if tasks aren't truly independent, workers will conflict. Verify independence before distributing.
@@ -240,7 +234,7 @@ Top-down recursive delegation through management layers.
 - Natural groupings exist (frontend/backend, module A/B)
 - Team leads need autonomy within their domain
 
-**Execution mode:** Agent Teams at the top level (leads communicate). Subagents within each team (workers report to their lead).
+**Execution mode:** Subagents (default) — the orchestrator delegates to lead subagents, and a lead (a `general-purpose` agent, which has the `Agent` tool) spawns its own worker subagents. Cross-team coordination flows up through the orchestrator. Only if leads must talk peer-to-peer does the experimental Agent Teams path apply.
 
 **Max 2 levels of delegation.** Deeper hierarchies lose context and introduce coordination overhead that outweighs the benefit.
 
@@ -273,19 +267,19 @@ Real-world harnesses often combine patterns:
 | `Explore` | Read-only tools (Read, Glob, Grep, Bash for read-only commands). NO Edit, Write, Agent. | Research, analysis, codebase exploration |
 | `Plan` | Read-only tools. NO Edit, Write, Agent. | Architecture planning, design decisions |
 
-### Custom Types (`.claude/agents/{name}.md`)
+### Custom Types (`.claude/agents/<name>.md`)
 
-Custom agent definitions in `.claude/agents/` have full tool access (same as `general-purpose`) but with:
-- Domain-specific instructions and knowledge
+A custom agent is a Markdown file in `.claude/agents/`: **YAML frontmatter** (`name` and `description` required; optional `tools`, `disallowedTools`, `model`, `effort`, `isolation`, `permissionMode`, `maxTurns`, `color`) followed by a **Markdown body that becomes the system prompt**. Set `model:`/`effort:` in the frontmatter — not in every `Agent` call. Otherwise custom agents have full tool access like `general-purpose`, but with:
+- Domain-specific instructions and knowledge (the body)
 - Defined input/output protocols
-- Communication patterns for team mode
+- Peer-communication conventions (relevant only in experimental team mode)
 - Error handling specific to their role
 
 **When to use custom vs built-in:**
 - Built-in `general-purpose`: one-off tasks, no specialized knowledge needed
 - Built-in `Explore`: read-only research, no risk of accidental writes
 - Built-in `Plan`: architecture decisions, read-only by design
-- Custom agent: recurring role with domain knowledge, specific protocols, or team communication needs
+- Custom agent: recurring role with domain knowledge, specific protocols, or (in experimental team mode) peer-communication needs
 
 ## Agent Separation Criteria
 

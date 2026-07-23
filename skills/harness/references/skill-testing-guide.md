@@ -85,14 +85,15 @@ When a trigger test fails:
 
 | Component | Required | Check |
 |-----------|----------|-------|
+| YAML frontmatter (`name`, `description`) | Yes | Present, non-empty; `name` matches filename |
 | Core Role section | Yes | 2-3 sentences, clear responsibility |
 | Work Principles | Yes | 3+ numbered principles with reasons |
 | Input Protocol | Yes | What the agent receives, format |
 | Output Protocol | Yes | What the agent produces, completion signal |
-| Team Communication Protocol | If Agent Teams | Reports to, receives from, shares with |
+| Team Communication Protocol | If Agent Teams (experimental) | Reports to, receives from, shares with |
 | Error Handling table | Yes | Error types and actions |
 | Domain Knowledge | Recommended | Specific to this agent's expertise |
-| Model specified in Agent calls | Yes | opus, sonnet, or haiku — never default |
+| Model set in frontmatter (`model:`) | Yes | opus / sonnet / haiku per `../../_shared/model-selection.md` |
 
 ## Behavioral Testing
 

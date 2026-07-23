@@ -56,7 +56,7 @@ Save to `_workspace/harness/domain-analysis.md`.
 
 ## Phase 2: Team Architecture
 
-**Execution mode:** 2+ agents that must communicate mid-execution → Agent Teams (`TeamCreate` + `SendMessage`); independent agents reporting to a coordinator → Subagents (`Agent`); single specialist → Subagent. Default Agent Teams; Subagents when truly independent. (Full taxonomy: `references/agent-design-patterns.md`.)
+**Execution mode:** **Subagents are the default** — spawn with the `Agent` tool, they run and return to the orchestrator; follow up with an already-spawned agent via `SendMessage`. The orchestrator is the hub; use this for virtually every team. **Agent Teams** (separate sessions that message each other peer-to-peer and share a task list) are **experimental and opt-in** — `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`; spawn/cleanup is automatic (no `TeamCreate`/`TeamDelete`). Reach for a team ONLY when agents genuinely must coordinate mid-task without routing through the orchestrator, and accept its known limitations (no session resumption with in-process teammates, task-status lag). (Full taxonomy: `references/agent-design-patterns.md`.)
 
 **Pattern** (6; composites encouraged): Pipeline (sequential dependent phases), Fan-out/Fan-in (parallel independent analysis), Expert Pool (context-dependent routing), Producer-Reviewer (generate→validate loops), Supervisor (dynamic distribution), Hierarchical (top-down delegation).
 
@@ -68,9 +68,9 @@ Save to `_workspace/harness/team-architecture.md` (execution mode, pattern, rost
 
 ## Phase 3: Agent Definition Generation
 
-Generate `.claude/agents/{name}.md`. Required sections: identity paragraph; Core Role; Work Principles (why-first); Input Protocol (receives + required context); Output Protocol (produces + completion signal); Team Communication Protocol (Agent Teams only — reports to / receives from / shares / escalates + formats); Error Handling table (missing input / service failure / quality-gate failure / timeout); Domain Knowledge (can be extensive).
+Generate `.claude/agents/{name}.md` — **YAML frontmatter first** (`name` + `description` required; optional `tools`, `model`, `effort`, `isolation`, `permissionMode`, `maxTurns`), then the body. Required body sections: identity paragraph; Core Role; Work Principles (why-first); Input Protocol (receives + required context); Output Protocol (produces + completion signal); Team Communication Protocol (Agent Teams only — reports to / receives from / shares / escalates + formats); Error Handling table (missing input / service failure / quality-gate failure / timeout); Domain Knowledge (can be extensive).
 
-**Model per agent:** deep analysis/architecture → opus; standard impl/review → default; mechanical/format → haiku. Specify explicitly in every Agent call.
+**Model per agent** (`../_shared/model-selection.md`): deep analysis/architecture → opus; standard impl/review → default; mechanical/format → haiku. Set it in the agent's `model:` frontmatter — not per Agent call.
 
 **Writing standards:** command tone, why-first, specific (exact paths/commands/formats), honest about limitations + escalation paths.
 
@@ -78,7 +78,7 @@ Generate `.claude/agents/{name}.md`. Required sections: identity paragraph; Core
 
 ## Phase 4: Skill Generation
 
-Generate `.claude/skills/{name}/SKILL.md`. Categories: orchestrator (coordinates the team), domain skills (specialized workflows), utility skills (common ops not needing the full team). Standards (`references/skill-writing-guide.md`): **description is the trigger** — aggressive, lists every triggering phrase (err toward over-triggering); **progressive disclosure** — metadata always loaded, SKILL.md body on trigger (<500 lines), references on demand; structure: frontmatter, one-paragraph summary, Iron Law, process flow, phases, Red Flags, Integration.
+Generate `.claude/skills/{name}/SKILL.md`. Categories: orchestrator (coordinates the team), domain skills (specialized workflows), utility skills (common ops not needing the full team). Standards (`references/skill-writing-guide.md`): **description is the trigger** — aggressive, lists every triggering phrase (err toward over-triggering); **progressive disclosure** — metadata always loaded, SKILL.md body on trigger (<500 lines), references on demand; structure: frontmatter, one-paragraph summary, Iron Law, process flow, phases, Red Flags, Integration. Frontmatter beyond `name`/`description` when useful: `when_to_use`, `user-invocable`, `disable-model-invocation`, `allowed-tools`/`disallowed-tools`, `argument-hint`/`arguments`, `model`, `effort`, `context: fork`. Generated skills must obey the **Code Laws** (minimalism/SOLID/DRY/KISS) — the always-on hook injects them into every session, so don't restate them, but structure generated infra to follow them.
 
 **Orchestrator** (`references/orchestrator-template.md`) MUST: accept a task, decompose into assignments, invoke agents, monitor, handle failures (retry/reassign/escalate), integrate outputs, deliver. MUST NOT: do the work itself, make domain decisions, skip error handling.
 
@@ -90,12 +90,12 @@ Verify every agent-to-agent data flow (producer output format matches consumer i
 
 ## Phase 6: Validation & Testing
 
-- **Structural:** every roster agent has a file; every skill has SKILL.md; CLAUDE.md registered with correct paths; no orphan agents (each referenced by ≥1 skill) or skills (each in CLAUDE.md); model specified in every Agent call; agent defs complete; descriptions aggressive.
+- **Structural:** every roster agent has a file; every skill has SKILL.md; CLAUDE.md registered with correct paths; no orphan agents (each referenced by ≥1 skill) or skills (each in CLAUDE.md); model set in each agent's `model:` frontmatter; agent defs have valid frontmatter (`name`/`description`) + complete body; descriptions aggressive.
 - **Trigger testing:** per skill, 5+ should-trigger prompts (explicit, implicit, varied phrasing) and 5+ should-NOT-trigger (adjacent, unrelated, ambiguous). Read the description and honestly assess whether it fires; "maybe not" → strengthen. (`references/skill-testing-guide.md`)
 - **Dry run:** pick a representative task, mentally walk the orchestrator, verify each agent has enough context + a clear output format + the orchestrator knows what to do with each output; note gaps.
 - **With/without comparison:** if the harness doesn't clearly beat baseline Claude on a domain task, it's overhead — simplify.
 
-Save `_workspace/harness/validation.md` (structural checks, trigger results, dry run, verdict READY / NEEDS_FIXES). NEEDS_FIXES → loop to Phase 3/4/5, max 2 fix cycles.
+Save `_workspace/harness/validation.md` (structural checks, trigger results, dry run, verdict READY / NEEDS_FIXES). NEEDS_FIXES → loop to Phase 3/4/5, max 2 fix cycles — a `../_shared/loop.md` loop (validation.md is its State, the fix cycles its budget, READY/NEEDS_FIXES its termination verdicts).
 
 ## Phase 7: Evolution
 
@@ -112,7 +112,7 @@ The harness is a living system. Track use in `_workspace/harness/run-log.md`; ma
 | Too many agents | team architecture | merge |
 | Orchestrator lost track | orchestrator skill | add checkpoints / error handling |
 
-Append changes to `_workspace/harness/changelog.md`. Periodic health check (score 1-5): coverage, efficiency, quality, resilience, ergonomics; <3 in any → route to the right phase.
+Append changes to `_workspace/harness/changelog.md`. Periodic health check (score 1-5): coverage, efficiency, quality, resilience, ergonomics; <3 in any → route to the right phase. This evolution loop follows `../_shared/loop.md` (run-log = State, health score = progress metric) — it is `auto-eval`'s scorecard one level down: auto-eval scores the pipeline, this scores a generated team.
 
 ## Adaptation
 
@@ -124,7 +124,7 @@ Emit `[harness] Phase N: …` at every transition (audit → domain → architec
 
 ## Integration
 
-Standalone; complements the pipeline — the harness generates infrastructure, run executes within it, auto-verify can verify harness-generated systems. References (load on demand — progressive disclosure applies to the harness itself): `agent-design-patterns.md`, `orchestrator-template.md`, `team-examples.md`, `skill-writing-guide.md`, `skill-testing-guide.md`, `qa-agent-guide.md`.
+Standalone; complements the pipeline — the harness generates infrastructure, run executes within it, auto-verify can verify harness-generated systems. Consumes the shared foundation like every other skill: `../_shared/loop.md` (its bounded loops), `../_shared/model-selection.md` (model tiers), and the Code Laws (stamped into generated infra). References (load on demand — progressive disclosure applies to the harness itself): `agent-design-patterns.md`, `orchestrator-template.md`, `team-examples.md`, `skill-writing-guide.md`, `skill-testing-guide.md`, `qa-agent-guide.md`.
 
 ## Red Flags & Anti-Patterns — STOP
 
