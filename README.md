@@ -125,6 +125,7 @@ Each skill is independently usable:
 | `shipwright:production-readiness` | Final verification gate |
 | `shipwright:harness` | Agent Team & Skill Architect — generates project-specific agent teams |
 | `shipwright:auto-minimize` | Minimalism — build the leanest solution that works, hunt over-engineering |
+| `shipwright:auto-eval` | Outer evaluation loop — score runs from their artifacts, feed weaknesses back into planning |
 
 ## Design Principles
 
@@ -148,6 +149,15 @@ Shipwright holds the code it writes and reviews to a coherent set of software-de
 **Always on:** installing the plugin registers a session hook (`hooks/`) that injects a distilled "Code Laws" reminder at the start of every session and subagent — so the principles apply to *all* coding, not only inside the pipeline. Opt out with `SHIPWRIGHT_CODE_LAWS=off`.
 
 *Other `_shared/` references* are operational rather than design: architecture-map consumption, net-positive/anti-regression gate, the **iteration loop contract** (`_shared/loop.md` — the shared anatomy every auto-debug/impl/review/verify loop instantiates: State / Step / Gate / Progress+stall / Termination), evidence-evaluation gate, subagent context budget, and pipeline checkpoints.
+
+## Self-Evaluation Loop
+
+Every inner loop makes a single *run* correct. The **outer** loop (`shipwright:auto-eval`) makes the *pipeline* better over time. It runs Shipwright against a task suite, scores each run **from the evidence the pipeline already emits** — gate table, Pipeline Quality reflection, E2E evidence verdicts, plan retrospective — and feeds systematic, cross-run weaknesses back into `.shipwright-retrospective.md`, which `auto-plan` reads on the next run.
+
+- **Score from artifacts, never re-derive.** Five dimensions (Outcome, Honesty, Evidence, Efficiency, Plan fidelity), 0–2 each; a dimension with no artifact scores 0 and flags a pipeline *observability gap*.
+- **Only signal feeds back.** One run's stumble is noise; a weakness that recurs across ≥2 runs is a durable, actionable signal — nothing else is written back.
+- **It is itself a `loop.md` loop** at the meta level (State = scorecard, Gate = the pipeline must stay net-positive across a change), and its **meta-gate** applies `net-positive-gate.md` to Shipwright itself: a change to the pipeline ships only if the suite aggregate rises with no dimension regressing.
+- **Two modes:** `score` (cheap, default — grade completed runs) and `loop` (heavyweight — run the suite end-to-end; warns before launching N full pipelines). Zero-config defaults to scoring the latest run; tune via `.shipwright.json` `eval`.
 
 ## .NET Skills
 

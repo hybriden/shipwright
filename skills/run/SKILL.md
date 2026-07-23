@@ -155,7 +155,7 @@ Before the final report, one honest self-assessment (documentation, not a gate �
 
 ## Retrospective (feedback loop)
 
-Append to `.shipwright-retrospective.md` (read by auto-plan next run). Per run: status, task size, what went well/wrong per phase, plan-quality notes (from review), and **actionable** signals for future runs ("tasks touching src/utils always conflict"; "this codebase needs a mocking library"). Append-only, ≤15 lines/entry, patterns not session specifics; summarize the oldest 50 if it exceeds 100 entries.
+Append to `.shipwright-retrospective.md` (read by auto-plan next run). Per run: status, task size, what went well/wrong per phase, plan-quality notes (from review), and **actionable** signals for future runs ("tasks touching src/utils always conflict"; "this codebase needs a mocking library"). Append-only, ≤15 lines/entry, patterns not session specifics; summarize the oldest 50 if it exceeds 100 entries. The outer eval loop (`shipwright:auto-eval`) scores completed runs and appends cross-run improvement signals to the same file — closing the loop into planning.
 
 ## Report Format
 
