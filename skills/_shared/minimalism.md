@@ -21,6 +21,7 @@ Adapted from ponytail (MIT, github.com/DietrichGebert/ponytail). Governs what ge
 - `stdlib:` hand-rolled thing the stdlib ships (name it)
 - `native:` dep/code the platform already does (name the feature)
 - `yagni:` abstraction with one implementation, config nobody sets, layer with one caller
-- `shrink:` same logic, fewer lines (show it)
+- `shrink:` same logic, fewer lines (show it — often a modern idiom the toolchain already supports; see `modern-idiom.md`)
+- `chatter:` comment failing the delete test — narration, restated name, banner, change note (→ delete; policy in `comments.md`)
 
 End with `net: -N lines possible`, or `Lean already. Ship.` if nothing to cut.

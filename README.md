@@ -137,11 +137,13 @@ Shipwright holds the code it writes and reviews to a coherent set of software-de
 | **SOLID** | `_shared/solid.md` | *structure* | SRP/LSP always hold; OCP/ISP/DIP earn their abstraction only at a real seam or a second concrete case. |
 | **DRY** | `_shared/dry-kiss.md` | *single source of truth* | One home per piece of knowledge — but never merge coincidental look-alikes (rule of three). |
 | **KISS** | `_shared/dry-kiss.md` | *clarity* | The simplest solution that fully works; boring over clever, optimized for the next reader. |
+| **Comments** | `_shared/comments.md` | *self-documentation* | Code explains itself through names and structure; a comment earns its place only by stating what code cannot — a non-obvious why, constraint, or footgun. Delete-test everything else. |
+| **Modern idiom** | `_shared/modern-idiom.md` | *expression* | The least code a fluent reader of the language's current version would call idiomatic — current features over legacy patterns and hand-rolled versions, bounded by the project's toolchain version. |
 
 **They're reconciled, not just stacked.** The principles pull in different directions, so each defers explicitly where they collide:
 
 - **Abstraction is earned, never speculative.** SOLID, DRY, and minimalism share one test — extract an abstraction at a real I/O seam or on the second/third concrete case, not for a hypothetical future. A wrong abstraction costs more than a little duplication.
-- **Clarity beats terseness.** When KISS (most obvious) and minimalism (least code) conflict, clarity wins — a cryptic one-liner fails KISS.
+- **Clarity beats terseness.** When KISS (most obvious) and minimalism (least code) conflict, clarity wins — a cryptic one-liner fails KISS. The modern idiom usually dissolves the tension: today's language features say the same thing in less code *and* more clearly.
 - **Safety is never cut.** Input validation at trust boundaries, data-loss handling, security, accessibility, and understanding the problem are never simplified away.
 
 **Where they run:** threaded into `auto-plan` (design), the implementer subagent (build), and `auto-review` (verify — including a dedicated over-engineering lens). Invoke `shipwright:auto-minimize` to apply them on demand outside a full run.

@@ -59,6 +59,25 @@ Agent tool (general-purpose):
     simplest solution that fully works, boring over clever, optimized for the next
     reader; when brevity and clarity conflict, clarity wins.
 
+    ## Style — Modern & Concise
+    Write the least code a fluent reader of the language's current version would call
+    idiomatic: current language features and platform APIs over legacy patterns and
+    hand-rolled versions (optional chaining over nested null checks, async/await over
+    callback chains, pattern matching over if-else ladders, destructuring/records over
+    boilerplate). The project's toolchain version sets the ceiling — check it before
+    reaching for a feature; never force a version bump for style. Modernize only code
+    your task touches. Concision never beats clarity: a dense one-liner that hides
+    intent fails KISS.
+
+    ## Comments
+    Express intent through names and structure — default to zero comments; when one
+    feels needed, try a rename or extract first. A comment earns its place only by
+    stating what the code cannot: a non-obvious why, a constraint or invariant, a
+    footgun, or a required marker (`// ponytail:`, doc comments where the project's
+    existing public-API convention expects them). Delete test: if removing the comment
+    loses nothing, write nothing. Narration of what code does, restated names, section
+    banners, notes about the change itself, and commented-out code are noise.
+
     ## Security (OWASP)
     No command injection (sanitize shell inputs), SQL injection (parameterize queries),
     XSS (escape user content), path traversal (validate paths), or hardcoded secrets.
@@ -79,6 +98,8 @@ Agent tool (general-purpose):
     - Behavioral fidelity: does the code do what the acceptance criteria say (not something
       adjacent that happens to pass the tests)? Would the user say "yes, that's what I asked
       for"?
+    - Comments: does every comment you wrote pass the delete test (states something the
+      code cannot)? Remove the rest before reporting.
 
     ## Report
     - Status: DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT

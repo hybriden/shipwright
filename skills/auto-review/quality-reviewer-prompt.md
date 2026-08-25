@@ -22,6 +22,16 @@ Agent tool (general-purpose):
     - Code quality (DRY/KISS): clear consistent names; readable without comments (boring over
       clever); focused functions; one home per piece of logic — but don't flag look-alike code
       that changes for different reasons; no dead code or unused imports; follows conventions.
+    - Modern idiom & concision: new code uses the current language features and platform APIs
+      the project's toolchain version supports — flag legacy patterns and hand-rolled versions
+      of stdlib/language features with the modern replacement and lines saved. Don't flag
+      legacy style the toolchain forces, untouched pre-existing code, or concision that costs
+      clarity (a dense one-liner that hides intent is the bug, not the fix).
+    - Comments (delete test): every comment must state what the code cannot — a non-obvious
+      why, constraint, or footgun. Flag as comment-noise: narration of what code does, restated
+      names, section banners, notes about the change itself, commented-out code (Important if
+      pervasive, Minor otherwise). Don't flag doc comments that follow the project's existing
+      public-API convention.
     - Security (OWASP): command/SQL injection, XSS, path traversal, hardcoded secrets, endpoint
       auth, input validation at boundaries.
     - Error handling: all external boundaries protected; useful context; not swallowed; graceful

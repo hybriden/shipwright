@@ -1,7 +1,7 @@
 {
   "name": "shipwright",
   "description": "Autonomous development pipeline with architecture mapping, anti-regression gates, contract testing, and checkpoint recovery — plan, implement, test, review, and verify any task to production-grade quality in large and complex codebases",
-  "version": "3.12.0",
+  "version": "3.13.0",
   "author": {
     "name": "hybriden"
   },

@@ -10,7 +10,7 @@ The lazy-senior-dev counterweight to the pipeline's rigor: build the minimum tha
 The ladder, safety carve-outs, and review tags live in `../_shared/minimalism.md`. This skill invokes them in one of two modes:
 
 - **Build** (writing/refactoring): apply the decision ladder — needs to exist? → already here? → stdlib? → native? → installed dep? → one line? → only then new code. No unrequested abstractions; deletion over addition; fewest files; shortest diff *once you understand the problem*. Never simplify away the carve-outs. Output code first, then at most `skipped: [X], add when [Y].`
-- **Review** ("what can we delete", "is this over-engineered"): review the diff/codebase for complexity only (correctness/security/perf are a separate pass). One line per finding with tags delete/stdlib/native/yagni/shrink, ending in `net: -N lines possible` or `Lean already. Ship.` Lists fixes; applies them only if asked.
+- **Review** ("what can we delete", "is this over-engineered"): review the diff/codebase for complexity only (correctness/security/perf are a separate pass). One line per finding with tags delete/stdlib/native/yagni/shrink/chatter, ending in `net: -N lines possible` or `Lean already. Ship.` Lists fixes; applies them only if asked.
 
 ## Integration
 
