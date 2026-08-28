@@ -12,7 +12,7 @@ Adapted from ponytail (MIT, github.com/DietrichGebert/ponytail). Governs what ge
 6. One line? Make it one line.
 7. Only then: the minimum code that works.
 
-**Rules:** no unrequested abstractions (no interface/factory/config with one user); deletion over addition; boring over clever; fewest files; shortest working diff — but the smallest change in the *wrong* place is a second bug. **Bug fix = root cause:** fix the shared function once (one guard beats one per caller), not just the path the ticket names. Mark a deliberate corner-cut with a `ponytail:` comment naming the ceiling + upgrade path.
+**Rules:** no unrequested abstractions (no interface/factory/config with one user); deletion over addition; boring over clever; fewest files; shortest working diff — but the smallest change in the *wrong* place is a second bug. **Bug fix = root cause:** fix the shared function once (one guard beats one per caller), not just the path the ticket names. Mark a deliberate corner-cut — or a design law you knowingly can't uphold (name the law and why) — with a `ponytail:` comment naming the ceiling + upgrade path; the run report surfaces every marker to the operator.
 
 **Never simplify away:** understanding the problem, input validation at trust boundaries, error handling that prevents data loss, security, accessibility, hardware calibration, anything explicitly requested.
 

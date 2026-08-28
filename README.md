@@ -145,6 +145,7 @@ Shipwright holds the code it writes and reviews to a coherent set of software-de
 - **Abstraction is earned, never speculative.** SOLID, DRY, and minimalism share one test — extract an abstraction at a real I/O seam or on the second/third concrete case, not for a hypothetical future. A wrong abstraction costs more than a little duplication.
 - **Clarity beats terseness.** When KISS (most obvious) and minimalism (least code) conflict, clarity wins — a cryptic one-liner fails KISS. The modern idiom usually dissolves the tension: today's language features say the same thing in less code *and* more clearly.
 - **Safety is never cut.** Input validation at trust boundaries, data-loss handling, security, accessibility, and understanding the problem are never simplified away.
+- **Deviations are declared, never hidden.** When a principle knowingly can't be upheld, the spot is marked with a `ponytail:` comment (which law, why, upgrade path) and the run report's **Principle Deviations** section surfaces every marker to the operator.
 
 **Where they run:** threaded into `auto-plan` (design), the implementer subagent (build), and `auto-review` (verify — including a dedicated over-engineering lens). Invoke `shipwright:auto-minimize` to apply them on demand outside a full run.
 

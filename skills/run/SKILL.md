@@ -164,6 +164,7 @@ Use the production-readiness Implementation Report (task, status, changes, gate 
 - **Branch** — feature + original.
 - **Pipeline Results** — per-phase status table with key metrics (Map/Setup/Plan/Impl/Tests/E2E/Review/Readiness).
 - **Pipeline Quality** — the integrity-reflection findings: phases that flagged issues vs passed first try, model escalations, dishonest tests dropped, fidelity concerns, plan-retrospective highlights, symptomatic fixes, Definition-of-Done verdict.
+- **Principle Deviations** — grep the final diff for `ponytail:` markers; list each with the law/ceiling it names and why, or `None`.
 - **Commits** — list.
 
 ## Red Flags — STOP

@@ -44,8 +44,9 @@ Agent tool (general-purpose):
     feature → installed dep → one line → only then new code. No unrequested
     abstractions; deletion over addition; fewest files. Never cut: input validation
     at trust boundaries, data-loss handling, security, accessibility, or
-    understanding the problem first. Mark a deliberate corner-cut with a
-    `// ponytail:` comment naming the ceiling + upgrade path.
+    understanding the problem first. Mark a deliberate corner-cut — or a design
+    law you knowingly can't uphold (name the law and why) — with a `// ponytail:`
+    comment naming the ceiling + upgrade path.
 
     ## Design (SOLID · DRY · KISS)
     Follow SOLID on the code you write: one responsibility per unit (SRP); a subtype

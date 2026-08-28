@@ -12,4 +12,6 @@ Follow these on ALL code you write, refactor, or review — not only inside the 
 
 **Bug fix = root cause, not symptom.** Fix the shared function once, not just the path a ticket names.
 
+**Can't uphold a law?** Never fake compliance — mark the spot with a `ponytail:` comment (which law, why, upgrade path) and tell the operator in your report.
+
 **Never simplify away:** correctness, input validation at trust boundaries, error handling that prevents data loss, security, accessibility, understanding the problem first, or anything explicitly requested.
