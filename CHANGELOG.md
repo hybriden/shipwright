@@ -2,6 +2,18 @@
 
 All notable changes to Shipwright. Format follows [Keep a Changelog](https://keepachangelog.com/); the project adheres to [Semantic Versioning](https://semver.org/). Versions track the `version` field in `.claude-plugin/plugin.json`.
 
+## [3.15.0] — 2026-08-28
+
+- **Communication law** added to the always-on Code Laws hook: shortest fully-informative messages, no swaddling, grounded decisions, bullets preferred (simple tables for multi-dimensional data), specific and precise. Injected into every session and subagent — no per-skill wiring.
+
+## [3.14.0] — 2026-08-27
+
+- **Declared principle deviations.** The `ponytail:` marker now also covers any design law knowingly not upheld (name the law and why); the run report gains a **Principle Deviations** section aggregating every marker; never-fake-compliance added as an always-on Code Law.
+
+## [3.13.0] — 2026-08-27
+
+- Two new Code Laws: **self-explanatory code** (`_shared/comments.md` — default zero comments, delete test) and **modern-idiom concision** (`_shared/modern-idiom.md` — least idiomatic code, bounded by toolchain version). Wired into the implementer prompt and auto-review.
+
 ## [3.12.0] — 2026-07-23
 
 - **Modernized the `harness` skill to current Claude Code and wired it into the shared foundation.** The Agent Team & Skill Architect was built on the removed `TeamCreate`/`TeamDelete` "Agent Teams" API and defaulted to it; a verification against the official docs (v2.1.178+) confirmed those tools no longer exist and the recommended model has inverted. Rewrote the mechanism layer across `SKILL.md` and the references (`agent-design-patterns.md`, `orchestrator-template.md`, `team-examples.md`, `skill-writing-guide.md`, `skill-testing-guide.md`): **Subagents (`Agent` + `SendMessage`, orchestrator-as-hub) are now the default**, and **Agent Teams are an experimental opt-in** (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`; automatic spawn/cleanup; no `TeamCreate`/`TeamDelete`). Generated `.claude/agents/*.md` and `.claude/skills/*/SKILL.md` now carry current **YAML frontmatter** (agent `name`/`description`/`tools`/`model`; skill `user-invocable`/`context: fork`/`allowed-tools`/…), with `model:` set in frontmatter rather than per Agent call.

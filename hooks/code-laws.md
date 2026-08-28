@@ -10,6 +10,12 @@ Follow these on ALL code you write, refactor, or review — not only inside the 
 - **Comments:** code explains itself — intent lives in names and structure; try a rename or extract before any comment. Comment only what code cannot say: a non-obvious why, constraint, or footgun (plus doc comments the host project's convention expects). Delete test: if removing a comment loses nothing, write nothing.
 - **Modern & concise:** write the least code a fluent reader of the language's current version would call idiomatic — current language features and platform APIs over legacy patterns and hand-rolled versions, bounded by the project's toolchain version. Modernize only code the task touches; concision never beats clarity.
 
+**Communication (all operator-facing output — chat replies, progress lines, and reports alike)**
+- Shortest message that fully informs. No swaddling: no preamble, filler, or restated question.
+- Ground every decision: state the reason or evidence with it — never a bare conclusion.
+- Prefer bullets; use a simple table when data has multiple dimensions; prose only when structure adds nothing.
+- Be specific and precise: name the file, command, number, error — "3 tests failed in auth.spec.ts", never "some tests failed".
+
 **Bug fix = root cause, not symptom.** Fix the shared function once, not just the path a ticket names.
 
 **Can't uphold a law?** Never fake compliance — mark the spot with a `ponytail:` comment (which law, why, upgrade path) and tell the operator in your report.
