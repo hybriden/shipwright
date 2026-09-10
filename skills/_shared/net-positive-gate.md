@@ -2,17 +2,17 @@
 
 Shared reference for skills that change code and must not regress it (auto-impl per task, auto-debug per fix, auto-verify per iteration). A change that fixes 1 thing but breaks 2 is a net negative. The baseline is how you detect it.
 
-## Baseline — capture BEFORE the change
+## Baseline — have it BEFORE the change
 
-Record the full state before writing any fix / task / iteration:
+Before writing any fix / task / iteration, have the state it starts from — from the evidence ledger when the commit is unchanged since the last recorded run (`pace.md`), else capture it:
 - **Passing** tests or checks — these MUST all still pass afterward; any that fail = a regression YOU introduced
 - **Failing** tests or checks — these are what the change should address
 
-Takes 30 seconds; prevents hours of circular fixing.
+A baseline prevents hours of circular fixing.
 
 ## Net-Positive comparison — AFTER the change, before commit
 
-Re-run the full suite/checks and compare to baseline:
+Re-run the gate's test set — the full suite, or the affected tests where `pace.md` allows — and compare to baseline:
 
 | Result | Verdict | Action |
 |---|---|---|

@@ -1,16 +1,30 @@
 # Code Quality Reviewer Prompt Template
 
-Use when dispatching a code quality reviewer. **Only dispatch after spec compliance passes.** **Purpose:** verify the implementation is well-built (clean, tested, maintainable, secure).
+Use when dispatching a code quality reviewer — in parallel with the spec reviewer, each auto-review round. **Purpose:** verify the implementation is well-built (clean, tested, maintainable, secure).
 
 ```
 Agent tool (general-purpose):
   description: "Review code quality for [component]"
   prompt: |
-    The code is already verified spec-compliant. Verify it's well-built. Review only what this
-    change introduced (not pre-existing issues). Be specific — exact file:line.
+    Verify this change is well-built. Spec compliance is reviewed separately, in parallel — judge
+    how the code is built, not whether it does the right thing. Review only what this change
+    introduced (not pre-existing issues). Be specific — exact file:line.
 
     ## What Was Implemented / Changes / Conventions
     [impl summary] · [git diff or files + line ranges; base SHA → HEAD] · [detected patterns]
+
+    ## Re-review Round (rounds 2-3, or a post-review fix)
+    [the findings being fixed + `git diff <pre-fix>..HEAD`] — review only code the fix touched, but as
+    unreviewed code held to the same standard as the original change:
+    - The fixer's report is a claim. Verify each finding against the current code, and judge whether
+      the new behavior is correct — not just whether it does what the finding asked.
+    - A test written in the same round as its fix is part of that claim: could it pass with the code wrong?
+    - If the defects you find sit in fix code that goes beyond what its finding required, report one
+      IMPORTANT finding — "revert <commit> to the minimal fix" — instead of new repairs on top of it.
+
+    ## Findings Bar
+    Report a finding only with a concrete sequence the change's real callers perform — rare but real
+    counts; a path only a hypothetical, unused call would take does not.
 
     ## Review For
     - Architecture/design (SOLID): one responsibility per unit (SRP); subtypes honor their
@@ -32,21 +46,24 @@ Agent tool (general-purpose):
       names, section banners, notes about the change itself, commented-out code (Important if
       pervasive, Minor otherwise). Don't flag doc comments that follow the project's existing
       public-API convention.
-    - Security (OWASP): command/SQL injection, XSS, path traversal, hardcoded secrets, endpoint
-      auth, input validation at boundaries.
+    - Security (OWASP): command/SQL injection, XSS, path traversal, hardcoded secrets, input
+      validation at boundaries. Where changed code reads, writes, returns, caches, or logs protected
+      data, trace one operation across the boundary: where identity is established; whether
+      authorization sits at the earliest boundary every caller shares, alternate call paths included;
+      whether private fields leak through responses, serializers, caches, logs, or error details.
+      Report a reachable operation or disclosure — not a missing auth call by name.
     - Error handling: all external boundaries protected; useful context; not swallowed; graceful
-      degradation for non-critical failures.
+      degradation for non-critical failures; timeouts on external calls.
     - Production readiness: appropriate logging; no TODO/FIXME/HACK in new code; no hardcoded
       values that should be config; no N+1 / unbounded loops.
     - Test quality: behavior not implementation; descriptive names; arrange-act-assert; mocks not
-      excessive; error paths covered; no self-referential tests; each test would catch a real bug.
-    - Behavioral fidelity (spot-check 2-3 key functions): read the assertion, read the code — same
-      thing? Silent defaults / truncation / swallowed errors the tests don't exercise? Boundary
-      agreement (off-by-one, max values)?
+      excessive; error paths covered; no self-referential tests; no test whose only evidence is
+      reading or grepping implementation source for strings or names; each test would catch a real bug.
 
     ## Report
     - Strengths: [specific]
-    - Issues: [CRITICAL / IMPORTANT / MINOR] file:line — description + fix suggestion
+    - Issues: [CRITICAL / IMPORTANT / MINOR] [security | error-handling | logging | hygiene |
+      design | tests] file:line — description + fix suggestion
       (Critical: security, data loss, broken functionality. Important: poor patterns, missing error
       handling/tests, bad naming. Minor: style.)
     - Assessment: APPROVED | NEEDS_CHANGES (if any Critical or Important)

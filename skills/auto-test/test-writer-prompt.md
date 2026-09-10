@@ -25,7 +25,8 @@ Agent tool (general-purpose):
     3. Cover: happy path; edge cases (empty, null, boundaries); error paths; integration; and
        contract conformance if a contract was identified (assert documented behavior, not the
        current implementation).
-    4. Run the full suite (nothing broken) + coverage (improved). Commit.
+    4. Run your new test files (all green) — not the full suite; the orchestrator measures coverage
+       for every test-writer in one run. Commit.
 
     ## Quality Standards
     One behavior per test; names describe behavior ("returns empty array when no items match"),
@@ -38,12 +39,15 @@ Agent tool (general-purpose):
     2. Would it fail if you flipped a conditional / changed a return value? (If not, it's shape.)
     3. Shape or behavior? Shape tests (key existence, type checks) are valid ONLY as contract tests
        — mark `// contract-shape-only` and don't count them toward behavioral coverage.
+    4. Source-reading? A test whose only evidence is grepping or snapshotting implementation source
+       proves nothing — DISHONEST, unless that file is itself product output (generated code, a
+       serialized format, persisted state).
     Classify each: HONEST / SHAPE_ONLY (contract only) / DISHONEST (self-referential — DELETE it).
     Zero tests > misleading tests.
 
     ## Report
     - Status: DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED
     - Tests written (count + names); honesty breakdown (X honest, Y shape-only, Z dropped);
-      coverage before/after (line %, branch %); files changed; untestable paths (with reason);
+      uncovered paths targeted (path → test name); files changed; untestable paths (with reason);
       external contracts validated.
 ```

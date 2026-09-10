@@ -25,7 +25,7 @@ After auto-impl; as run Phase 4; standalone to verify or improve coverage.
 
 ## Process
 
-Detect framework → baseline coverage → testability audit → (refactor if opt-in) → contract-boundary analysis → gap analysis → write tests → honesty check → verify (≤3 iterations).
+Detect framework → baseline coverage → testability audit → (refactor if opt-in) → contract-boundary analysis → gap analysis → write tests → honesty check → verify (≤3 iterations). In a pipeline run the scope is **changed code**, and recorded results are reused, not re-run (`../_shared/pace.md`).
 
 ## Phase 1: Framework Detection
 
@@ -39,15 +39,15 @@ Detect framework → baseline coverage → testability audit → (refactor if op
 | .rspec | RSpec | `bundle exec rspec` |
 | *.csproj / *.sln (xunit/nunit/mstest) | dotnet test | `dotnet test --collect:"XPlat Code Coverage"` |
 
-None detected → set up the language's standard framework. In .NET projects, when a `[dotnet-skills]` index lists a test skill (e.g. `xunit`), Read its `SKILL.md` before writing tests — per `../_shared/dotnet-skills.md`.
+None detected → set up the language's standard framework. When a stack-skills index lists a test skill (e.g. `xunit`), Read its `SKILL.md` before writing tests — per `../_shared/stack-skills.md`.
 
 ## Phase 2: Baseline Coverage
 
-Run the full suite with coverage; capture total line %, branch %, per-file breakdown, and the specific uncovered lines/branches.
+Reuse auto-impl's phase-end coverage run while HEAD is unchanged (evidence ledger); otherwise run the full suite with coverage. Capture the uncovered lines/branches **in changed code** — the gated scope — plus project line/branch totals (reported, not gated).
 
 ## Phase 3: Testability Audit
 
-For each file below target, read the source and ask: are the critical paths testable with available tools (mocking, DI, visibility)? Is core logic hidden in private/static methods? Too many injected deps to mock? Tight coupling (direct `new`, static external calls)? Global state/singletons? Verdict per file: **TESTABLE** / **PARTIALLY_TESTABLE** (blocker + proposed change) / **UNTESTABLE**.
+For each file whose changed code is below target, read the source and ask: are the critical paths testable with available tools (mocking, DI, visibility)? Is core logic hidden in private/static methods? Too many injected deps to mock? Tight coupling (direct `new`, static external calls)? Global state/singletons? Verdict per file: **TESTABLE** / **PARTIALLY_TESTABLE** (blocker + proposed change) / **UNTESTABLE**.
 
 Opportunistically: if the code replicates an external contract (API client, protocol, data format) you can positively identify, find its authoritative docs/spec and flag divergences as potential bugs. Don't guess.
 
@@ -61,11 +61,11 @@ Otherwise skip and report untestable code in the output. Authorized: visibility 
 
 ## Phase 5: Gap Analysis
 
-Per below-target file: read it, list uncovered paths (untested functions/branches, error paths, edge cases — empty/null/overflow/boundary, integration points). Skip paths marked UNTESTABLE (if Phase 4 was skipped). Include contract-conformance gaps (Phase 3) and contract-test gaps (Phase 4.5, highest priority).
+Per file whose changed code is below target: read it, list the uncovered changed paths (untested functions/branches, error paths, edge cases — empty/null/overflow/boundary, integration points). Skip paths marked UNTESTABLE (if Phase 4 was skipped). Include contract-conformance gaps (Phase 3) and contract-test gaps (Phase 4.5, highest priority).
 
 ## Phase 6: Test Writing
 
-Dispatch test-writer subagents (`./test-writer-prompt.md`) per gap cluster. Cover: happy path; edge cases (empty, single, max, unicode, special chars); error paths (invalid input, failures, timeouts); boundaries (off-by-one, min/max, empty/full); integration; contract conformance (assert documented behavior, not current impl); and module-boundary contracts (serialization round-trips; feed module A's output to module B's input; error-contract agreement — tests importing BOTH modules).
+Dispatch test-writer subagents (`./test-writer-prompt.md`) per gap cluster; each runs only its own new tests, and Phase 8 measures coverage for all of them in one run. Cover: happy path; edge cases (empty, single, max, unicode, special chars); error paths (invalid input, failures, timeouts); boundaries (off-by-one, min/max, empty/full); integration; contract conformance (assert documented behavior, not current impl); and module-boundary contracts (serialization round-trips; feed module A's output to module B's input; error-contract agreement — tests importing BOTH modules).
 
 ## Phase 7: Test Honesty Check (single pass)
 
@@ -74,20 +74,21 @@ Per test file, a quick cognitive check — NOT a rewrite loop:
 1. Does it call production code, or assert against a value the test constructed to mirror the logic?
 2. Would it fail if you mentally flipped a conditional / changed a return value?
 3. Shape or behavior? (Shape tests — types, key existence — count only as contract tests.)
+4. Does it only read the implementation's source? A test whose evidence is opening, grepping, or snapshotting source code for strings, names, or shapes proves nothing about behavior → DISHONEST. Reading a file is fine when that file is the product's output (generated code, a serialized protocol, persisted state, an intentional snapshot).
 
 Verdict: **HONEST** / **SHAPE_ONLY** (contract only) / **DISHONEST**. Many DISHONEST → note for auto-review (its behavioral-fidelity check does the deeper analysis with code + tests together) and proceed.
 
 ## Phase 8: Coverage Verification
 
-Re-run the full suite. Target met → done. Else repeat Phases 5-7 for remaining gaps. **Max 3 iterations**; if still short, report the specific uncovered paths, distinguishing: untestable code (from the audit) / insufficient test writing / dropped dishonest tests.
+Re-run the full suite with coverage — one run per iteration, covering every test-writer's output together. Target met → done. Else repeat Phases 5-7 for remaining gaps. **Max 3 iterations**; if still short, report the specific uncovered paths, distinguishing: untestable code (from the audit) / insufficient test writing / dropped dishonest tests.
 
 ## Coverage Targets
 
-Line 80% (`coverage.line`), branch 80% (`coverage.branch`), function 90% (`coverage.function`). Overrides plus `testCommand`/`coverageCommand` in `.shipwright.json`.
+Line 80% (`coverage.line`), branch 80% (`coverage.branch`), function 90% (`coverage.function`) — applied to changed code in a pipeline run. Overrides plus `testCommand`/`coverageCommand` in `.shipwright.json`.
 
 ## Integration
 
-run Phase 4. Consumes impl code + inter-task log (auto-impl) and the map (auto-map). Produces coverage data, the testability audit, honesty verdicts, and the contract-gap report for auto-review and production-readiness (Gate 2). Invokes auto-debug when new tests expose implementation bugs. See `./test-writer-prompt.md`.
+run Phase 4. Consumes impl code, the inter-task log, and the phase-end coverage run (auto-impl), and the map (auto-map). Produces coverage data, the testability audit, honesty verdicts, and the contract-gap report for auto-review and production-readiness (Gate 2). Invokes auto-debug when new tests expose implementation bugs. See `./test-writer-prompt.md`.
 
 ## Red Flags & Anti-Patterns — STOP
 

@@ -17,6 +17,13 @@
             "commandWindows": "if (Get-Command node -ErrorAction SilentlyContinue) { node \"$env:CLAUDE_PLUGIN_ROOT\\hooks\\dotnet\\inject-dotnet-skills.js\" SessionStart }",
             "timeout": 5,
             "statusMessage": "Checking for .NET skills..."
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/skill-packs/inject-skill-packs.js\" SessionStart",
+            "commandWindows": "if (Get-Command node -ErrorAction SilentlyContinue) { node \"$env:CLAUDE_PLUGIN_ROOT\\hooks\\skill-packs\\inject-skill-packs.js\" SessionStart }",
+            "timeout": 5,
+            "statusMessage": "Matching skill packs..."
           }
         ]
       }
@@ -37,6 +44,13 @@
             "commandWindows": "if (Get-Command node -ErrorAction SilentlyContinue) { node \"$env:CLAUDE_PLUGIN_ROOT\\hooks\\dotnet\\inject-dotnet-skills.js\" SubagentStart }",
             "timeout": 5,
             "statusMessage": "Checking for .NET skills..."
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/skill-packs/inject-skill-packs.js\" SubagentStart",
+            "commandWindows": "if (Get-Command node -ErrorAction SilentlyContinue) { node \"$env:CLAUDE_PLUGIN_ROOT\\hooks\\skill-packs\\inject-skill-packs.js\" SubagentStart }",
+            "timeout": 5,
+            "statusMessage": "Matching skill packs..."
           }
         ]
       }

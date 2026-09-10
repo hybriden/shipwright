@@ -23,15 +23,16 @@ A 400-line map covering 80% of the architecture beats a 2000-line map that gets 
 
 | Task size | Map budget | Phases |
 |---|---|---|
-| Small (1-3 files) | 150 lines | 1, 2, 3, 5 (light), 6 — skip data models (2.5) + test classification (4.5) |
+| Small (1-3 files), `lean` | 150-line lens | **Lens-only.** Existing map → emit the lens from it (refresh incrementally first only if the task's modules changed since its SHA). No map → scan only the task's modules + 1-hop neighbors (1, 2, 4) and return the lens inline — don't write `docs/architecture-map.md`, since a partial map on disk would later pass for a full one |
+| Small, `thorough` | 150 lines | 1, 2, 3, 5 (light), 6 — skip data models (2.5) + test classification (4.5) |
 | Medium (4-10) | 300 lines | all |
 | Large (10+) | 400 lines | all, full depth |
 
-Size comes from the orchestrator (or the task description if no plan exists yet); standalone → medium.
+Size and profile come from run's triage (`../_shared/pace.md`); standalone → medium.
 
 ## When to Use
 
-Before plan (decompose along real boundaries), impl (subagent context), debug (dependency tracing), verify (involved modules); as run Phase 1.25; when the map is stale; standalone to explore an unfamiliar codebase.
+Before plan (decompose along real boundaries), impl (subagent context), debug (dependency tracing), verify (involved modules); as run Phase 1.25 (in parallel with setup); when the map is stale; standalone to explore an unfamiliar codebase.
 
 ## Process
 

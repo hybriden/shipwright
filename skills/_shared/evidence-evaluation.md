@@ -15,3 +15,6 @@ Ask three questions:
 | PROVEN | Correct behavior demonstrated with verified data | Mark PASS |
 | SUPERFICIAL | Shows the system runs, not that it's correct | Add data-level assertions, re-verify |
 | INSUFFICIENT | Demonstrates nothing meaningful | Redo with concrete assertions |
+| UNTESTED | Couldn't be exercised against the real system here — a unit test, mock, stub, recorded fixture, or reading the code is not a live run | Report it with what stopped it (tool, credential, service, access) and how to provide that; never counts as PASS |
+
+Never guess a pass: an honest UNTESTED with its reason is worth more than a PROVEN nobody observed.

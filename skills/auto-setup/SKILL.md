@@ -44,6 +44,8 @@ Most specific indicator wins (lock file > manifest):
 | Gemfile.lock | `bundle install` |
 | composer.lock | `composer install` |
 
+**Skip when current:** if the dependency directory exists, is newer than the lockfile, and the installed check passes (`npm ls --depth=0` / `pip check` / `go mod verify` / `bundle check`), don't reinstall — `npm ci` and its peers wipe and rebuild, usually setup's slowest step.
+
 ## Phase 2: Environment Configuration
 
 Copy `.env.example` / `.env.template` / `.env.sample` → `.env` if none exists. Check `.shipwright.json` for custom setup commands. Note `docker-compose.yml` services as prerequisites — do NOT auto-start Docker.
@@ -65,15 +67,17 @@ Only if a local DB is detected (SQLite file, or a localhost connection string); 
 
 ## Phase 4: Build Verification
 
-Node (build script) `npm run build`; TS (no script) `npx tsc --noEmit`; Go `go build ./...`; Rust `cargo build`; Python `python -m py_compile [main files]`. No build step → verify the entry point imports cleanly.
+Node (build script) `npm run build`; TS (no script) `npx tsc --noEmit`; Go `go build ./...`; Rust `cargo build`; Python `python -m py_compile [main files]`. No build step → verify the entry point imports cleanly. Record the result in the evidence ledger (`../_shared/pace.md`).
 
 ## Phase 5: Test Suite Verification
 
-Run the test command once. Success = the runner starts and completes (tests may pass or fail). If it can't start (missing deps, import errors, config), setup is incomplete → diagnose and fix, then re-verify.
+Run the test command once, capturing per-test results and duration — the pipeline's first ledger entry: task 1's baseline and the fast-suite check (`../_shared/pace.md`). Success = the runner starts and completes (tests may pass or fail). If it can't start (missing deps, import errors, config), setup is incomplete → diagnose and fix, then re-verify.
 
 ## Phase 6: Task-Aware Pre-Flight (skip if no task description)
 
 Verify readiness for the *specific* task, not just a generic build. From the task/plan, confirm what it needs is present: new external APIs → keys/env vars; DB changes → migration tools + DB access; file processing (PDF/image/CSV) → native deps (wkhtmltopdf, sharp, Pillow, imagemagick); email → SMTP/test mail; browser automation → Playwright browsers; framework features → version supports them. Also: do the imports the plan will use exist in installed packages? Output a verdict per requirement (READY / MISSING + action). MISSING → install now; if it needs system packages that can't be auto-installed, report as a prerequisite.
+
+**JS/TS lint & format:** when ESLint or Prettier is installed, run the Oxc compatibility check once dependencies are in (the `[oxc]` line of the `[skill-packs]` block has the command; policy in `../_shared/js-toolchain.md`) and record the verdict (→ plan, readiness). It leaves the project unchanged.
 
 ## Phase 7: Environment Fingerprint
 
@@ -85,13 +89,13 @@ Reads: `setupCommand`, `testCommand`, `buildCommand`, `startCommand`, `envFile`.
 
 ## Integration
 
-run Phase 1.5; leaf skill. Produces the env fingerprint (→ debug), pre-flight findings (→ plan), and detected test/build/start commands (→ impl). The pipeline aborts if setup fails (build broken or tests can't execute).
+run Phase 1.5, in parallel with auto-map; leaf skill. Produces the env fingerprint (→ debug), pre-flight findings (→ plan), detected test/build/start commands (→ impl), and the first ledger entries — build + suite results with duration (→ impl, test, debug), and the Oxc verdict for JS/TS (→ plan, readiness). The pipeline aborts if setup fails (build broken or tests can't execute).
 
 ## Red Flags & Anti-Patterns — STOP
 
 | Thought / behavior | Reality |
 |---|---|
-| "Dependencies are probably installed" | Verify — run the install. |
+| "Dependencies are probably installed" | Verify with the installed-vs-lockfile check; install on any mismatch. |
 | "Tests fail, setup must be broken" | Failing tests are fine; tests that can't RUN are not. |
 | "Docker services are needed, I'll start them" | Never auto-start Docker. Report as a prerequisite. |
 | "The task needs no special deps" | Read the task — image processing needs native libs, PDF needs renderers. Check. |

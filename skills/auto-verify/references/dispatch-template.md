@@ -49,7 +49,7 @@ Agent tool (general-purpose):
           - API: curl with response body capture
           - CLI: run command, capture stdout/stderr/exit code
           - DB: run queries, verify counts and values
-       e. Evaluate evidence (PROVEN/SUPERFICIAL/INSUFFICIENT)
+       e. Evaluate evidence (PROVEN/SUPERFICIAL/INSUFFICIENT/UNTESTED — never guess a pass)
        f. If issues found:
           - Document in runbook with evidence
           - Trace root cause using the dependency graph (follow module boundaries

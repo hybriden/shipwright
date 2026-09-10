@@ -33,7 +33,7 @@ Read prior "Plan Retrospective" sections in `docs/plans/*` and `.shipwright-retr
 
 ## Phase 1: Codebase Analysis
 
-**Read the architecture map first** (`docs/architecture-map.md`) per `../_shared/architecture-map.md` — it gives module boundaries, interfaces, dependency direction, patterns, and hot spots, so you can skip broad scanning and focus reading on the task's modules. **No map** → manual scan: Glob the structure; Grep for package manager/deps, test framework config, existing test patterns, CI/CD, lint config, entry points; read key files for conventions, architecture, error/logging patterns.
+**Read the architecture map first** (`docs/architecture-map.md`) per `../_shared/architecture-map.md` — it gives module boundaries, interfaces, dependency direction, patterns, and hot spots, so you can skip broad scanning and focus reading on the task's modules. A Small task under `lean` has no full map — use the lens auto-map returned, and embed it in the plan's Architecture section so it survives compaction. **No map** → manual scan: Glob the structure; Grep for package manager/deps, test framework config, existing test patterns, CI/CD, lint config, entry points; read key files for conventions, architecture, error/logging patterns.
 
 ## Phase 2: Task Decomposition
 
@@ -41,7 +41,7 @@ Guided by the map: decompose **along module boundaries** (not feature lines), or
 
 **Plan the minimal solution** (per `../_shared/minimalism.md`): reuse / stdlib / native before new code, no unrequested abstractions, the fewest tasks that actually solve it. Never simplify away the safety carve-outs listed there. Structure the design to SOLID (`../_shared/solid.md`) — separate responsibilities (SRP) and place abstractions at real I/O seams, but not before a second concrete case earns them. Keep it DRY and simple (`../_shared/dry-kiss.md`): one home per piece of logic, the simplest solution that works.
 
-**In .NET projects**, decompose along idiomatic .NET seams and, when a `[dotnet-skills]` index is present, note which matched skill each task should consult (e.g. an EF task → `entity-framework-core`). Protocol: `../_shared/dotnet-skills.md`.
+**Stack skills:** when a `[dotnet-skills]` or `[skill-packs]` index is present, decompose along the stack's idiomatic seams and note which matched skill each task should consult (an EF task → `entity-framework-core`; a Worker binding → `workers-best-practices`). Protocol: `../_shared/stack-skills.md`. JS/TS lint/format tooling choices follow `../_shared/js-toolchain.md` and setup's Oxc verdict.
 
 **Atomic change groups — must change together or not at all:**
 - Interface + all implementations (splitting → build failures between tasks)
@@ -74,15 +74,17 @@ Save to `docs/plans/YYYY-MM-DD-<task-name>.md`:
 
 ```markdown
 # [Task] Implementation Plan
-**Goal / Architecture / Architecture Map / Modules Involved / Hot Spots Affected / Tech Stack / Test Framework / Coverage Target**
+**Goal / Architecture / Architecture Map / Modules Involved / Hot Spots Affected / Tech Stack / Test Framework / Coverage Target / Files Touched (count — run re-checks the size tier)**
 ---
 ### Task N: [Component]
 **Files:** Create · Modify (path:line-range) · Test
+**Interfaces:** exact signatures + import paths this task creates or consumes
 **Acceptance Criteria:** [specific, verifiable]
-**Steps:** 1 write failing test [code] · 2 run → FAIL "[error]" · 3 minimal impl [code] · 4 run → PASS · 5 commit [message]
+**Test Cases:** behavior · input → expected output (error paths included)
+**Steps:** 1 write failing test · 2 run → FAIL "[error]" · 3 minimal impl · 4 run affected tests → PASS · 5 commit [message]
 ```
 
-Adaptation: small 1-3 tasks; medium 3-8 (group by component); large 8+ (group by layer/module, mark inter-task deps). Always: exact paths, complete code, exact test commands + expected output, explicit criteria, and a test strategy in every task (not an afterthought).
+Adaptation: small 1-3 tasks; medium 3-8 (group by component); large 8+ (group by layer/module, mark inter-task deps). Always: exact paths, signatures, test cases with expected output, exact test commands, explicit criteria, and a test strategy in every task (not an afterthought). **No implementation code** — the implementer writes it, so pre-written code gets authored twice. Include a snippet only where the implementer would otherwise guess wrong: an exact format, regex, protocol field, or migration shape.
 
 ## Integration
 

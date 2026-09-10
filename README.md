@@ -20,15 +20,15 @@ Invoke the master orchestrator with any development task:
 Then describe your task. The system handles everything autonomously:
 
 1. **Branch Isolation** — Creates `shipwright/<task>` feature branch
-2. **Setup** — Installs dependencies, configures environment, verifies build
+2. **Setup** — Installs dependencies (skipped when already current), configures environment, verifies build — in parallel with architecture mapping
 3. **Plan** — Scans codebase, detects tech stack, decomposes task into ordered steps
 4. **Implement** — Dispatches fresh subagent per task with TDD enforcement
-5. **Unit Test** — Verifies coverage (80%+ line and branch), fills gaps
-6. **E2E Test** — Browser testing (Playwright), API testing, or CLI testing depending on app type
-7. **Code Review** — Two-stage: spec compliance first, then code quality
-8. **Production Readiness** — 10-gate verification including load testing, security, and error handling
+5. **Unit Test** — Verifies coverage of the changed code (80%+ line and branch), fills gaps
+6. **Code Review** — Focused reviewers in parallel (spec compliance, fidelity, architecture, quality), spec fixes first
+7. **E2E Test** — Browser testing (Playwright), API testing, or CLI testing on the reviewed code, depending on app type
+8. **Production Readiness** — 11-gate verification including load testing, security, and error handling
 
-In .NET projects, a **.NET Skills** step (between Setup and Plan) makes project-matched skills from [managedcode/dotnet-skills](https://github.com/managedcode/dotnet-skills) available on demand — see [.NET Skills](#net-skills) below.
+A **Stack Skills** step (between Setup and Plan) fetches project-matched expert skills on demand — .NET, Cloudflare, Vercel, AWS, Oxc, plus user-approved picks from a skill library — see [Stack Skills](#stack-skills) below.
 
 Any failure at any phase triggers **auto-debug** automatically — no manual intervention needed.
 
@@ -38,6 +38,19 @@ Progress updates throughout:
 [shipwright] Phase 4/9: Testing (coverage: 62% -> 84%)
 [shipwright] COMPLETE: All gates passed. Branch: shipwright/add-user-auth
 ```
+
+## Pace
+
+Shipwright spends verification where it can still change the outcome — gates never get skipped, only their depth and timing scale (`skills/_shared/pace.md`):
+
+- **Evidence reuse** — every build/test/coverage result is recorded against its commit; nothing re-runs on an unchanged commit.
+- **Size tiers** — the task is triaged Small/Medium/Large before mapping; depth scales with the tier.
+- **Affected tests in loops** — implementation tasks, test-writers, debug fixes, and review fixes run the tests their change can reach; the full suite runs at phase boundaries.
+- **Diff-aware gates** — coverage gates the changed lines; load tests and responsive/a11y sweeps run when the diff reaches the request path or changed UI.
+- **Parallel review** — spec and quality reviewers run concurrently with the other review lenses; fixes are batched per round.
+- **Debug fast path** — a compile/type/import error at a line the current step wrote gets a direct fix; everything else gets full root-cause analysis.
+
+Set `"profile": "thorough"` in `.shipwright.json` to turn the trade-off levers off: full suite at every task gate, a map even for small tasks, load test on every web/API change, and the full debug process for every failure.
 
 ## Auto-Debug
 
@@ -60,6 +73,8 @@ Auto-debug follows a rigorous process — no guessing, no shotgun fixes:
 7. **Fix** — Applies the minimal change that addresses the root cause
 8. **Prove** — Every fix must be proven through multiple verification layers (see below)
 9. **Cleanup** — Removes all debug artifacts (injected logs, bisect state, temp files)
+
+Under the default `lean` profile, a mechanical error — compile, type, import, syntax, or lint, at a line the current step changed — takes a one-attempt fast path: a real fix — never a cast or ignore pragma — then a re-run of the failing command and affected tests. Anything else, or a fast fix that doesn't hold, runs the full process.
 
 ### Fix Verification (Mandatory)
 
@@ -93,6 +108,7 @@ Create `.shipwright.json` in your project root to customize behavior. All fields
 
 ```json
 {
+  "profile": "lean",
   "coverage": { "line": 80, "branch": 80 },
   "skipPhases": ["e2e"],
   "testCommand": "npm test",
@@ -120,7 +136,7 @@ Each skill is independently usable:
 | `shipwright:auto-impl` | Subagent-driven implementation |
 | `shipwright:auto-test` | Unit and integration test coverage |
 | `shipwright:auto-e2e` | End-to-end user testing |
-| `shipwright:auto-review` | Two-stage code review |
+| `shipwright:auto-review` | Multi-lens code review — focused reviewers in parallel, spec fixes first |
 | `shipwright:auto-debug` | Systematic root cause analysis with proven fixes |
 | `shipwright:production-readiness` | Final verification gate |
 | `shipwright:harness` | Agent Team & Skill Architect — generates project-specific agent teams |
@@ -162,19 +178,35 @@ Every inner loop makes a single *run* correct. The **outer** loop (`shipwright:a
 - **It is itself a `loop.md` loop** at the meta level (State = scorecard, Gate = the pipeline must stay net-positive across a change), and its **meta-gate** applies `net-positive-gate.md` to Shipwright itself: a change to the pipeline ships only if the suite aggregate rises with no dimension regressing.
 - **Two modes:** `score` (cheap, default — grade completed runs) and `loop` (heavyweight — run the suite end-to-end; warns before launching N full pipelines). Zero-config defaults to scoring the latest run; tune via `.shipwright.json` `eval`.
 
-## .NET Skills
+## Stack Skills
 
-In **.NET projects only**, Shipwright dynamically taps [managedcode/dotnet-skills](https://github.com/managedcode/dotnet-skills) (MIT) for idiomatic .NET guidance (EF Core, ASP.NET Core, xUnit, Aspire, DI, …) — **without vendoring any of it**. The skill content stays in an out-of-repo cache, sourced from the official CLI and refreshed from upstream; Shipwright injects only a compact index and Reads the relevant `SKILL.md` on demand.
+Shipwright pulls in expert skills for the stack and platforms a project uses — **fetched on demand, never vendored**. Skill bodies stay in an out-of-repo cache (`~/.claude/.shipwright/`), written by each publisher's official tooling and refreshed from upstream; Shipwright injects only a compact index, and agents Read the one relevant `SKILL.md` when a task needs it. `shipwright:run` acquires them in its **Stack Skills** phase (between Setup and Plan). Protocol: `skills/_shared/stack-skills.md`.
+
+| Source | Skills | Loaded when |
+|---|---|---|
+| [managedcode/dotnet-skills](https://github.com/managedcode/dotnet-skills) | EF Core, ASP.NET Core, xUnit, Aspire, DI, … (official `dotnet-skills` CLI) | .NET markers (`*.csproj`, `*.sln`, `global.json`, `Directory.*.props`) |
+| [cloudflare/skills](https://github.com/cloudflare/skills) | Workers, Wrangler, Durable Objects, Agents SDK, Sandbox, … | `wrangler.*`, `@cloudflare/*`, `agents`, Cloudflare Terraform |
+| [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) | React/Next.js performance and composition, view transitions, web design guidelines, Vercel deploys | React/Next/Vue/Svelte/Astro/Angular deps, `vercel.json` |
+| [aws/agent-toolkit-for-aws](https://github.com/aws/agent-toolkit-for-aws) | CDK, CloudFormation, serverless, SDK usage, DynamoDB, S3, IAM, … (~100 skills; only the matched ones are indexed) | `cdk.json`, SAM/Serverless configs, `@aws-sdk/*`, boto3, AWS Terraform |
+| [oxc-project/oxc](https://github.com/oxc-project/oxc) | `migrate-oxlint`, `migrate-oxfmt` | ESLint or Prettier installed |
 
 **How it works**
 
-1. **Near-zero-cost gate.** A session/subagent hook checks for .NET markers (`*.csproj`/`*.sln`/`global.json`/`Directory.*.props`) with a pure-filesystem scan — no process spawns. Non-.NET repos see nothing and pay nothing.
-2. **Acquire.** In a .NET repo, `shipwright:run`'s **.NET Skills** phase runs the official `dotnet-skills` CLI (`install --auto`) to install project-matched skills into `~/.claude/.shipwright/dotnet-skills/<project>/` — scanning the project but writing only to that cache, so your repo tree stays clean.
-3. **Inject + consume.** The hook injects a `[dotnet-skills]` index (name → description → path) into every .NET session and subagent. `auto-plan`/`auto-impl`/`auto-test`/`auto-review` Read the one matched `SKILL.md` on demand — never copying it in. Protocol: `skills/_shared/dotnet-skills.md`.
+1. **Near-zero-cost gate.** Session/subagent hooks match sources with a bounded filesystem scan — no process spawns (~50 ms). Repos with no match get nothing indexed.
+2. **Acquire.** The Stack Skills phase fetches the matched sources: the `dotnet-skills` CLI for .NET, and the [vercel-labs/skills](https://github.com/vercel-labs/skills) CLI (`npx skills add`, telemetry off) for the packs — run *inside* the cache, so nothing lands in your repo or `~/.claude/skills`. A task that targets a platform the repo doesn't show yet adds its pack with `--pack <id>`.
+3. **Inject + consume.** `[dotnet-skills]` and `[skill-packs]` indexes list the matched skills; plan, implement, test, and review Read the relevant one on demand.
 
-**Requires** the .NET SDK. The `dotnet-skills` CLI is installed globally on first use (like `dotnet-ef`); disable that with `dotnetSkills.installTool: false`.
+**Skill library — ask first.** When a task builds something no source covers (payments, auth, a database, a test framework, …), Shipwright searches the [skillselion.com](https://skillselion.com/skills) catalog and asks — once, before planning — whether to install the candidates that pass its quality gate: official publishers with ≥1k installs, or community skills with ≥10k installs, ≥1k stars, and a passing audit. Anything with a failed audit, HIGH/CRITICAL risk, a duplicate marker, or a repo unpushed for 180+ days is dropped.
 
-**Opt out** entirely with `SHIPWRIGHT_DOTNET_SKILLS=off` or `.shipwright.json` `dotnetSkills.enabled: false`. Filter with `dotnetSkills.only` / `exclude`; control freshness with `refreshDays` and network use with `bundled`. See the [config reference](skills/auto-setup/shipwright-config.md).
+**Requires** the .NET SDK (dotnet-skills) or Node/`npx` (packs, library). **Opt out** with `SHIPWRIGHT_DOTNET_SKILLS=off` / `SHIPWRIGHT_SKILL_PACKS=off`, `.shipwright.json` `dotnetSkills.enabled` / `skillPacks.enabled: false`, `skillPacks.library: false`, or `skipPhases: ["stackSkills"]`. See the [config reference](skills/auto-setup/shipwright-config.md).
+
+## JS Toolchain (Oxlint + Oxfmt)
+
+In JavaScript/TypeScript projects Shipwright prefers [Oxlint](https://oxc.rs/docs/guide/usage/linter) and [Oxfmt](https://oxc.rs/docs/guide/usage/formatter) to ESLint and Prettier for speed — **after checking compatibility with evidence**. `hooks/js/oxc-compat.js` runs the official migrators (`@oxlint/migrate --details`, `oxfmt --migrate=prettier`), runs Oxlint on the migrated config, and compares ESLint's findings and Prettier's output with Oxlint's and Oxfmt's on your codebase — leaving the project unchanged.
+
+- **Verdicts:** COMPATIBLE (every rule migrates and no finding is missed / identical formatting), PARTIAL (lists skipped rules, missed findings, unsupported plugins, drift files), NEEDS_FLAT_CONFIG, plus ADOPTED / COEXISTING / GREENFIELD / NOT_APPLICABLE (Biome).
+- **Policy:** new lint/format setups use Oxlint + Oxfmt; an existing ESLint/Prettier setup switches only when a task asks for it — otherwise the verdict goes into the run report's Recommendations. Migrations follow Oxc's own `migrate-oxlint` / `migrate-oxfmt` skills. Details: `skills/_shared/js-toolchain.md`.
+- **Opt out** with `.shipwright.json` `oxc.enabled: false`; `oxc.parity: false` skips the ESLint/Prettier comparison on very large repos.
 
 ## React Health (verify gate)
 

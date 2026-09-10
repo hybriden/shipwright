@@ -15,9 +15,8 @@
 //     and let the pipeline continue; the gate is an enhancement, not a hard dependency.
 'use strict';
 
-const fs = require('fs');
 const path = require('path');
-const { spawnSync } = require('child_process');
+const common = require('../lib/common.js');
 
 // ---------------------------------------------------------------------------
 // Config — `.shipwright.json` "reactDoctor" block (all optional)
@@ -32,15 +31,7 @@ const CONFIG_DEFAULTS = {
   maxWarnings: 40,         // cap warnings in the rendered block (errors are never capped)
 };
 function readConfig(projectRoot) {
-  try {
-    // Strip a leading UTF-8 BOM — Windows editors/PowerShell add one and it breaks JSON.parse.
-    const text = fs.readFileSync(path.join(path.resolve(projectRoot), '.shipwright.json'), 'utf8').replace(/^﻿/, '');
-    const raw = JSON.parse(text);
-    const rd = raw && typeof raw === 'object' ? raw.reactDoctor : null;
-    return { ...CONFIG_DEFAULTS, ...(rd && typeof rd === 'object' ? rd : {}) };
-  } catch {
-    return { ...CONFIG_DEFAULTS };
-  }
+  return common.readConfig(projectRoot, 'reactDoctor', CONFIG_DEFAULTS);
 }
 
 // ---------------------------------------------------------------------------
@@ -49,7 +40,7 @@ function readConfig(projectRoot) {
 function detectReact(projectRoot) {
   const pkgPath = path.join(path.resolve(projectRoot || process.cwd()), 'package.json');
   try {
-    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8').replace(/^﻿/, ''));
+    const pkg = common.readJson(pkgPath);
     const buckets = [pkg.dependencies, pkg.devDependencies, pkg.peerDependencies];
     for (const b of buckets) {
       if (b && typeof b === 'object' && b.react) return { isReact: true, react: b.react };
@@ -63,24 +54,8 @@ function detectReact(projectRoot) {
 // ---------------------------------------------------------------------------
 // Process helpers
 // ---------------------------------------------------------------------------
-// Invoke npx through a shell: on Windows npx is a `.cmd` shim that spawnSync can't launch
-// reliably with shell:false, so we pass a single command string with shell:true (cmd.exe on
-// Windows, /bin/sh on POSIX). Args are controlled flags/idents/refs; whitespace ones are quoted.
-function runNpx(args, opts = {}) {
-  const cmdline = 'npx ' + args.map((a) => (/\s/.test(a) ? `"${a}"` : a)).join(' ');
-  const r = spawnSync(cmdline, {
-    encoding: 'utf8',
-    timeout: opts.timeout || 300000,
-    cwd: opts.cwd,
-    windowsHide: true,
-    shell: true,
-    maxBuffer: 32 * 1024 * 1024, // JSON reports can be large
-    env: { ...process.env, NO_COLOR: '1', ...(opts.env || {}) },
-  });
-  return { ok: r.status === 0, status: r.status, stdout: r.stdout || '', stderr: r.stderr || '', error: r.error };
-}
 function npxAvailable() {
-  return runNpx(['--version'], { timeout: 30000 }).ok;
+  return common.runNpx(['--version'], { timeout: 30000 }).ok;
 }
 
 // Pull the first well-formed JSON object out of stdout (npx/tool banners can leak a line).
@@ -172,7 +147,7 @@ function scan({ projectRoot, scope, base, blocking, categories, version, force =
   };
 
   let usedScope = scope;
-  let r = runNpx(['--yes', ...build(scope)], { cwd: projectRoot });
+  let r = common.runNpx(['--yes', ...build(scope)], { cwd: projectRoot });
   let report = extractJson(r.stdout);
 
   // changed-scope needs git; if it errored (bad/missing base ref), fall back to a full scan.
@@ -180,7 +155,7 @@ function scan({ projectRoot, scope, base, blocking, categories, version, force =
   if (scope === 'changed' && (!report || report.error)) {
     scopeFallback = true;
     usedScope = 'full';
-    r = runNpx(['--yes', ...build('full')], { cwd: projectRoot });
+    r = common.runNpx(['--yes', ...build('full')], { cwd: projectRoot });
     report = extractJson(r.stdout);
   }
 

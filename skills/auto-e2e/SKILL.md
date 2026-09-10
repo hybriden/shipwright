@@ -21,7 +21,7 @@ If a user can interact with it, test it the way a user would — screenshots, re
 
 ## When to Use
 
-After auto-test; as run Phase 5; standalone for any app.
+After auto-review; as run Phase 6 — on the final, reviewed code; standalone for any app.
 
 ## App Type Detection
 
@@ -38,7 +38,7 @@ Read `.shipwright.json` (`e2eType`, `startCommand`); detect app type; find the s
 
 ## Phase 2: Scenario Generation
 
-Derive scenarios from the task + acceptance criteria + plan tasks + detected routes/pages/commands. Per scenario: name, steps (ordered user interactions), expected outcome, evidence to capture.
+Derive scenarios from the task + acceptance criteria + plan tasks + the routes/pages/commands the diff touches — count by size tier, breadth per Diff-Aware Gates (`../_shared/pace.md`). Per scenario: name, steps (ordered user interactions), expected outcome, evidence to capture, and whether its page/component/endpoint changed in the diff (`thorough`: mark every scenario changed).
 
 ## Phase 2.5: Scenario Validation
 
@@ -61,8 +61,8 @@ Adversarial patterns:
 
 Probe by app type per `../_shared/runtime-probing.md` (the base tools + assertions for web/API/CLI). Add this E2E-specific breadth on top of the base matrix:
 
-- **Web:** cover navigation, forms (submit/validation/success), error states (404/500/network), responsiveness (375px, 768px), a11y (ARIA names, labels, focus/keyboard via snapshots).
-- **API:** valid (200/201) + invalid (400 + useful message) + auth (401/403) + edge cases (empty/missing/oversized); assert response schemas and headers (CORS, content-type).
+- **Web:** cover navigation, forms (submit/validation/success), error states (404/500/network); on changed scenarios, also responsiveness (375px, 768px) and a11y (ARIA names, labels, focus/keyboard via snapshots).
+- **API:** valid (200/201) + invalid (400 + useful message) + auth (401/403) + edge cases (empty/missing/oversized); assert response schemas; on changed endpoints, also headers (CORS, content-type).
 - **CLI:** valid args (exit 0), invalid (helpful error + exit ≠0), no args (usage), `--help`, edge cases (empty/long/special), output format.
 
 ## Phase 4: Evidence Collection
@@ -75,7 +75,7 @@ Before marking any scenario PASS, apply the evidence-evaluation gate (`../_share
 
 ## Phase 6: Results
 
-Report each scenario with pass/fail + evidence + verdict. Any critical scenario fails → E2E phase failed.
+Report each scenario with pass/fail/untested + evidence + verdict. Any critical scenario fails → E2E phase failed. A scenario you couldn't drive against the running app (missing credential, service, tool, or access) is UNTESTED with that reason — never a guessed pass (`../_shared/evidence-evaluation.md`).
 
 ## Starting the App
 
@@ -83,7 +83,7 @@ Run the start command in background; poll a health endpoint/port until ready (30
 
 ## Integration
 
-run Phase 5. Consumes the task's acceptance criteria (auto-plan), unit results (auto-test — focus E2E on integration paths, not re-testing unit logic), and the start command + app type (auto-setup). Produces scenario results + evidence verdicts (PROVEN/SUPERFICIAL/INSUFFICIENT) for production-readiness (Gate 3) and auto-review. Invokes auto-debug on startup failure or scenario crashes. See `./e2e-tester-prompt.md`.
+run Phase 6, on the reviewed code. Consumes the task's acceptance criteria (auto-plan), unit results (auto-test — focus E2E on integration paths, not re-testing unit logic), the diff scope (auto-review's final diff), and the start command + app type (auto-setup). Produces scenario results + evidence verdicts (PROVEN/SUPERFICIAL/INSUFFICIENT/UNTESTED) for production-readiness (Gate 3). Invokes auto-debug on startup failure or scenario crashes; after a fix, re-run the failed scenario plus every scenario that exercises the files the fix changed, and run auto-review's Post-Review Fixes round on it before readiness. See `./e2e-tester-prompt.md`.
 
 ## Red Flags & Anti-Patterns — STOP
 
@@ -95,6 +95,7 @@ run Phase 5. Consumes the task's acceptance criteria (auto-plan), unit results (
 | "One happy path is enough" | Users don't only follow happy paths. Test errors + failure modes. |
 | "Unit tests already cover this" | Units cover components; E2E covers user journeys. Different. |
 | Duplicate unit coverage as E2E | Test journeys, not re-test unit logic. |
+| Sweep every page for responsiveness/a11y on a one-page change (`lean`) | Sweep what the diff changed; the untouched pages were verified when they changed. |
 
 ## Prompt Template
 

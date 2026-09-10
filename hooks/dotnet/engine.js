@@ -17,8 +17,8 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const crypto = require('crypto');
 const { spawnSync } = require('child_process');
+const common = require('../lib/common.js');
 
 const IS_WIN = process.platform === 'win32';
 const TOOL_SHIM = path.join(os.homedir(), '.dotnet', 'tools', IS_WIN ? 'dotnet-skills.exe' : 'dotnet-skills');
@@ -30,12 +30,10 @@ const INDEX_FILE = 'shipwright-index.md';             // the rendered injection 
 // Cache location (out-of-repo, keyed per project so multiple repos never collide)
 // ---------------------------------------------------------------------------
 function cacheRoot() {
-  return path.join(os.homedir(), '.claude', '.shipwright', 'dotnet-skills');
+  return common.cacheRoot('dotnet-skills');
 }
 function cacheDirFor(projectRoot) {
-  const norm = path.resolve(projectRoot).replace(/\\/g, '/').toLowerCase();
-  const hash = crypto.createHash('sha256').update(norm).digest('hex').slice(0, 12);
-  return path.join(cacheRoot(), hash);
+  return path.join(cacheRoot(), common.projectHash(projectRoot));
 }
 
 // ---------------------------------------------------------------------------
@@ -50,15 +48,7 @@ const CONFIG_DEFAULTS = {
   exclude: [],        // drop these skill ids/names from the injected index
 };
 function readConfig(projectRoot) {
-  try {
-    // Strip a leading UTF-8 BOM — Windows editors/PowerShell add one and it breaks JSON.parse.
-    const text = fs.readFileSync(path.join(path.resolve(projectRoot), '.shipwright.json'), 'utf8').replace(/^﻿/, '');
-    const raw = JSON.parse(text);
-    const ds = raw && typeof raw === 'object' ? raw.dotnetSkills : null;
-    return { ...CONFIG_DEFAULTS, ...(ds && typeof ds === 'object' ? ds : {}) };
-  } catch {
-    return { ...CONFIG_DEFAULTS };
-  }
+  return common.readConfig(projectRoot, 'dotnetSkills', CONFIG_DEFAULTS);
 }
 
 // ---------------------------------------------------------------------------
@@ -86,11 +76,6 @@ function run(cmd, args, opts = {}) {
     stderr: r.stderr || '',
     error: r.error,
   };
-}
-
-function stripAnsi(s) {
-  // eslint-disable-next-line no-control-regex
-  return String(s).replace(/\x1b\[[0-9;]*m/g, '');
 }
 
 // Resolve how to invoke the CLI, probed once. Order:
@@ -138,26 +123,12 @@ function ensureTool({ install = true, cwd } = {}) {
   const r = run('dotnet', ['tool', 'install', '--global', 'dotnet-skills'], { timeout: 300000 });
   _invoker = undefined; // force re-probe after install
   const present = toolAvailable(cwd);
-  return { present, installed: present, reason: present ? undefined : stripAnsi(r.stderr || r.stdout).trim() };
+  return { present, installed: present, reason: present ? undefined : common.stripAnsi(r.stderr || r.stdout).trim() };
 }
 
 // ---------------------------------------------------------------------------
 // Index building (deterministic, from files the upstream tool wrote)
 // ---------------------------------------------------------------------------
-function parseFrontmatter(text) {
-  const m = text.match(/^---\r?\n([\s\S]*?)\r?\n---/);
-  if (!m) return {};
-  const body = m[1];
-  const grab = (key) => {
-    const mm = body.match(new RegExp(`^${key}:\\s*(.*)$`, 'm'));
-    if (!mm) return undefined;
-    let v = mm[1].trim();
-    if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1);
-    return v;
-  };
-  return { name: grab('name'), description: grab('description') };
-}
-
 function safeDirs(cacheDir) {
   try {
     return fs.readdirSync(cacheDir, { withFileTypes: true })
@@ -186,7 +157,7 @@ function buildIndex(cacheDir, opts = {}) {
     const mdPath = path.join(skillDir, 'SKILL.md');
     let fm;
     try {
-      fm = parseFrontmatter(fs.readFileSync(mdPath, 'utf8'));
+      fm = common.parseFrontmatter(fs.readFileSync(mdPath, 'utf8'));
     } catch {
       continue; // listed but not on disk — skip
     }
@@ -210,14 +181,6 @@ function buildIndex(cacheDir, opts = {}) {
   return { skills: filtered, updatedAt, cacheDir };
 }
 
-// First sentence (or a trimmed slice) of a long USE-FOR-style description.
-function shortDesc(desc, max = 140) {
-  if (!desc) return '';
-  let s = desc.split(/(?<=\.)\s/)[0].trim();
-  if (s.length > max) s = `${s.slice(0, max - 1).trimEnd()}…`;
-  return s;
-}
-
 function renderIndex(index, cacheDir) {
   const { skills } = index;
   if (!skills.length) return '';
@@ -226,7 +189,7 @@ function renderIndex(index, cacheDir) {
     ` — managedcode/dotnet-skills, read the relevant one on demand (do NOT copy its content):`);
   for (const s of skills) {
     const cat = s.category ? ` [${s.category}]` : '';
-    lines.push(`- ${s.name}${cat} — ${shortDesc(s.description)} → ${s.path}`);
+    lines.push(`- ${s.name}${cat} — ${common.shortDesc(s.description)} → ${s.path}`);
   }
   lines.push(`When your task touches one of these areas, Read that SKILL.md and apply its guidance.`);
   lines.push(`Cache: ${cacheDir} (regenerated from upstream; safe to delete).`);
@@ -292,7 +255,7 @@ function acquire({ projectRoot, cacheDir, bundled, prune = true, install, force 
     fs.writeFileSync(path.join(cacheDir, INDEX_FILE), renderIndex(index, cacheDir));
   } catch { /* best-effort */ }
 
-  return { ok: r.ok, reason: r.ok ? undefined : 'install-failed', cacheDir, index, raw: stripAnsi(r.stdout) };
+  return { ok: r.ok, reason: r.ok ? undefined : 'install-failed', cacheDir, index, raw: common.stripAnsi(r.stdout) };
 }
 
 module.exports = {

@@ -5,18 +5,11 @@
 // Opt out: set SHIPWRIGHT_CODE_LAWS=off
 const fs = require('fs');
 const path = require('path');
+const common = require('./lib/common.js');
 
 const event = process.argv[2] || 'SessionStart';
 
-function emit(context) {
-  if (event === 'SubagentStart') {
-    process.stdout.write(JSON.stringify({
-      hookSpecificOutput: { hookEventName: event, additionalContext: context },
-    }));
-  } else {
-    process.stdout.write(context);
-  }
-}
+const emit = (context) => common.emit(event, context);
 
 if (process.env.SHIPWRIGHT_CODE_LAWS === 'off') {
   emit('');

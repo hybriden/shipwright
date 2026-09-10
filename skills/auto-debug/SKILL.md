@@ -17,7 +17,7 @@ Part of the shipwright pipeline — do NOT invoke superpowers skills; debugging 
 NO FIX WITHOUT ROOT CAUSE INVESTIGATION FIRST
 ```
 
-No exceptions — not for "obvious" bugs, not for "I've seen this before," not for "the fix is simple."
+No exceptions — not for "obvious" bugs, not for "I've seen this before," not for "the fix is simple." For a mechanical error at a line the current step just wrote, the compiler's message *is* the root-cause evidence — the Fast Path below is that investigation, not an exception to it.
 
 ## When to Use
 
@@ -25,9 +25,23 @@ Test/build/runtime failures in any phase, review-identified bugs, or standalone 
 
 ## Process
 
-`Triage → Reproduce → Isolate → Trace root cause → Hypothesize → Baseline → Impact analysis → Fix → Prove (net-positive gate) → Final verify + commit → Cleanup`
+`Triage → (mechanical? Fast Path) → Reproduce → Isolate → Trace root cause → Hypothesize → Baseline → Impact analysis → Fix → Prove (net-positive gate) → Final verify + commit → Cleanup`
 
-At each stage: if a fix fails the net-positive gate, roll back and record what regressed; if the same files/tests keep cycling, stop and mark UNRESOLVED.
+At each stage: if a fix fails the net-positive gate, roll back and record what regressed; if the same files/tests keep cycling, stop and mark UNRESOLVED. Test runs use the test set `../_shared/pace.md` prescribes — the affected tests under `lean`, the full suite under `thorough` or when Phase 4.75 finds shared code.
+
+## Fast Path (mechanical errors — `profile: lean`)
+
+Eligible only when **all** hold:
+
+1. The failure is a build/compile, type-check, import/module-not-found, syntax, or lint error — never a test assertion, runtime error, flaky result, dependency conflict, or environment error.
+2. It points at a file:line changed in the current step (`git diff`).
+3. The message names the defect unambiguously: missing symbol or import, type mismatch, wrong arity, syntax.
+
+Then: read the line → apply the minimal fix inside the step's changed files → re-run the failing command plus the affected tests → green = **RESOLVED (fast path)**, recorded in the fix history. The build/type check is the regression guard, so skip tool discovery, the regression test, and runtime proof.
+
+The fix must correct the code, never silence the checker. A cast or type assertion (`as X`, `(X)obj`), `any`, a non-null `!`, `@ts-ignore` / `@ts-expect-error`, `# type: ignore` / `# noqa`, `eslint-disable`, `#pragma warning disable` / `[SuppressMessage]`, or a loosened compiler/lint config is not a fast-path fix.
+
+One attempt. Fall through to Phase 1 when the error survives or changes form, the fix needs a file outside the step's diff (the defect is upstream — a real root-cause hunt), only a suppression would clear it, or any test fails.
 
 ## Phase 0: Triage
 
@@ -57,9 +71,9 @@ Detect the category and apply its fast path:
 - **Diff-based narrowing:** `git diff HEAD~5` (or since last known-good). A changed file in the stack trace is your starting point. Most bugs are in recently changed code — this eliminates ~80% of investigation.
 - **Cascade analysis (multiple errors):** don't fix all. Find the root error — sort by dependency order, take the *first* chronologically (not the loudest), group by file (10 failures in one file = the file is broken), check for `beforeAll`/setup failures. Rule: fix ONE, re-run, count how many others vanish. Repeat until zero.
 
-### Project tool discovery (MANDATORY)
+### Project tool discovery (MANDATORY for the full process)
 
-Before any verification, build the project's tool inventory per `../_shared/project-tools.md` — **once** during triage, then reuse it throughout. These tools verify real behavior generic test commands can't; for input→output tools especially, run on representative input and compare the output before/after the fix with the project's own validators.
+Before any verification, build the project's tool inventory per `../_shared/project-tools.md` — **once per pipeline run** (reuse the inventory an earlier invocation built), then reuse it throughout. These tools verify real behavior generic test commands can't; for input→output tools especially, run on representative input and compare the output before/after the fix with the project's own validators.
 
 ## Anti-Circle & Debug Budget
 
@@ -97,7 +111,7 @@ State the hypothesis ("if I change X, the error resolves because [root cause]"),
 
 ## Phase 4.5: Baseline (MANDATORY)
 
-Before writing any fix, capture the test baseline per `../_shared/net-positive-gate.md`. Without it you can't tell "already failing" from "my fix broke it."
+Before writing any fix, have the test baseline per `../_shared/net-positive-gate.md` — from the evidence ledger when the commit is unchanged since the last recorded run (the failing gate's own run usually is it), else capture it. Without it you can't tell "already failing" from "my fix broke it."
 
 ## Phase 4.75: Fix Impact Analysis (MANDATORY)
 
@@ -154,7 +168,7 @@ Check whether the bug class recurs elsewhere (same missing check / off-by-one pa
 
 ## Phase 6: Final Verification
 
-1. Run the originally failing command — passes. 2. Run the regression test — passes. 3. Run the full suite — **zero regressions vs the Phase 4.5 baseline.** 4. Review runtime evidence if captured. 5. Confirm Phase 4's predicted outcome matches reality. 6. **Only now commit** the fix + regression test with a descriptive message.
+1. Run the originally failing command — passes. 2. Run the regression test — passes. 3. Confirm Layer 0's net-positive result still holds — re-run the test set only if production code changed after Layer 0; **zero regressions vs the Phase 4.5 baseline.** 4. Review runtime evidence if captured. 5. Confirm Phase 4's predicted outcome matches reality. 6. **Only now commit** the fix + regression test with a descriptive message.
 
 **If verification fails:** roll back (`git checkout -- .`), return to Phase 3 (re-investigate the root cause), not Phase 5 (a bigger patch). Record what broke as diagnostic information.
 
@@ -168,7 +182,7 @@ Before declaring complete: remove every `[DEBUG:auto-debug]` line; `git bisect r
 
 ## Integration
 
-Called by other skills on failure — auto-setup (build/deps/config), auto-impl (impl/test code), auto-test (test logic/edge cases), auto-e2e (runtime/integration), auto-review (correctness), production-readiness (whatever the gate checks). Receive error context, run Phases 0–6, report **RESOLVED** (with fix details) or **UNRESOLVED** (with investigation evidence). Standalone: receive a bug report, run the process, commit, report.
+Called by other skills on failure — auto-setup (build/deps/config), auto-impl (impl/test code), auto-test (test logic/edge cases), auto-review (correctness), auto-e2e (runtime/integration), production-readiness (whatever the gate checks). Receive error context plus the profile, the ledger baseline, and any existing tool inventory; take the Fast Path or run Phases 0–6; report **RESOLVED** (with fix details and path: fast / full) or **UNRESOLVED** (with investigation evidence). Standalone: receive a bug report, run the process, commit, report.
 
 Consumes the architecture map (dependency graph, hot spots, data models) and the auto-setup environment fingerprint (distinguishes code bugs from env bugs). When dispatched as a subagent, use `references/dispatch-template.md`.
 
@@ -176,12 +190,13 @@ Consumes the architecture map (dependency graph, hot spots, data models) and the
 
 | Thought / behavior | Reality |
 |---|---|
-| "The fix is obvious" / "I've seen this before" | Same symptom ≠ same cause. Reproduce and trace first. |
+| "The fix is obvious" / "I've seen this before" | Same symptom ≠ same cause. Reproduce and trace first — only a Fast Path-eligible mechanical error skips ahead. |
 | "Let me just try this fix" | A fix without a hypothesis is a guess. Hypothesize first. |
 | "The fix works, ship it" | Root cause gone, or symptom masked? Verify. |
 | "This is an environment issue" | Check the setup fingerprint. If it matches, it's a code bug. |
+| "It's a type error, fast path it" (in a file the step didn't touch) | The defect is upstream. Full process. |
 | Shotgun debugging / fix-and-pray | Stop. Back to Phase 1 / Phase 3. |
 | Scope creep ("while I'm here…") | Fix only the root cause. File other issues separately. |
-| Error suppression (try/catch, `|| true`) | Hides bugs, doesn't fix them. |
+| Error suppression (try/catch, `|| true`, casts, `any`, `@ts-ignore`, `#pragma warning disable`, `# noqa`) | Hides bugs, doesn't fix them. |
 | Regression chasing (fix A breaks B breaks C…) | You're in a circle. Revert ALL to last known-good; fix A was wrong. |
 | Committing a net-negative "to fix next step" | Never. The net-positive gate exists for this. |

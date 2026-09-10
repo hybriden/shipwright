@@ -21,7 +21,7 @@ Not for "low-risk changes." Not for "just a config update." Not for "we'll fix i
 
 ## When to Use
 
-After auto-review approves; as run Phase 7; whenever a production-readiness verdict is needed.
+After auto-e2e; as run Phase 7; whenever a production-readiness verdict is needed.
 
 ## Gate Relevance Scoring
 
@@ -41,16 +41,18 @@ Classify the project type, then score each gate FULL / LIGHT / N/A before runnin
 | 10 Degradation | FULL | FULL | LIGHT | N/A | N/A |
 | 11 Definition of Done | FULL | FULL | FULL | FULL | FULL |
 
-FULL = all checks; LIGHT = spot-check key items; N/A = skip with justification. **Gate 11 is always FULL** — it's the only gate that checks intent. Config overrides (coverage, load, skips) from `.shipwright.json`.
+FULL = all checks; LIGHT = spot-check key items; N/A = skip with justification. **Gate 11 is always FULL** — it's the only gate that checks intent. **Gate 7 under `lean`** is diff-triggered for web/API: N/A, citing the changed files, when the diff doesn't reach the request path; intensity by size tier (`../_shared/pace.md`). Config overrides (coverage, load, skips, profile) from `.shipwright.json`.
 
 ## Gates
 
 Every FULL gate must pass; LIGHT gates must have no critical findings; N/A needs a documented reason.
 
+**Consume before re-deriving.** Gates 1-2 reuse the evidence ledger's last green full-suite + coverage run while HEAD is unchanged (re-run once if flakiness is suspected). Gates 5, 6, 8, 9, 10 start from auto-review's categorized Stage 3 findings — it already inspected the diff for them — and add what review can't give: deterministic evidence (dependency audit, hygiene grep) and any checklist item review didn't record.
+
 1. **Unit tests** — all pass, zero failures; no undocumented skips; no flaky tests (re-run if suspected).
-2. **Coverage** — line ≥80% + branch ≥80% (or target); no critical path at 0%; report saved as evidence.
-3. **E2E** — all auto-e2e scenarios passed with evidence; no console errors / failed requests (web); correct status codes (API); expected output (CLI). Libraries N/A (no user-facing entry point).
-4. **Code review** — spec PASS; quality APPROVED / APPROVED_WITH_NOTES; no unresolved Critical/Important; cycles documented.
+2. **Coverage** — line ≥80% + branch ≥80% (or target) on changed code; no critical path at 0%; report saved as evidence.
+3. **E2E** — all auto-e2e scenarios passed with evidence; no console errors / failed requests (web); correct status codes (API); expected output (CLI). UNTESTED scenarios never count as passed: an UNTESTED critical scenario leaves the gate unpassed and goes under Unresolved Issues with what's needed to test it. Libraries N/A (no user-facing entry point).
+4. **Code review** — spec PASS; quality APPROVED / APPROVED_WITH_NOTES; no unresolved Critical/Important; rounds documented; every code-changing commit in `git log shipwright/phase-5-review..HEAD` covered by a Post-Review Fixes round.
 5. **Security** — by code inspection: no command/SQL injection, XSS, path traversal, hardcoded secrets, sensitive data in logs; auth on protected endpoints; input validation at boundaries; dependency audit (`npm audit --audit-level=critical` / `pip-audit` / `govulncheck ./...` / `cargo audit`).
 6. **Error handling** — all external calls (network/file/DB) handled; errors give useful context; not swallowed; graceful degradation for non-critical failures; user-facing errors don't leak internals.
 7. **Load test** (conditional — web/API/services; skip libraries/CLI/scripts): k6 (preferred) / artillery / ab-wrk. Default ramp 20→100 users over ~60s. Pass: p99 <500ms, error rate <1%, stable RSS (no leak), no connection exhaustion. Fail → document the bottleneck (missing pooling, sync I/O in request path, unbounded concurrency, missing cache, N+1).
@@ -72,12 +74,12 @@ Canonical Implementation Report — run reuses this and adds its own sections:
 | Gate | Status | Notes |   (11 rows: PASS/FAIL/N/A + key metric)
 ## Evidence — test output, coverage, E2E screenshots, load metrics, security scan
 ## Unresolved Issues
-## Recommendations — monitoring, follow-ups, known limitations
+## Recommendations — monitoring, follow-ups, known limitations; JS/TS: the Oxc verdict and its measured timings (`../_shared/js-toolchain.md`)
 ```
 
 ## Integration
 
-run Phase 7; verification-only (invokes nothing to fix — it reports so run can route to auto-debug). Consumes coverage + honesty (auto-test), E2E evidence (auto-e2e), the review report + fidelity + boundary findings (auto-review), all code (auto-impl), the original task (auto-plan — Gate 11), and the map (auto-map). Produces the 11 gate verdicts, the final report, and pipeline-quality inputs for run.
+run Phase 7; verification-only (invokes nothing to fix — it reports so run can route to auto-debug). Consumes the evidence ledger (run), coverage + honesty (auto-test), E2E evidence (auto-e2e), the review report + fidelity + boundary + categorized quality findings (auto-review), all code (auto-impl), the original task (auto-plan — Gate 11), and the map (auto-map). Produces the 11 gate verdicts, the final report, and pipeline-quality inputs for run.
 
 ## Red Flags & Anti-Patterns — STOP
 
@@ -89,4 +91,5 @@ run Phase 7; verification-only (invokes nothing to fix — it reports so run can
 | "All gates pass, we're done" | Did you check Gate 11 — does it solve the user's problem? |
 | "The plan said X, we built X" | The plan is an intermediary. The user's words are the spec. |
 | Lowering coverage/load thresholds to pass | Configure defaults in `.shipwright.json` before running, never mid-pipeline. |
-| "Read the code, looks fine" for security/error gates | These need checklist items verified with evidence (grep, audit output, tests). |
+| "Read the code, looks fine" for security/error gates | These need checklist items verified with evidence (grep, audit output, tests, review's recorded findings). |
+| Re-run the suite on an unchanged commit "for the final gate" | Same commit, same result. Reuse the ledger; re-run only for suspected flakiness. |

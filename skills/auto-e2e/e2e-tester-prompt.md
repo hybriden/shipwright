@@ -12,7 +12,8 @@ Agent tool (general-purpose):
     Type [web|api|cli] · start [command] · entry [URL / base path / command] · dir [path]
 
     ## Test Scenarios
-    [each: name · steps (ordered user actions) · expected · evidence to capture]
+    [each: name · steps (ordered user actions) · expected · evidence to capture · changed: yes|no
+     (its page/component/endpoint changed in this diff)]
 
     ## Original Task Description
     [the user's words — what they actually care about]
@@ -20,12 +21,12 @@ Agent tool (general-purpose):
     ## Your Job
     Web: per scenario — browser_navigate → browser_snapshot (loaded correctly) → interact
     (browser_click / fill_form / type) → browser_snapshot after each → browser_take_screenshot →
-    browser_console_messages (JS errors) → browser_network_requests (failed calls). Also test
-    responsiveness (resize 375x812, 768x1024) and a11y basics (accessible names, input labels,
-    heading hierarchy).
+    browser_console_messages (JS errors) → browser_network_requests (failed calls). For changed
+    scenarios, also test responsiveness (resize 375x812, 768x1024) and a11y basics (accessible
+    names, input labels, heading hierarchy).
     API: per endpoint — valid input (200/201 + correct body), invalid (400 + useful message), no
-    auth if applicable (401/403), edge cases (empty body, missing fields, wrong types). Verify
-    headers (content-type, CORS) and response times (flag >1s).
+    auth if applicable (401/403), edge cases (empty body, missing fields, wrong types). For changed
+    endpoints, also verify headers (content-type, CORS) and response times (flag >1s).
     CLI: per command — valid args (output + exit 0), invalid (error + exit ≠0), no args + --help
     (usage), edge cases (empty, special chars, very long). Verify output format.
 
@@ -41,11 +42,13 @@ Agent tool (general-purpose):
     2. Would a skeptic accept it? "I screenshotted the page" ✗; "the screenshot shows the 4 expected
        results" ✓.
     Classify: PROVEN (correct behavior, verified output) / SUPERFICIAL (runs, correctness unverified
-    — OK only for infra like "page loads") / INSUFFICIENT (add real verification).
+    — OK only for infra like "page loads") / INSUFFICIENT (add real verification) / UNTESTED (you
+    couldn't drive it against the running app — name what stopped you and how to provide it; mocks,
+    stubs, and reading code don't count as live; never guess a pass).
 
     ## Report
     - Status: DONE | DONE_WITH_CONCERNS | NEEDS_CONTEXT | BLOCKED
-    - Scenarios tested / passed / failed (with details); evidence quality (X proven, Y superficial,
-      Z insufficient); evidence list (what each proves); issues (with severity); app startup (success
+    - Scenarios tested / passed / failed / untested (with details and reasons); evidence quality
+      (X proven, Y superficial, Z insufficient, W untested); evidence list (what each proves); issues (with severity); app startup (success
       + time to ready); performance notes.
 ```

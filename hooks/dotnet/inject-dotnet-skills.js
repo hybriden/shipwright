@@ -8,7 +8,7 @@
 //      exist and can Read the relevant SKILL.md on demand.
 //
 // It NEVER installs or refreshes (that shells out to `dotnet` and blows the 5s budget) —
-// acquisition is explicit: shipwright:run's .NET Skills phase, or the command surfaced
+// acquisition is explicit: shipwright:run's Stack Skills phase, or the command surfaced
 // below when the cache is empty. Copies no content: only pointers are injected.
 //
 // Native Claude emit contract (mirrors inject-code-laws.js): SessionStart accepts raw
@@ -17,20 +17,13 @@
 'use strict';
 
 const path = require('path');
+const common = require('../lib/common.js');
 const { detectDotnet } = require('./detect.js');
 const engine = require('./engine.js');
 
 const event = process.argv[2] || 'SessionStart';
 
-function emit(context) {
-  if (event === 'SubagentStart') {
-    process.stdout.write(JSON.stringify({
-      hookSpecificOutput: { hookEventName: event, additionalContext: context },
-    }));
-  } else {
-    process.stdout.write(context);
-  }
-}
+const emit = (context) => common.emit(event, context);
 
 function main() {
   if (process.env.SHIPWRIGHT_DOTNET_SKILLS === 'off') return emit('');
@@ -45,7 +38,7 @@ function main() {
 
   const cacheDir = engine.cacheDirFor(cwd);
   // The exact command to populate/refresh the cache. Always surfaced so both ad-hoc
-  // sessions and shipwright:run's .NET Skills phase can trigger acquisition without
+  // sessions and shipwright:run's Stack Skills phase can trigger acquisition without
   // needing to know the plugin path (CLAUDE_PLUGIN_ROOT is not in the shell env).
   const acquireCmd = `node "${path.join(__dirname, 'engine.js')}" acquire --project "${cwd}"`;
 
@@ -69,7 +62,7 @@ function main() {
     `[dotnet-skills] .NET project detected — project-matched skills from managedcode/dotnet-skills ` +
     `are available but not cached yet.\n` +
     `Populate on demand (installs the tool if needed, writes to an out-of-repo cache): ${acquireCmd}\n` +
-    `shipwright:run does this automatically in its .NET Skills phase.\n`
+    `shipwright:run does this automatically in its Stack Skills phase.\n`
   );
 }
 

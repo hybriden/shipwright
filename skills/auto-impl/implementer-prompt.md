@@ -1,6 +1,6 @@
 # Implementer Subagent Prompt Template
 
-Use this template when dispatching an implementer subagent.
+Use this template when dispatching an implementer subagent. For a Small-tier plan under `lean` (`../_shared/pace.md`), one dispatch covers the whole plan: paste every task in order under Task Description; the subagent commits after each.
 
 ```
 Agent tool (general-purpose):
@@ -21,13 +21,14 @@ Agent tool (general-purpose):
      project conventions]
 
     ## Working Directory / Test Command
-    [exact path] / [exact test command]
+    [exact path] / [affected-test command for this task's files]
 
     ## Your Job (TDD — no exceptions, not even for "simple" code)
     1. Write the failing test FIRST; run it, confirm it fails with the expected error.
     2. Write the minimal implementation to pass; run it, confirm green.
     3. Add tests for edge cases, error paths, boundaries.
-    4. Run the full suite — confirm nothing broke.
+    4. Run the affected tests — confirm nothing broke. Not the full suite: the orchestrator's gate
+       re-verifies after you report.
     5. Commit with a descriptive message.
     6. Self-review (below), fix any issues, then report.
 
@@ -47,6 +48,10 @@ Agent tool (general-purpose):
     understanding the problem first. Mark a deliberate corner-cut — or a design
     law you knowingly can't uphold (name the law and why) — with a `// ponytail:`
     comment naming the ceiling + upgrade path.
+    Fixing a review finding: when it sits on a path the task doesn't strictly need (an extra
+    branch, fallback, alias, second definition, or handling for input nobody sends), remove the
+    path instead of validating or hardening it — a hardened path stays for the next review to find
+    another hole in. Never remove code the task requires; fix that forward.
 
     ## Design (SOLID · DRY · KISS)
     Follow SOLID on the code you write: one responsibility per unit (SRP); a subtype
@@ -95,7 +100,8 @@ Agent tool (general-purpose):
       patterns?
     - Test honesty (critical): does each test call production code, or assert against a value
       you constructed in the test? If you mentally flip a conditional in the code, would a
-      test fail? If a test wouldn't catch a real bug, rewrite or drop it.
+      test fail? A test that only reads or greps implementation source for strings or names
+      proves nothing. If a test wouldn't catch a real bug, rewrite or drop it.
     - Behavioral fidelity: does the code do what the acceptance criteria say (not something
       adjacent that happens to pass the tests)? Would the user say "yes, that's what I asked
       for"?
@@ -104,7 +110,7 @@ Agent tool (general-purpose):
 
     ## Report
     - Status: DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT
-    - What you implemented; tests written + results (pass count, coverage); files changed;
+    - What you implemented; tests written + affected-test results (pass count); files changed;
       self-review findings; concerns.
     Never silently produce work you're unsure about.
 ```

@@ -6,6 +6,7 @@ All implementor skills check for `.shipwright.json` in the project root. Every f
 
 ```json
 {
+  "profile": "lean",
   "coverage": {
     "line": 80,
     "branch": 80,
@@ -39,6 +40,20 @@ All implementor skills check for `.shipwright.json` in the project root. Every f
     "only": [],
     "exclude": []
   },
+  "skillPacks": {
+    "enabled": true,
+    "include": [],
+    "exclude": [],
+    "library": true,
+    "refreshDays": 7,
+    "cliVersion": "latest"
+  },
+  "oxc": {
+    "enabled": true,
+    "parity": true,
+    "oxlintVersion": "latest",
+    "oxfmtVersion": "latest"
+  },
   "reactDoctor": {
     "enabled": true,
     "scope": "changed",
@@ -52,7 +67,15 @@ All implementor skills check for `.shipwright.json` in the project root. Every f
 
 ## Field Reference
 
+### Profile
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `profile` | string | `"lean"` | `"lean"`: size-tiered depth, affected tests at in-loop gates, diff-triggered load test + E2E sweeps, auto-debug fast path for mechanical errors. `"thorough"`: turns those four off. Evidence reuse, changed-code coverage, and parallel review apply to both. See `_shared/pace.md` |
+
 ### Coverage
+
+In a pipeline run, targets gate the changed lines, not the project total.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
@@ -75,7 +98,7 @@ All implementor skills check for `.shipwright.json` in the project root. Every f
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `skipPhases` | string[] | [] | Phases to skip: `"e2e"`, `"loadTest"`, `"setup"`, `"dotnetSkills"` |
+| `skipPhases` | string[] | [] | Phases to skip: `"e2e"`, `"loadTest"`, `"setup"`, `"stackSkills"` (`"dotnetSkills"` still accepted) |
 
 Only these phases can be skipped. Plan, implement, test, review, and production-readiness cannot be skipped.
 
@@ -110,16 +133,40 @@ Only these phases can be skipped. Plan, implement, test, review, and production-
 
 ### .NET Skills
 
-Dynamic use of managedcode/dotnet-skills in .NET projects (ignored in non-.NET projects). Env `SHIPWRIGHT_DOTNET_SKILLS=off` disables the whole feature regardless of these.
+Dynamic use of managedcode/dotnet-skills in .NET projects (ignored in non-.NET projects) — one of the stack-skills sources (`_shared/stack-skills.md`). Env `SHIPWRIGHT_DOTNET_SKILLS=off` disables it regardless of these.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `dotnetSkills.enabled` | boolean | true | Master switch for the .NET Skills feature |
+| `dotnetSkills.enabled` | boolean | true | Master switch for .NET skills |
 | `dotnetSkills.installTool` | boolean | true | Allow `dotnet tool install --global dotnet-skills` when the CLI is missing |
 | `dotnetSkills.bundled` | boolean | true | Use the CLI's offline catalog (false = fetch the latest catalog; needs network) |
 | `dotnetSkills.refreshDays` | number | 7 | Injected index older than this is flagged stale |
 | `dotnetSkills.only` | string[] | [] | If non-empty, restrict the injected index to these skill ids/names |
 | `dotnetSkills.exclude` | string[] | [] | Drop these skill ids/names from the injected index |
+
+### Skill Packs & Library
+
+Official publishers' skills (Cloudflare, Vercel, AWS, Oxc) fetched with the vercel-labs/skills CLI into an out-of-repo cache when a project needs them, plus user-approved picks from the skillselion.com catalog. See `_shared/stack-skills.md`. Env `SHIPWRIGHT_SKILL_PACKS=off` disables both regardless of these.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `skillPacks.enabled` | boolean | true | Master switch for packs and the library |
+| `skillPacks.include` | string[] | [] | Pack ids to load even without repo signals: `"cloudflare"`, `"vercel"`, `"aws"`, `"oxc"` |
+| `skillPacks.exclude` | string[] | [] | Pack ids or skill names never to load or index |
+| `skillPacks.library` | boolean | true | Offer gated skill-library candidates (always asks the user before installing) |
+| `skillPacks.refreshDays` | number | 7 | `acquire` re-fetches packs and library skills older than this |
+| `skillPacks.cliVersion` | string | `"latest"` | vercel-labs/skills CLI version run via npx (pin for reproducibility) |
+
+### Oxc (Oxlint/Oxfmt check)
+
+Compatibility check before preferring Oxlint/Oxfmt to ESLint/Prettier in JS/TS projects. See `_shared/js-toolchain.md`.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `oxc.enabled` | boolean | true | Master switch for the check and the Oxlint/Oxfmt preference |
+| `oxc.parity` | boolean | true | Also run ESLint/Prettier and compare findings/output with Oxlint/Oxfmt (turn off on very large repos) |
+| `oxc.oxlintVersion` | string | `"latest"` | oxlint + @oxlint/migrate version run via npx |
+| `oxc.oxfmtVersion` | string | `"latest"` | oxfmt version run via npx |
 
 ### React Doctor
 
@@ -139,11 +186,14 @@ Deterministic react-doctor verify gate in React projects (ignored elsewhere). Ru
 
 | Skill | Fields Used |
 |-------|------------|
-| `auto-setup` | `setupCommand`, `buildCommand`, `testCommand`, `envFile` |
+| `auto-setup` | `setupCommand`, `buildCommand`, `testCommand`, `envFile`, `oxc.*` (via the check) |
 | `auto-test` | `testCommand`, `coverageCommand`, `coverage.*`, `refactorForTestability` |
-| `auto-e2e` | `startCommand`, `e2eType`, `skipPhases` |
+| `auto-e2e` | `startCommand`, `e2eType`, `skipPhases`, `profile` |
 | `auto-review` | `reactDoctor.*` (React projects) |
-| `production-readiness` | `coverage.*`, `loadTest.*`, `skipPhases` |
-| `run` | `skipPhases`, `branch.*`, `dotnetSkills.*`, all (passes to sub-skills) |
+| `production-readiness` | `coverage.*`, `loadTest.*`, `skipPhases`, `profile` |
+| `auto-map`, `auto-impl`, `auto-debug` | `profile` (passed by run) |
+| `run` | `profile`, `skipPhases`, `branch.*`, `dotnetSkills.*`, `skillPacks.*`, all (passes to sub-skills) |
 | dotnet-skills hook + engine | `dotnetSkills.*` |
+| skill-packs hook, engine, library | `skillPacks.*` |
+| oxc-compat check | `oxc.*` |
 | react-doctor runner | `reactDoctor.*` |
