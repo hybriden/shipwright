@@ -99,7 +99,18 @@ function render({ query, considered, candidates }) {
   return `${lines.join('\n')}\n`;
 }
 
-module.exports = { parseListingId, search, render };
+// Every catalog listing under one GitHub owner — engine.js screens packs' skills against their risk levels.
+async function listingsByOwner(owner) {
+  const rows = [];
+  for (let offset = 0; offset < 1000; offset += 100) {
+    const page = await get(`/api/upstream/listings?type=skill&owner=${encodeURIComponent(owner)}&sort=installs&limit=100&offset=${offset}`);
+    rows.push(...page);
+    if (page.length < 100) break;
+  }
+  return rows;
+}
+
+module.exports = { parseListingId, search, render, listingsByOwner, REJECTED_RISK };
 
 if (require.main === module) {
   const argv = process.argv.slice(2);

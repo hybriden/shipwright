@@ -2,6 +2,15 @@
 
 All notable changes to Shipwright. Format follows [Keep a Changelog](https://keepachangelog.com/); the project adheres to [Semantic Versioning](https://semver.org/). Versions track the `version` field in `.claude-plugin/plugin.json`.
 
+## [3.19.0] — 2026-09-10
+
+- **JS stack coverage:** new packs `nextjs` (vercel/next.js), `react-router` (remix-run/react-router), `vite` (antfu/skills — Vite, Vitest, Vue, Nuxt, from a Vite/Vue/Nuxt core team member), and `hono` (honojs/skills); React stays on `vercel`. Astro has no maintainer skill — its pack fetches nothing and points at the official Astro Docs MCP server. Axios has no skill from anyone, so nothing is imported for it. Pack index headers link each framework's `llms.txt` where one exists.
+- **More maintainer packs:** `azure` (microsoft/azure-skills), `aspire` (microsoft/aspire-skills), `supabase`, `prisma`, `neon`, `firebase`, `clerk`, `stripe`, `expo`. Large packs index their core skills plus what the repo's signals point at; the rest stay findable by name. Detection gains `ext:` signals (e.g. `*.bicep`) and manifest markers for Azure, Aspire, Stripe, Supabase, and Firebase Hosting.
+- **Risk screen for packs:** at fetch time, skills the skillselion catalog's scanners rate HIGH or CRITICAL are removed even from maintainers' repos (e.g. `cloudflare` HIGH, `azure-validate` CRITICAL, `clerk-backend-api` HIGH); mirror listings in other repos don't count. Withheld skills the repo would otherwise use are listed in the session index.
+- **Library in every session:** the session index carries the skill-library search command, not only `run`'s Stack Skills phase.
+- Fetching all 17 fetchable packs from a cold cache took 107 s (each refreshes weekly); the session hook stays ~60 ms.
+- **Software Factory Scoreboard** now opens the README: Shipwright rated against the Lights-Off Software Factory (18 components, 0–5 each) — 44/90 (49%) at both v3.18.0 and v3.19.0, with the human touchpoints still left. Updated with every release.
+
 ## [3.18.0] — 2026-09-10
 
 - **Review and test rules adapted from [kunchenguid/no-mistakes](https://github.com/kunchenguid/no-mistakes) (MIT)** — its techniques, not its tool: the CLI's daemon, default telemetry, and push/PR human gates don't fit an autonomous run, and a second review pipeline would re-add the overhead 3.16.0 removed.

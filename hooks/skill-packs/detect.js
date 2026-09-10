@@ -1,7 +1,7 @@
 'use strict';
 // Shipwright — skill-pack detector. Runs inside the session/subagent hook, so it stays pure
 // filesystem and bounded: a shallow scan (depth <= 2, entry and read caps) collects file and dir
-// names, npm dependencies, and text markers from small manifests. No process spawns.
+// names, extensions, npm dependencies, and text markers from small manifests. No process spawns.
 
 const fs = require('fs');
 const path = require('path');
@@ -24,10 +24,20 @@ const TEXT_MARKERS = [
   { marker: 'cloudformation', file: /^template\.(ya?ml|json)$/, pattern: /AWSTemplateFormatVersion|AWS::[A-Za-z]+::/ },
   { marker: 'terraform-aws', file: /\.tf$/, pattern: /hashicorp\/aws|provider\s+"aws"/ },
   { marker: 'terraform-cloudflare', file: /\.tf$/, pattern: /cloudflare\/cloudflare|provider\s+"cloudflare"/ },
+  { marker: 'azure-sdk', file: MANIFEST, pattern: /"Azure\.[A-Z]|Microsoft\.Azure\.|\bazure-(identity|storage|ai|servicebus|eventhub|cosmos|keyvault|monitor|functions)/ },
+  { marker: 'azure-storage', file: MANIFEST, pattern: /Azure\.Storage\.|azure-storage/ },
+  { marker: 'azure-messaging', file: MANIFEST, pattern: /Azure\.Messaging\.|azure-servicebus|azure-eventhub/ },
+  { marker: 'azure-ai', file: MANIFEST, pattern: /Azure\.AI\.|azure-ai-/ },
+  { marker: 'appinsights', file: MANIFEST, pattern: /ApplicationInsights|azure-monitor-opentelemetry/ },
+  { marker: 'msal', file: MANIFEST, pattern: /Microsoft\.Identity\.|\bmsal\b/ },
+  { marker: 'aspire', file: MANIFEST, pattern: /Aspire\.Hosting/ },
+  { marker: 'stripe', file: MANIFEST, pattern: /^stripe\b|"Stripe\.net"/m },
+  { marker: 'supabase', file: PY_MANIFEST, pattern: /^supabase\b/m },
+  { marker: 'firebase-hosting', file: /^firebase\.json$/, pattern: /"hosting"/ },
 ];
 
 function scanFacts(root) {
-  const facts = { deps: new Set(), files: new Set(), dirs: new Set(), text: new Set() };
+  const facts = { deps: new Set(), files: new Set(), exts: new Set(), dirs: new Set(), text: new Set() };
   let visited = 0;
   let reads = 0;
   const read = (file) => {
@@ -59,6 +69,7 @@ function scanFacts(root) {
       }
       if (!e.isFile()) continue;
       facts.files.add(e.name);
+      facts.exts.add(path.extname(e.name).toLowerCase());
       if (e.name === 'package.json') {
         try {
           const pkg = JSON.parse((read(full) || '').replace(/^\uFEFF/, ''));
@@ -79,7 +90,7 @@ function scanFacts(root) {
 
 function hit(signal, facts) {
   const sep = signal.indexOf(':');
-  const set = facts[{ dep: 'deps', file: 'files', dir: 'dirs', text: 'text' }[signal.slice(0, sep)]];
+  const set = facts[{ dep: 'deps', file: 'files', ext: 'exts', dir: 'dirs', text: 'text' }[signal.slice(0, sep)]];
   const value = signal.slice(sep + 1);
   if (!set) return false;
   if (!value.endsWith('*')) return set.has(value);

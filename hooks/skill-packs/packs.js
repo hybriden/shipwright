@@ -1,16 +1,21 @@
 'use strict';
-// Shipwright — skill-pack registry: Agent Skills from official publishers, fetched on demand
-// (engine.js) only for projects that need them.
+// Shipwright — skill-pack registry: Agent Skills published by a platform's own maintainers, fetched on
+// demand (engine.js) only for projects that need them.
 //
 // `detect` and skill rules list signals, any of which matches:
-//   dep:<npm package> (trailing * = prefix) · file:<name> · dir:<name> · text:<marker from detect.js>
+//   dep:<npm package> (trailing * = prefix) · file:<name> · ext:<.extension> · dir:<name> · text:<marker from detect.js>
 // A skill rule of true/false always/never indexes it; unlisted skills follow `indexUnlisted`.
 // Rules key on installed skill names (SKILL.md `name`), which can differ from the repo folder.
+// A pack without `source` has no maintainer skill to fetch; its `hint` names the best official alternative.
 
 const WEB_UI = ['dep:react', 'dep:next', 'dep:vue', 'dep:nuxt', 'dep:svelte', 'dep:@sveltejs/kit', 'dep:astro', 'dep:@angular/core', 'dep:solid-js'];
 const VERCEL_PROJECT = ['file:vercel.json', 'dir:.vercel', 'dep:@vercel/*'];
+const VITE_PROJECT = ['dep:vite', 'file:vite.config.ts', 'file:vite.config.js', 'file:vite.config.mts', 'file:vite.config.mjs'];
 const AWS_IAC = ['file:cdk.json', 'dep:aws-cdk-lib', 'text:aws-cdk', 'text:cloudformation', 'file:samconfig.toml', 'file:serverless.yml', 'file:serverless.yaml', 'text:terraform-aws'];
 const DYNAMODB = ['dep:@aws-sdk/client-dynamodb', 'dep:@aws-sdk/lib-dynamodb', 'dep:dynamoose', 'dep:electrodb'];
+const AZURE_DEPLOY = ['file:azure.yaml', 'ext:.bicep'];
+const AZURE_ANY = [...AZURE_DEPLOY, 'dep:@azure/*', 'text:azure-sdk'];
+const EAS = ['file:eas.json'];
 
 module.exports = [
   {
@@ -51,6 +56,72 @@ module.exports = [
     },
   },
   {
+    id: 'nextjs',
+    publisher: 'Vercel (Next.js team)',
+    repo: 'https://github.com/vercel/next.js',
+    source: ['https://github.com/vercel/next.js/tree/canary/skills', '--skill', '*'],
+    detect: ['dep:next'],
+    docs: 'https://nextjs.org/docs/llms.txt',
+    indexUnlisted: true,
+    skills: {},
+  },
+  {
+    id: 'react-router',
+    publisher: 'Remix (React Router maintainers)',
+    repo: 'https://github.com/remix-run/react-router',
+    // The repo's other skills are for contributing to React Router itself.
+    source: ['https://github.com/remix-run/react-router', '--skill', 'react-router'],
+    detect: ['dep:react-router', 'dep:react-router-dom', 'dep:@react-router/*', 'file:react-router.config.ts', 'file:react-router.config.js'],
+    indexUnlisted: true,
+    skills: {},
+  },
+  {
+    id: 'vite',
+    publisher: 'Anthony Fu (Vite, Vue, and Nuxt core team)',
+    repo: 'https://github.com/antfu/skills',
+    source: ['antfu/skills', '--skill', '*'],
+    detect: [...VITE_PROJECT, 'dep:vitest', 'dep:vue', 'dep:nuxt'],
+    docs: 'https://vite.dev/llms.txt',
+    indexUnlisted: false,
+    skills: {
+      vite: VITE_PROJECT,
+      vitest: ['dep:vitest'],
+      vue: ['dep:vue'],
+      'vue-best-practices': ['dep:vue'],
+      'vue-router-best-practices': ['dep:vue-router'],
+      'vue-testing-best-practices': ['dep:@vue/test-utils'],
+      pinia: ['dep:pinia'],
+      'vueuse-functions': ['dep:@vueuse/core'],
+      nuxt: ['dep:nuxt'],
+      nitro: ['dep:nitropack', 'dep:nitro'],
+      unocss: ['dep:unocss'],
+      pnpm: ['file:pnpm-lock.yaml', 'file:pnpm-workspace.yaml'],
+      tsdown: ['dep:tsdown'],
+      vitepress: ['dep:vitepress'],
+      slidev: ['dep:@slidev/cli'],
+    },
+  },
+  {
+    id: 'astro',
+    publisher: 'Astro',
+    repo: 'https://github.com/withastro/astro',
+    // withastro's own skill is for developing the Astro monorepo, and no community Astro skill clears the
+    // library's quality bar — so nothing is fetched; the hint points at Astro's official docs MCP server.
+    source: null,
+    detect: ['dep:astro', 'file:astro.config.mjs', 'file:astro.config.ts', 'file:astro.config.js'],
+    hint: '[astro] No maintainer-published Astro skill exists yet. For current Astro docs, suggest the official Astro Docs MCP server: claude mcp add --transport http astro-docs https://mcp.docs.astro.build/mcp',
+  },
+  {
+    id: 'hono',
+    publisher: 'Hono',
+    repo: 'https://github.com/honojs/skills',
+    source: ['honojs/skills', '--skill', '*'],
+    detect: ['dep:hono'],
+    docs: 'https://hono.dev/llms.txt',
+    indexUnlisted: true,
+    skills: {},
+  },
+  {
     id: 'aws',
     publisher: 'AWS',
     repo: 'https://github.com/aws/agent-toolkit-for-aws',
@@ -77,6 +148,162 @@ module.exports = [
       'aws-step-functions': ['dep:@aws-sdk/client-sfn'],
       'aws-observability': ['dep:@aws-lambda-powertools/*', 'dep:aws-xray-sdk*', 'dep:@aws-sdk/client-cloudwatch*'],
       'aws-deployment': ['file:buildspec.yml', 'file:appspec.yml'],
+    },
+  },
+  {
+    id: 'azure',
+    publisher: 'Microsoft',
+    repo: 'https://github.com/microsoft/azure-skills',
+    source: ['microsoft/azure-skills', '--skill', '*'],
+    detect: AZURE_ANY,
+    // ~40 skills, several of them for maintaining the repo itself: index only what the project's signals point at.
+    indexUnlisted: false,
+    browse: true,
+    skills: {
+      'azure-prepare': AZURE_DEPLOY,
+      'azure-deploy': AZURE_DEPLOY,
+      'azure-validate': AZURE_DEPLOY,
+      'azure-diagnostics': AZURE_ANY,
+      'azure-storage': ['dep:@azure/storage-*', 'text:azure-storage'],
+      'azure-messaging': ['dep:@azure/service-bus', 'dep:@azure/event-hubs', 'text:azure-messaging'],
+      'azure-ai': ['dep:@azure/openai', 'dep:@azure/ai-*', 'text:azure-ai'],
+      'microsoft-foundry': ['dep:@azure/ai-projects', 'dep:@azure/ai-agents', 'text:azure-ai'],
+      'appinsights-instrumentation': ['dep:applicationinsights', 'dep:@azure/monitor-opentelemetry', 'text:appinsights'],
+      'entra-app-registration': ['dep:@azure/msal-*', 'text:msal'],
+    },
+  },
+  {
+    id: 'aspire',
+    publisher: 'Microsoft',
+    repo: 'https://github.com/microsoft/aspire-skills',
+    source: ['microsoft/aspire-skills', '--skill', '*'],
+    detect: ['text:aspire'],
+    indexUnlisted: true,
+    skills: {},
+  },
+  {
+    id: 'supabase',
+    publisher: 'Supabase',
+    repo: 'https://github.com/supabase/agent-skills',
+    source: ['supabase/agent-skills', '--skill', '*'],
+    detect: ['dep:@supabase/*', 'dep:supabase', 'text:supabase'],
+    indexUnlisted: true,
+    skills: {},
+  },
+  {
+    id: 'prisma',
+    publisher: 'Prisma',
+    repo: 'https://github.com/prisma/skills',
+    source: ['prisma/skills', '--skill', '*'],
+    detect: ['dep:prisma', 'dep:@prisma/client', 'file:schema.prisma'],
+    // Core ORM references always; upgrade, hosting, and driver-adapter-author guides stay findable by name.
+    indexUnlisted: false,
+    browse: true,
+    skills: {
+      'prisma-cli': true,
+      'prisma-client-api': true,
+      'prisma-database-setup': true,
+    },
+  },
+  {
+    id: 'neon',
+    publisher: 'Neon',
+    repo: 'https://github.com/neondatabase/agent-skills',
+    source: ['neondatabase/agent-skills', '--skill', '*'],
+    detect: ['dep:@neondatabase/*'],
+    indexUnlisted: false,
+    browse: true,
+    skills: {
+      'neon-postgres': true,
+      neon: true,
+    },
+  },
+  {
+    id: 'firebase',
+    publisher: 'Firebase',
+    repo: 'https://github.com/firebase/agent-skills',
+    source: ['firebase/agent-skills', '--skill', '*'],
+    detect: ['file:firebase.json', 'file:.firebaserc', 'dep:firebase', 'dep:firebase-admin', 'dep:firebase-functions'],
+    indexUnlisted: false,
+    browse: true,
+    skills: {
+      'firebase-basics': true,
+      'firebase-auth-basics': true,
+      'firebase-firestore': ['file:firestore.rules', 'file:firestore.indexes.json'],
+      'firebase-security-rules-auditor': ['file:firestore.rules', 'file:storage.rules', 'file:database.rules.json'],
+      'firebase-hosting-basics': ['text:firebase-hosting'],
+      'firebase-app-hosting-basics': ['file:apphosting.yaml'],
+      'firebase-crashlytics': ['dep:@react-native-firebase/crashlytics'],
+      'firebase-remote-config-basics': ['dep:@react-native-firebase/remote-config'],
+      'xcode-project-setup': ['file:Podfile'],
+      'extension-to-functions-codebase': ['file:extension.yaml'],
+    },
+  },
+  {
+    id: 'clerk',
+    publisher: 'Clerk',
+    repo: 'https://github.com/clerk/skills',
+    source: ['clerk/skills', '--skill', '*'],
+    detect: ['dep:@clerk/*'],
+    // Setup and UI always, framework patterns only for the project's framework; topic guides (orgs, billing,
+    // webhooks, testing, CLI) stay findable by name.
+    indexUnlisted: false,
+    browse: true,
+    skills: {
+      clerk: true,
+      'clerk-setup': true,
+      'clerk-custom-ui': true,
+      'clerk-nextjs-patterns': ['dep:@clerk/nextjs'],
+      'clerk-react-patterns': ['dep:@clerk/clerk-react', 'dep:@clerk/react'],
+      'clerk-react-router-patterns': ['dep:@clerk/react-router'],
+      'clerk-tanstack-patterns': ['dep:@clerk/tanstack-react-start'],
+      'clerk-astro-patterns': ['dep:@clerk/astro'],
+      'clerk-vue-patterns': ['dep:@clerk/vue'],
+      'clerk-nuxt-patterns': ['dep:@clerk/nuxt'],
+      'clerk-expo': ['dep:@clerk/clerk-expo', 'dep:@clerk/expo'],
+      'clerk-chrome-extension-patterns': ['dep:@clerk/chrome-extension'],
+    },
+  },
+  {
+    id: 'stripe',
+    publisher: 'Stripe',
+    repo: 'https://github.com/stripe/ai',
+    source: ['stripe/ai', '--skill', '*'],
+    detect: ['dep:stripe', 'dep:@stripe/*', 'text:stripe'],
+    // Integration guidance always; Connect, Projects, upgrade, and directory skills stay findable by name.
+    indexUnlisted: false,
+    browse: true,
+    skills: {
+      'stripe-best-practices': true,
+      'stripe-docs': true,
+      'stripe-apps': ['file:stripe-app.json'],
+    },
+  },
+  {
+    id: 'expo',
+    publisher: 'Expo',
+    repo: 'https://github.com/expo/skills',
+    source: ['expo/skills', '--skill', '*'],
+    detect: ['dep:expo'],
+    indexUnlisted: false,
+    browse: true,
+    skills: {
+      'expo-project-structure': true,
+      'expo-upgrade': true,
+      'expo-data-fetching': true,
+      'expo-router': ['dep:expo-router'],
+      'expo-dev-client': ['dep:expo-dev-client'],
+      'expo-ui': ['dep:@expo/ui'],
+      'expo-native-ui': ['dep:@expo/ui'],
+      'expo-dom': ['dep:react-dom'],
+      'expo-module': ['file:expo-module.config.json'],
+      'expo-migrate-module': ['file:expo-module.config.json'],
+      'expo-deployment': EAS,
+      'eas-workflows': EAS,
+      'eas-update-insights': EAS,
+      'eas-app-stores': EAS,
+      'eas-observe': EAS,
+      'eas-hosting': EAS,
     },
   },
   {

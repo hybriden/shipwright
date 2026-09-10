@@ -146,12 +146,12 @@ Dynamic use of managedcode/dotnet-skills in .NET projects (ignored in non-.NET p
 
 ### Skill Packs & Library
 
-Official publishers' skills (Cloudflare, Vercel, AWS, Oxc) fetched with the vercel-labs/skills CLI into an out-of-repo cache when a project needs them, plus user-approved picks from the skillselion.com catalog. See `_shared/stack-skills.md`. Env `SHIPWRIGHT_SKILL_PACKS=off` disables both regardless of these.
+Skills published by each platform's maintainers, fetched with the vercel-labs/skills CLI into an out-of-repo cache when a project needs them and screened by catalog risk, plus user-approved picks from the skillselion.com catalog. See `_shared/stack-skills.md` for the pack list. Env `SHIPWRIGHT_SKILL_PACKS=off` disables both regardless of these.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `skillPacks.enabled` | boolean | true | Master switch for packs and the library |
-| `skillPacks.include` | string[] | [] | Pack ids to load even without repo signals: `"cloudflare"`, `"vercel"`, `"aws"`, `"oxc"` |
+| `skillPacks.include` | string[] | [] | Pack ids to load even without repo signals: `cloudflare`, `vercel`, `nextjs`, `react-router`, `vite`, `astro`, `hono`, `aws`, `azure`, `aspire`, `supabase`, `prisma`, `neon`, `firebase`, `clerk`, `stripe`, `expo`, `oxc` |
 | `skillPacks.exclude` | string[] | [] | Pack ids or skill names never to load or index |
 | `skillPacks.library` | boolean | true | Offer gated skill-library candidates (always asks the user before installing) |
 | `skillPacks.refreshDays` | number | 7 | `acquire` re-fetches packs and library skills older than this |

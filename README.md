@@ -1,5 +1,41 @@
 # Shipwright
 
+## Software Factory Scoreboard
+
+Where Shipwright stands against the **Lights-Off Software Factory** ([HumanLayer, "Why Software Factories Fail"](https://hlyr.dev/wsff-gh)) — humans only fill the queue; intake, build, checks, rollout, and monitoring run without them. Each component scores 0–5: 0 absent · 1 manual or advisory · 2 partial · 3 automated and evidence-gated · 4 automated, gated, and measured · 5 proven on real runs (capped at 4 until `auto-eval` scorecards from real runs back it). Updated with every release.
+
+**v3.19.0 — 44/90 (49%)** · Δ 0 vs v3.18.0
+
+| Stage | Component | Score | Evidence |
+|---|---|---|---|
+| Queue | Stuff to do — humans fill the queue, drained unattended | ●●○○○ 2 | one task per `shipwright:run`, run end to end unattended; no queue or backlog |
+| Queue | Complaints / feature requests → queue | ○○○○○ 0 | no user-feedback intake |
+| Queue | Incidents → queue | ●○○○○ 1 | `auto-debug` takes a pasted incident; no monitoring intake |
+| Build | Orchestration | ●●●●○ 4 | `run`: gated phases, checkpoints, evidence ledger, parallel map/setup and reviewers |
+| Build | Harness | ●●●●○ 4 | skills plus always-on hooks (Code Laws, stack skills, risk-screened packs); `harness` generator |
+| Build | Sandbox | ●●○○○ 2 | feature-branch isolation, checkpoints, out-of-repo caches; no container or VM sandbox |
+| Build | Model | ●●●○○ 3 | tiered model selection with escalation |
+| Build | Automated testing | ●●●●○ 4 | TDD implementers, changed-code coverage, test-honesty checks, affected tests plus phase-end suites |
+| Build | Agentic testing (computer use) | ●●●○○ 3 | `auto-e2e` via Playwright MCP, HTTP, or CLI with evidence verdicts; no desktop computer use |
+| PR | Pull request | ●○○○○ 1 | branch left ready for a PR; not opened automatically |
+| Checks | CI/CD checks | ●○○○○ 1 | local build and tests only; no CI run or CI-fix loop |
+| Checks | Unit testing | ●●●●○ 4 | `auto-test`, readiness Gates 1–2, net-positive gate |
+| Checks | Static scanning | ●●○○○ 2 | react-doctor (React), Oxlint compatibility check, hygiene grep; no general SAST |
+| Checks | Security checks | ●●●○○ 3 | dependency audit plus OWASP and auth-trace review |
+| Checks | Agentic code review | ●●●●○ 4 | parallel spec and quality reviewers; fidelity, architecture, over-engineering lenses; fix-delta re-review |
+| Checks | Agentic regression testing | ●●●●○ 4 | net-positive gate, bisect localization, affected E2E re-runs |
+| Ship | Rollout / deployment | ●○○○○ 1 | `auto-verify` iterates against a deployed system; no rollout automation |
+| Ship | Monitoring | ●○○○○ 1 | logging and degradation gates as guidance; no monitoring hookup |
+
+**Human touchpoints left** (the target has none): the merge / keep-for-PR / discard offer at the end of a run · the skill-library install question · untested critical scenarios and unresolved reviews handed to a person.
+
+| Version | Score | Δ | What moved |
+|---|---|---|---|
+| 3.19.0 | 44/90 (49%) | 0 | no scored component — deeper harness (JS, Azure, data/auth packs) and risk-screened skills |
+| 3.18.0 | 44/90 (49%) | baseline | — |
+
+## Overview
+
 Autonomous development pipeline for Claude Code. Give it a task, get production-grade code back — with planning, implementation, unit tests, E2E tests, code review, systematic debugging, and production readiness verification. Zero interaction required.
 
 ## Installation
@@ -186,14 +222,23 @@ Shipwright pulls in expert skills for the stack and platforms a project uses —
 |---|---|---|
 | [managedcode/dotnet-skills](https://github.com/managedcode/dotnet-skills) | EF Core, ASP.NET Core, xUnit, Aspire, DI, … (official `dotnet-skills` CLI) | .NET markers (`*.csproj`, `*.sln`, `global.json`, `Directory.*.props`) |
 | [cloudflare/skills](https://github.com/cloudflare/skills) | Workers, Wrangler, Durable Objects, Agents SDK, Sandbox, … | `wrangler.*`, `@cloudflare/*`, `agents`, Cloudflare Terraform |
-| [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) | React/Next.js performance and composition, view transitions, web design guidelines, Vercel deploys | React/Next/Vue/Svelte/Astro/Angular deps, `vercel.json` |
+| [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) | React performance and composition, view transitions, web design guidelines, Vercel deploys | React/Next/Vue/Svelte/Astro/Angular deps, `vercel.json` |
+| [vercel/next.js](https://github.com/vercel/next.js/tree/canary/skills) | Next.js dev loop, cache components, partial prefetching | `next` |
+| [remix-run/react-router](https://github.com/remix-run/react-router) | React Router (framework, data, declarative modes) | `react-router`, `@react-router/*` |
+| [antfu/skills](https://github.com/antfu/skills) | Vite, Vitest, Vue, Nuxt, Pinia, UnoCSS, … (Vite/Vue/Nuxt core team) | `vite`, `vitest`, `vue`, `nuxt`, `vite.config.*` |
+| [honojs/skills](https://github.com/honojs/skills) | Hono routing, middleware, validation, testing | `hono` |
+| Astro | no maintainer skill yet — points at the official Astro Docs MCP server | `astro`, `astro.config.*` |
 | [aws/agent-toolkit-for-aws](https://github.com/aws/agent-toolkit-for-aws) | CDK, CloudFormation, serverless, SDK usage, DynamoDB, S3, IAM, … (~100 skills; only the matched ones are indexed) | `cdk.json`, SAM/Serverless configs, `@aws-sdk/*`, boto3, AWS Terraform |
+| [microsoft/azure-skills](https://github.com/microsoft/azure-skills), [microsoft/aspire-skills](https://github.com/microsoft/aspire-skills) | Azure prepare/deploy/diagnostics, storage, messaging, AI Foundry, Entra, App Insights; .NET Aspire | `azure.yaml`, `*.bicep`, `@azure/*`, `Azure.*` NuGet, `Aspire.Hosting` |
+| [supabase](https://github.com/supabase/agent-skills), [prisma](https://github.com/prisma/skills), [neon](https://github.com/neondatabase/agent-skills), [firebase](https://github.com/firebase/agent-skills), [clerk](https://github.com/clerk/skills), [stripe](https://github.com/stripe/ai), [expo](https://github.com/expo/skills) | each vendor's own skills | the vendor's packages or config files |
 | [oxc-project/oxc](https://github.com/oxc-project/oxc) | `migrate-oxlint`, `migrate-oxfmt` | ESLint or Prettier installed |
+
+Axios has no skill from anyone, so there is nothing to import for it.
 
 **How it works**
 
 1. **Near-zero-cost gate.** Session/subagent hooks match sources with a bounded filesystem scan — no process spawns (~50 ms). Repos with no match get nothing indexed.
-2. **Acquire.** The Stack Skills phase fetches the matched sources: the `dotnet-skills` CLI for .NET, and the [vercel-labs/skills](https://github.com/vercel-labs/skills) CLI (`npx skills add`, telemetry off) for the packs — run *inside* the cache, so nothing lands in your repo or `~/.claude/skills`. A task that targets a platform the repo doesn't show yet adds its pack with `--pack <id>`.
+2. **Acquire.** The Stack Skills phase fetches the matched sources: the `dotnet-skills` CLI for .NET, and the [vercel-labs/skills](https://github.com/vercel-labs/skills) CLI (`npx skills add`, telemetry off) for the packs — run *inside* the cache, so nothing lands in your repo or `~/.claude/skills`. Skills the skillselion catalog's scanners rate HIGH or CRITICAL are withheld, even from maintainers' packs. A task that targets a platform the repo doesn't show yet adds its pack with `--pack <id>`.
 3. **Inject + consume.** `[dotnet-skills]` and `[skill-packs]` indexes list the matched skills; plan, implement, test, and review Read the relevant one on demand.
 
 **Skill library — ask first.** When a task builds something no source covers (payments, auth, a database, a test framework, …), Shipwright searches the [skillselion.com](https://skillselion.com/skills) catalog and asks — once, before planning — whether to install the candidates that pass its quality gate: official publishers with ≥1k installs, or community skills with ≥10k installs, ≥1k stars, and a passing audit. Anything with a failed audit, HIGH/CRITICAL risk, a duplicate marker, or a repo unpushed for 180+ days is dropped.
