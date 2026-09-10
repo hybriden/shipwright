@@ -146,7 +146,7 @@ Every fix must be proven through automated verification. A fix without proof is 
 
 **Layer 0 — Net-Positive Gate (run FIRST):** compare against the Phase 4.5 baseline per `../_shared/net-positive-gate.md`. A fix that introduces regressions is rolled back immediately — do not "also fix" what it broke.
 
-**Layer 1 — Regression test (always):** write a test that FAILS without the fix and PASSES with it. Name by behavior ("should return empty array when filter matches no items"), not "test bug #42." **Prove causation:** revert fix → test fails; re-apply → test passes. If it passes both ways, the test proves nothing — rewrite it.
+**Layer 1 — Regression test (always):** write a test that FAILS without the fix and PASSES with it — for a UI bug, at the level `../_shared/ui-tests.md` names. Name by behavior ("should return empty array when filter matches no items"), not "test bug #42." **Prove causation:** revert fix → test fails; re-apply → test passes. If it passes both ways, the test proves nothing — rewrite it.
 
 **Layer 2 — Runtime verification (when applicable):** use the Phase 0 project tools FIRST (run the CLI/validator on real input, compare before/after). Then probe by app type per `../_shared/runtime-probing.md` (web → Playwright; API → triggering request + edge cases; CLI → stdout/stderr/exit code + edge cases; library → integration test as a consumer would). Capture output as evidence.
 

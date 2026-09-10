@@ -23,7 +23,8 @@ Agent tool (general-purpose):
     (browser_click / fill_form / type) → browser_snapshot after each → browser_take_screenshot →
     browser_console_messages (JS errors) → browser_network_requests (failed calls). For changed
     scenarios, also test responsiveness (resize 375x812, 768x1024) and a11y basics (accessible
-    names, input labels, heading hierarchy).
+    names, input labels, heading hierarchy); report each defect with its viewport and the elements
+    involved, so the fix's test can target them.
     API: per endpoint — valid input (200/201 + correct body), invalid (400 + useful message), no
     auth if applicable (401/403), edge cases (empty body, missing fields, wrong types). For changed
     endpoints, also verify headers (content-type, CORS) and response times (flag >1s).

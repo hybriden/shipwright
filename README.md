@@ -4,7 +4,7 @@
 
 Where Shipwright stands against the **Lights-Off Software Factory** ([HumanLayer, "Why Software Factories Fail"](https://hlyr.dev/wsff-gh)) — humans only fill the queue; intake, build, checks, rollout, and monitoring run without them. Each component scores 0–5: 0 absent · 1 manual or advisory · 2 partial · 3 automated and evidence-gated · 4 automated, gated, and measured · 5 proven on real runs (capped at 4 until `auto-eval` scorecards from real runs back it). Updated with every release.
 
-**v3.20.0 — 49/90 (54%)** · Δ +5 vs v3.19.0
+**v3.21.0 — 49/90 (54%)** · Δ 0 vs v3.20.0
 
 | Stage | Component | Score | Evidence |
 |---|---|---|---|
@@ -23,7 +23,7 @@ Where Shipwright stands against the **Lights-Off Software Factory** ([HumanLayer
 | Checks | Static scanning | ●●○○○ 2 | react-doctor (React), Oxlint compatibility check, hygiene grep; no general SAST |
 | Checks | Security checks | ●●●○○ 3 | dependency audit plus OWASP and auth-trace review |
 | Checks | Agentic code review | ●●●●○ 4 | parallel spec and quality reviewers; fidelity, architecture, over-engineering lenses; fix-delta re-review |
-| Checks | Agentic regression testing | ●●●●○ 4 | net-positive gate, bisect localization, affected E2E re-runs |
+| Checks | Agentic regression testing | ●●●●○ 4 | net-positive gate, bisect localization, affected E2E re-runs; UI defects fixed with red tests at the right level |
 | Ship | Rollout / deployment | ●○○○○ 1 | `auto-verify` iterates against a deployed system; no rollout automation |
 | Ship | Monitoring | ●○○○○ 1 | logging and degradation gates as guidance; no monitoring hookup |
 
@@ -31,6 +31,7 @@ Where Shipwright stands against the **Lights-Off Software Factory** ([HumanLayer
 
 | Version | Score | Δ | What moved |
 |---|---|---|---|
+| 3.21.0 | 49/90 (54%) | 0 | no scored component — UI defects from E2E or review get red tests at the right level (`_shared/ui-tests.md`) |
 | 3.20.0 | 49/90 (54%) | +5 | Pull request 1→3, CI/CD checks 1→4 — new Deliver phase (`auto-deliver`) |
 | 3.19.0 | 44/90 (49%) | 0 | no scored component — deeper harness (JS, Azure, data/auth packs) and risk-screened skills |
 | 3.18.0 | 44/90 (49%) | baseline | — |
@@ -206,7 +207,7 @@ Shipwright holds the code it writes and reviews to a coherent set of software-de
 
 **Always on:** installing the plugin registers a session hook (`hooks/`) that injects a distilled "Code Laws" reminder at the start of every session and subagent — so the principles apply to *all* coding, not only inside the pipeline. Opt out with `SHIPWRIGHT_CODE_LAWS=off`.
 
-*Other `_shared/` references* are operational rather than design: architecture-map consumption, net-positive/anti-regression gate, the **iteration loop contract** (`_shared/loop.md` — the shared anatomy every auto-debug/impl/review/verify loop instantiates: State / Step / Gate / Progress+stall / Termination), evidence-evaluation gate, runtime probing by app type (`_shared/runtime-probing.md`), project-tool discovery (`_shared/project-tools.md`), model selection (`_shared/model-selection.md`), subagent context budget, and pipeline checkpoints.
+*Other `_shared/` references* are operational rather than design: architecture-map consumption, net-positive/anti-regression gate, the **iteration loop contract** (`_shared/loop.md` — the shared anatomy every auto-debug/impl/review/verify loop instantiates: State / Step / Gate / Progress+stall / Termination), evidence-evaluation gate, runtime probing by app type (`_shared/runtime-probing.md`), UI test levels (`_shared/ui-tests.md`), project-tool discovery (`_shared/project-tools.md`), model selection (`_shared/model-selection.md`), subagent context budget, and pipeline checkpoints.
 
 ## Self-Evaluation Loop
 

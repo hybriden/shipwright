@@ -45,6 +45,9 @@ Agent tool (general-purpose):
      Check for circular patterns: same file modified twice = likely wrong approach.
      Use regression info from rolled-back fixes as diagnostic evidence.]
 
+    ## UI Test Levels (UI bug only)
+    [paste ../../_shared/ui-tests.md — omit this section otherwise]
+
     ## Your Job
     FAST PATH (profile lean only): if the failure is a build/compile, type, import, syntax, or
     lint error at a file:line the current step changed, and the message names the defect

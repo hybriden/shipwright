@@ -61,7 +61,7 @@ Adversarial patterns:
 
 Probe by app type per `../_shared/runtime-probing.md` (the base tools + assertions for web/API/CLI). Add this E2E-specific breadth on top of the base matrix:
 
-- **Web:** cover navigation, forms (submit/validation/success), error states (404/500/network); on changed scenarios, also responsiveness (375px, 768px) and a11y (ARIA names, labels, focus/keyboard via snapshots).
+- **Web:** cover navigation, forms (submit/validation/success), error states (404/500/network); on changed scenarios, also responsiveness (375px, 768px) and a11y (ARIA names, labels, focus/keyboard via snapshots). A defect a sweep finds fails the scenario, and its fix lands with a red test per `../_shared/ui-tests.md` — the screenshot is the finding, the test is the guard.
 - **API:** valid (200/201) + invalid (400 + useful message) + auth (401/403) + edge cases (empty/missing/oversized); assert response schemas; on changed endpoints, also headers (CORS, content-type).
 - **CLI:** valid args (exit 0), invalid (helpful error + exit ≠0), no args (usage), `--help`, edge cases (empty/long/special), output format.
 

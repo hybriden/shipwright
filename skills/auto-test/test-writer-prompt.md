@@ -18,6 +18,9 @@ Agent tool (general-purpose):
     [specific functions, branches, lines + the source code]
     [testability verdict per file; any identified external contract + doc links]
 
+    ## UI Test Levels (UI code only)
+    [paste ../_shared/ui-tests.md — omit this section for non-UI code]
+
     ## Your Job
     1. Read the source + existing tests (match project patterns).
     2. Per uncovered path, write a focused test: write it (RED), reason that it fails without

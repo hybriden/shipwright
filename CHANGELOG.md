@@ -2,6 +2,11 @@
 
 All notable changes to Shipwright. Format follows [Keep a Changelog](https://keepachangelog.com/); the project adheres to [Semantic Versioning](https://semver.org/). Versions track the `version` field in `.claude-plugin/plugin.json`.
 
+## [3.21.0] — 2026-09-10
+
+- **UI test levels** (new `_shared/ui-tests.md`): a UI defect found by an E2E sweep or a reviewer lands with a committed test that fails without the fix, at the level the defect calls for — role and accessible-name queries for missing semantics and repeated controls, a non-color cue for color-only states, real-browser geometry at the failing viewport for layout (never pixel screenshot baselines), exact formatter strings (with `Intl`'s no-break spaces), and axe in a real browser for contrast. A red test must fail on its assertion, not a timeout. Linked from auto-test, auto-e2e, and auto-debug Layer 1; pasted into the implementer, test-writer, and debug dispatch prompts, since subagents can't resolve `_shared/`. Prompted by a run whose reviewer found mobile overlap, unclear currency text, won/lost states that look alike, missing tab semantics, and row buttons without row names.
+- **Software Factory Scoreboard:** 49/90 (54%), Δ 0 — deepens Agentic regression testing (already 4); human touchpoints unchanged.
+
 ## [3.20.0] — 2026-09-10
 
 - **Deliver phase** (run Phase 8, new `auto-deliver` skill): pushes the branch, opens a PR whose body carries the implementation report (draft when readiness is PARTIAL), watches CI with `gh pr checks --watch`, and fixes failures in up to `delivery.ciFixRounds` rounds — code failures through auto-debug and a Post-Review Fixes round, one re-run for a flaky check, a stop-and-report when a secret or permission is missing. Never merges on red or pending; merges on green only with `branch.autoMerge`. Without `gh` or a GitHub remote it degrades to local delivery. New `.shipwright.json` `delivery` block; `skipPhases: deliver`.

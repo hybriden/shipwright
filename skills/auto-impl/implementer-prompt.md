@@ -23,6 +23,9 @@ Agent tool (general-purpose):
     ## Working Directory / Test Command
     [exact path] / [affected-test command for this task's files]
 
+    ## UI Test Levels (UI work only)
+    [paste ../_shared/ui-tests.md — omit this section when the task or finding touches no UI]
+
     ## Your Job (TDD — no exceptions, not even for "simple" code)
     1. Write the failing test FIRST; run it, confirm it fails with the expected error.
     2. Write the minimal implementation to pass; run it, confirm green.

@@ -65,7 +65,7 @@ Per file whose changed code is below target: read it, list the uncovered changed
 
 ## Phase 6: Test Writing
 
-Dispatch test-writer subagents (`./test-writer-prompt.md`) per gap cluster; each runs only its own new tests, and Phase 8 measures coverage for all of them in one run. Cover: happy path; edge cases (empty, single, max, unicode, special chars); error paths (invalid input, failures, timeouts); boundaries (off-by-one, min/max, empty/full); integration; contract conformance (assert documented behavior, not current impl); and module-boundary contracts (serialization round-trips; feed module A's output to module B's input; error-contract agreement — tests importing BOTH modules).
+Dispatch test-writer subagents (`./test-writer-prompt.md`) per gap cluster; each runs only its own new tests, and Phase 8 measures coverage for all of them in one run. Cover: happy path; edge cases (empty, single, max, unicode, special chars); error paths (invalid input, failures, timeouts); boundaries (off-by-one, min/max, empty/full); integration; contract conformance (assert documented behavior, not current impl); and module-boundary contracts (serialization round-trips; feed module A's output to module B's input; error-contract agreement — tests importing BOTH modules). For UI code (components, pages, styles), pick each test's level per `../_shared/ui-tests.md` and paste it into the test-writer prompt.
 
 ## Phase 7: Test Honesty Check (single pass)
 
