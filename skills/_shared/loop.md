@@ -59,5 +59,6 @@ A loop never ends by giving up quietly or by declaring success it can't evidence
 | auto-impl | inter-task learning log | 3 attempts / task | task DONE / FAILED |
 | auto-review | cycle notes / findings | 3 cycles / stage | APPROVED / NEEDS_ATTENTION |
 | auto-verify | runbook + Fix History | 20 iterations (scaled) | VERIFIED / PARTIAL / FAILED |
+| auto-deliver | CI round log | 3 CI-fix rounds | SHIPPED / CI_RED |
 
 Different numbers, one loop. Change the mechanics here; change the parameters in the skill.

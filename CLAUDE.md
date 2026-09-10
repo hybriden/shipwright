@@ -15,6 +15,8 @@ A Claude Code plugin providing an autonomous development pipeline.
 - `skills/auto-debug/` - Systematic root cause analysis with dependency-graph tracing, net-positive gate, and anti-circle detection
 - `skills/auto-verify/` - Iterative runtime verification with architecture-aware context, anti-regression gate, and stateful resource management
 - `skills/production-readiness/` - Final verification gate
+- `skills/auto-deliver/` - Delivery: push the branch, open a PR carrying the implementation report (draft when PARTIAL), watch CI with `gh`, and fix CI failures in bounded rounds; merges only on green with `branch.autoMerge`
+- `.github/workflows/ci.yml` + `hooks/test/` - Shipwright's own CI: hook syntax check, manifest validation, and offline `node --test` hook tests
 - `skills/harness/` - Agent Team & Skill Architect (generates project-specific subagent teams + skills, targeting current Claude Code APIs — subagents via `Agent`+`SendMessage` by default, Agent Teams as an experimental opt-in; stamps the Code Laws into generated infra and consumes `_shared/loop.md` + `_shared/model-selection.md`)
 - `skills/auto-minimize/` - Minimalism (lazy-senior-dev): build the leanest solution that works, and hunt over-engineering (adapted from ponytail, MIT)
 - `skills/auto-eval/` - Outer evaluation loop: run the pipeline against a task suite, score each run from the artifacts it already emits (gate table, Pipeline Quality reflection, evidence verdicts, plan retrospective), and feed cross-run weaknesses back into `.shipwright-retrospective.md`. Meta-tooling like `harness`; composes `_shared/loop.md` (meta level) + `_shared/net-positive-gate.md` (the meta-gate). Two modes: `score` (cheap, default) and `loop` (heavyweight)

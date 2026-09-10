@@ -4,7 +4,7 @@
 
 Where Shipwright stands against the **Lights-Off Software Factory** ([HumanLayer, "Why Software Factories Fail"](https://hlyr.dev/wsff-gh)) — humans only fill the queue; intake, build, checks, rollout, and monitoring run without them. Each component scores 0–5: 0 absent · 1 manual or advisory · 2 partial · 3 automated and evidence-gated · 4 automated, gated, and measured · 5 proven on real runs (capped at 4 until `auto-eval` scorecards from real runs back it). Updated with every release.
 
-**v3.19.0 — 44/90 (49%)** · Δ 0 vs v3.18.0
+**v3.20.0 — 49/90 (54%)** · Δ +5 vs v3.19.0
 
 | Stage | Component | Score | Evidence |
 |---|---|---|---|
@@ -17,8 +17,8 @@ Where Shipwright stands against the **Lights-Off Software Factory** ([HumanLayer
 | Build | Model | ●●●○○ 3 | tiered model selection with escalation |
 | Build | Automated testing | ●●●●○ 4 | TDD implementers, changed-code coverage, test-honesty checks, affected tests plus phase-end suites |
 | Build | Agentic testing (computer use) | ●●●○○ 3 | `auto-e2e` via Playwright MCP, HTTP, or CLI with evidence verdicts; no desktop computer use |
-| PR | Pull request | ●○○○○ 1 | branch left ready for a PR; not opened automatically |
-| Checks | CI/CD checks | ●○○○○ 1 | local build and tests only; no CI run or CI-fix loop |
+| PR | Pull request | ●●●○○ 3 | `auto-deliver` pushes and opens the PR with the implementation report; draft when readiness is PARTIAL |
+| Checks | CI/CD checks | ●●●●○ 4 | `auto-deliver` watches checks, fixes failures in ≤3 rounds, never merges on red; CI rounds feed auto-eval |
 | Checks | Unit testing | ●●●●○ 4 | `auto-test`, readiness Gates 1–2, net-positive gate |
 | Checks | Static scanning | ●●○○○ 2 | react-doctor (React), Oxlint compatibility check, hygiene grep; no general SAST |
 | Checks | Security checks | ●●●○○ 3 | dependency audit plus OWASP and auth-trace review |
@@ -27,10 +27,11 @@ Where Shipwright stands against the **Lights-Off Software Factory** ([HumanLayer
 | Ship | Rollout / deployment | ●○○○○ 1 | `auto-verify` iterates against a deployed system; no rollout automation |
 | Ship | Monitoring | ●○○○○ 1 | logging and degradation gates as guidance; no monitoring hookup |
 
-**Human touchpoints left** (the target has none): the merge / keep-for-PR / discard offer at the end of a run · the skill-library install question · untested critical scenarios and unresolved reviews handed to a person.
+**Human touchpoints left** (the target has none): merging the PR (automatic only with `branch.autoMerge`) · the skill-library install question · untested critical scenarios and unresolved reviews handed to a person.
 
 | Version | Score | Δ | What moved |
 |---|---|---|---|
+| 3.20.0 | 49/90 (54%) | +5 | Pull request 1→3, CI/CD checks 1→4 — new Deliver phase (`auto-deliver`) |
 | 3.19.0 | 44/90 (49%) | 0 | no scored component — deeper harness (JS, Azure, data/auth packs) and risk-screened skills |
 | 3.18.0 | 44/90 (49%) | baseline | — |
 
@@ -63,6 +64,7 @@ Then describe your task. The system handles everything autonomously:
 6. **Code Review** — Focused reviewers in parallel (spec compliance, fidelity, architecture, quality), spec fixes first
 7. **E2E Test** — Browser testing (Playwright), API testing, or CLI testing on the reviewed code, depending on app type
 8. **Production Readiness** — 11-gate verification including load testing, security, and error handling
+9. **Deliver** — Pushes the branch, opens a PR carrying the report, watches CI, and fixes CI failures
 
 A **Stack Skills** step (between Setup and Plan) fetches project-matched expert skills on demand — .NET, Cloudflare, Vercel, AWS, Oxc, plus user-approved picks from a skill library — see [Stack Skills](#stack-skills) below.
 
@@ -175,6 +177,7 @@ Each skill is independently usable:
 | `shipwright:auto-review` | Multi-lens code review — focused reviewers in parallel, spec fixes first |
 | `shipwright:auto-debug` | Systematic root cause analysis with proven fixes |
 | `shipwright:production-readiness` | Final verification gate |
+| `shipwright:auto-deliver` | Delivery — PR with the report, CI watched and fixed |
 | `shipwright:harness` | Agent Team & Skill Architect — generates project-specific agent teams |
 | `shipwright:auto-minimize` | Minimalism — build the leanest solution that works, hunt over-engineering |
 | `shipwright:auto-eval` | Outer evaluation loop — score runs from their artifacts, feed weaknesses back into planning |

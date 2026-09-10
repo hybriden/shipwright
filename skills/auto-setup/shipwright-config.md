@@ -32,6 +32,11 @@ All implementor skills check for `.shipwright.json` in the project root. Every f
     "prefix": "implementor",
     "autoMerge": false
   },
+  "delivery": {
+    "pr": true,
+    "ciFixRounds": 3,
+    "ciTimeoutMinutes": 60
+  },
   "dotnetSkills": {
     "enabled": true,
     "installTool": true,
@@ -98,7 +103,7 @@ In a pipeline run, targets gate the changed lines, not the project total.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `skipPhases` | string[] | [] | Phases to skip: `"e2e"`, `"loadTest"`, `"setup"`, `"stackSkills"` (`"dotnetSkills"` still accepted) |
+| `skipPhases` | string[] | [] | Phases to skip: `"e2e"`, `"loadTest"`, `"setup"`, `"stackSkills"` (`"dotnetSkills"` still accepted), `"deliver"` |
 
 Only these phases can be skipped. Plan, implement, test, review, and production-readiness cannot be skipped.
 
@@ -129,7 +134,17 @@ Only these phases can be skipped. Plan, implement, test, review, and production-
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `branch.prefix` | string | `"implementor"` | Feature branch prefix |
-| `branch.autoMerge` | boolean | false | Auto-merge on success (vs offer choice) |
+| `branch.autoMerge` | boolean | false | Merge on success — with delivery, only after CI is green (`gh pr merge --squash`); without it, a local merge instead of the merge/keep/discard offer |
+
+### Delivery
+
+Push the branch, open a PR carrying the implementation report, watch CI, and fix CI failures (`skills/auto-deliver`). Needs `gh` authenticated and a GitHub `origin`; without them delivery is skipped and the run completes locally.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `delivery.pr` | boolean | true | Push and open a PR at the end of a run (draft when readiness is PARTIAL) |
+| `delivery.ciFixRounds` | number | 3 | CI failure → fix → re-watch rounds before reporting CI_RED |
+| `delivery.ciTimeoutMinutes` | number | 60 | Stop watching checks still pending after this long and report them |
 
 ### .NET Skills
 
@@ -191,6 +206,7 @@ Deterministic react-doctor verify gate in React projects (ignored elsewhere). Ru
 | `auto-e2e` | `startCommand`, `e2eType`, `skipPhases`, `profile` |
 | `auto-review` | `reactDoctor.*` (React projects) |
 | `production-readiness` | `coverage.*`, `loadTest.*`, `skipPhases`, `profile` |
+| `auto-deliver` | `delivery.*`, `branch.autoMerge`, `skipPhases` |
 | `auto-map`, `auto-impl`, `auto-debug` | `profile` (passed by run) |
 | `run` | `profile`, `skipPhases`, `branch.*`, `dotnetSkills.*`, `skillPacks.*`, all (passes to sub-skills) |
 | dotnet-skills hook + engine | `dotnetSkills.*` |
