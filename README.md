@@ -4,17 +4,17 @@
 
 Where Shipwright stands against the **Lights-Off Software Factory** ([HumanLayer, "Why Software Factories Fail"](https://hlyr.dev/wsff-gh)) — humans only fill the queue; intake, build, checks, rollout, and monitoring run without them. Each component scores 0–5: 0 absent · 1 manual or advisory · 2 partial · 3 automated and evidence-gated · 4 automated, gated, and measured · 5 proven on real runs (capped at 4 until `auto-eval` scorecards from real runs back it). Updated with every release.
 
-**v3.21.0 — 49/90 (54%)** · Δ 0 vs v3.20.0
+**v3.22.0 — 54/90 (60%)** · Δ +5 vs v3.21.0
 
 | Stage | Component | Score | Evidence |
 |---|---|---|---|
-| Queue | Stuff to do — humans fill the queue, drained unattended | ●●○○○ 2 | one task per `shipwright:run`, run end to end unattended; no queue or backlog |
-| Queue | Complaints / feature requests → queue | ○○○○○ 0 | no user-feedback intake |
-| Queue | Incidents → queue | ●○○○○ 1 | `auto-debug` takes a pasted incident; no monitoring intake |
+| Queue | Stuff to do — humans fill the queue, drained unattended | ●●●○○ 3 | `run --queue` drains labeled GitHub issues one per invocation, repeated by `/loop` or `/schedule`; outcomes labeled on each issue |
+| Queue | Complaints / feature requests → queue | ●●○○○ 2 | issues enter the queue once someone with write access labels them; no intake outside GitHub |
+| Queue | Incidents → queue | ●●○○○ 2 | red CI on the default branch is filed as an incident issue and drained first; no monitoring intake |
 | Build | Orchestration | ●●●●○ 4 | `run`: gated phases, checkpoints, evidence ledger, parallel map/setup and reviewers |
 | Build | Harness | ●●●●○ 4 | skills plus always-on hooks (Code Laws, stack skills, risk-screened packs); `harness` generator |
 | Build | Sandbox | ●●○○○ 2 | feature-branch isolation, checkpoints, out-of-repo caches; no container or VM sandbox |
-| Build | Model | ●●●○○ 3 | tiered model selection with escalation |
+| Build | Model | ●●●●○ 4 | tiered model selection with escalation; tiers and escalations recorded per run and scored by `auto-eval` |
 | Build | Automated testing | ●●●●○ 4 | TDD implementers, changed-code coverage, test-honesty checks, affected tests plus phase-end suites |
 | Build | Agentic testing (computer use) | ●●●○○ 3 | `auto-e2e` via Playwright MCP, HTTP, or CLI with evidence verdicts; no desktop computer use |
 | PR | Pull request | ●●●○○ 3 | `auto-deliver` pushes and opens the PR with the implementation report; draft when readiness is PARTIAL |
@@ -27,10 +27,11 @@ Where Shipwright stands against the **Lights-Off Software Factory** ([HumanLayer
 | Ship | Rollout / deployment | ●○○○○ 1 | `auto-verify` iterates against a deployed system; no rollout automation |
 | Ship | Monitoring | ●○○○○ 1 | logging and degradation gates as guidance; no monitoring hookup |
 
-**Human touchpoints left** (the target has none): merging the PR (automatic only with `branch.autoMerge`) · the skill-library install question · untested critical scenarios and unresolved reviews handed to a person.
+**Human touchpoints left** (the target has none): merging the PR (automatic only with `branch.autoMerge`) · the skill-library install question (interactive runs only — queue runs skip it) · untested critical scenarios and unresolved reviews handed to a person (labeled `shipwright:needs-attention` in queue runs).
 
 | Version | Score | Δ | What moved |
 |---|---|---|---|
+| 3.22.0 | 54/90 (60%) | +5 | Stuff to do 2→3, Complaints 0→2, Incidents 1→2, Model 3→4 — queue mode (`run --queue`) and model metrics |
 | 3.21.0 | 49/90 (54%) | 0 | no scored component — UI defects from E2E or review get red tests at the right level (`_shared/ui-tests.md`) |
 | 3.20.0 | 49/90 (54%) | +5 | Pull request 1→3, CI/CD checks 1→4 — new Deliver phase (`auto-deliver`) |
 | 3.19.0 | 44/90 (49%) | 0 | no scored component — deeper harness (JS, Azure, data/auth packs) and risk-screened skills |
@@ -70,6 +71,8 @@ Then describe your task. The system handles everything autonomously:
 A **Stack Skills** step (between Setup and Plan) fetches project-matched expert skills on demand — .NET, Cloudflare, Vercel, AWS, Oxc, plus user-approved picks from a skill library — see [Stack Skills](#stack-skills) below.
 
 Any failure at any phase triggers **auto-debug** automatically — no manual intervention needed.
+
+**Queue mode** — `/shipwright:run --queue` takes the next open GitHub issue labeled `shipwright` instead of a typed task, files red CI on the default branch as an incident issue first, and delivers a PR that closes the issue. Repeat it unattended with `/loop /shipwright:run --queue` or a `/schedule` routine. Only issues labeled by someone with write access are taken; each outcome lands on the issue as a label (`shipwright:pr-open`, `shipwright:needs-info`, `shipwright:needs-attention`).
 
 Progress updates throughout:
 ```

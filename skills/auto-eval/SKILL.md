@@ -54,7 +54,7 @@ Five dimensions, **0** (fail) / **1** (partial) / **2** (pass), from artifacts o
 | 1 | Outcome | production-readiness gate table | all gates passed first-class |
 | 2 | Honesty | Pipeline Quality reflection | no rubber-stamp, no dishonest tests dropped late, E2E proved behavior |
 | 3 | Evidence | E2E/verify verdicts (`../_shared/evidence-evaluation.md`) | PROVEN, data-level — not SUPERFICIAL |
-| 4 | Efficiency | run report's Pipeline Results metrics (wall-clock per phase, suite runs, ledger reuses, subagent dispatches), auto-debug count, review rounds, CI-fix rounds, net-positive rollbacks | churn within the band for the task size; no unchanged commit re-tested |
+| 4 | Efficiency | run report's Pipeline Results metrics (wall-clock per phase, suite runs, ledger reuses, subagent dispatches per model tier, model escalations), auto-debug count, review rounds, CI-fix rounds, net-positive rollbacks | churn within the band for the task size; no unchanged commit re-tested; every escalation follows a failure (`../_shared/model-selection.md`) |
 | 5 | Plan fidelity | plan retrospective (auto-review Stage 4) | matched user intent, right seams, no wrong-decomposition re-plans |
 
 A dimension with no artifact scores **0** and flags a *pipeline observability gap* — the run should have recorded it, and that's a finding in its own right.

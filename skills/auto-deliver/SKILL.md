@@ -36,7 +36,7 @@ run Phase 8, after production-readiness; standalone for any branch that should s
 ## 2. Open the PR
 
 - **Title:** a conventional summary of the task (`feat: …`, `fix: …`), ≤72 characters.
-- **Body** — written to a temp file outside the repo and passed with `--body-file`: the user's original task words; production-readiness's Implementation Report (status, changes, gate table, evidence summary, unresolved issues, recommendations); run's Pipeline Results and Principle Deviations. Link logs and artifacts instead of pasting them; GitHub caps a body at 65,536 characters.
+- **Body** — written to a temp file outside the repo and passed with `--body-file`: the user's original task words; production-readiness's Implementation Report (status, changes, gate table, evidence summary, unresolved issues, recommendations); run's Pipeline Results and Principle Deviations. Link logs and artifacts instead of pasting them; GitHub caps a body at 65,536 characters. A queue run (`run --queue`) adds `Closes #<n>`, so merging closes the issue.
 - `gh pr create --base <originalBranch> --head <branch> --title "…" --body-file <file>`, adding `--draft` when readiness status is PARTIAL (unresolved issues or UNTESTED critical scenarios).
 - An open PR already exists for the branch → `gh pr edit <pr> --body-file <file>` instead of opening another.
 

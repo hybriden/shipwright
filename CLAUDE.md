@@ -4,7 +4,7 @@ A Claude Code plugin providing an autonomous development pipeline.
 
 ## Plugin Structure
 
-- `skills/run/` - Master orchestrator (entry point)
+- `skills/run/` - Master orchestrator (entry point); `--queue` drains labeled GitHub issues behind a write-access trust gate and files red CI on the default branch as incident issues
 - `skills/auto-setup/` - Environment and dependency setup
 - `skills/auto-map/` - Codebase architecture mapping (module inventory, dependency graph, interfaces, hot spots)
 - `skills/auto-plan/` - Autonomous task planning (consumes architecture map)

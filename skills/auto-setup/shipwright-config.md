@@ -37,6 +37,11 @@ All implementor skills check for `.shipwright.json` in the project root. Every f
     "ciFixRounds": 3,
     "ciTimeoutMinutes": 60
   },
+  "queue": {
+    "label": "shipwright",
+    "maxIssues": 1,
+    "incidents": true
+  },
   "dotnetSkills": {
     "enabled": true,
     "installTool": true,
@@ -146,6 +151,16 @@ Push the branch, open a PR carrying the implementation report, watch CI, and fix
 | `delivery.ciFixRounds` | number | 3 | CI failure → fix → re-watch rounds before reporting CI_RED |
 | `delivery.ciTimeoutMinutes` | number | 60 | Stop watching checks still pending after this long and report them |
 
+### Queue
+
+`shipwright:run --queue` drains GitHub issues instead of taking a typed task (`skills/run` Queue Mode). Needs `gh` authenticated, a GitHub `origin`, and delivery on.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `queue.label` | string | `"shipwright"` | Issues with this label are the queue — taken only when someone with write access applied it |
+| `queue.maxIssues` | number | 1 | Issues run per invocation; repeat with `/loop` or `/schedule` |
+| `queue.incidents` | boolean | true | File red CI on the default branch as `shipwright:incident` issues, run first |
+
 ### .NET Skills
 
 Dynamic use of managedcode/dotnet-skills in .NET projects (ignored in non-.NET projects) — one of the stack-skills sources (`_shared/stack-skills.md`). Env `SHIPWRIGHT_DOTNET_SKILLS=off` disables it regardless of these.
@@ -208,7 +223,7 @@ Deterministic react-doctor verify gate in React projects (ignored elsewhere). Ru
 | `production-readiness` | `coverage.*`, `loadTest.*`, `skipPhases`, `profile` |
 | `auto-deliver` | `delivery.*`, `branch.autoMerge`, `skipPhases` |
 | `auto-map`, `auto-impl`, `auto-debug` | `profile` (passed by run) |
-| `run` | `profile`, `skipPhases`, `branch.*`, `dotnetSkills.*`, `skillPacks.*`, all (passes to sub-skills) |
+| `run` | `profile`, `skipPhases`, `branch.*`, `queue.*`, `dotnetSkills.*`, `skillPacks.*`, all (passes to sub-skills) |
 | dotnet-skills hook + engine | `dotnetSkills.*` |
 | skill-packs hook, engine, library | `skillPacks.*` |
 | oxc-compat check | `oxc.*` |

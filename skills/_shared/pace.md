@@ -76,4 +76,4 @@ The full suite runs at: setup; auto-impl's phase end; each auto-test iteration (
 
 ## Metrics (every run)
 
-run records a timestamp at each phase transition and counts full-suite runs, affected-test runs, ledger reuses, subagent dispatches, and auto-debug invocations (fast path / full). They go in the report's Pipeline Results and feed auto-eval's Efficiency score — the evidence that pace didn't cost quality.
+run records a timestamp at each phase transition and counts full-suite runs, affected-test runs, ledger reuses, subagent dispatches per model tier, model escalations (from → to, with the failure behind each), and auto-debug invocations (fast path / full). They go in the report's Pipeline Results and feed auto-eval's Efficiency score — the evidence that pace didn't cost quality.

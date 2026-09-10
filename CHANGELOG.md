@@ -2,6 +2,12 @@
 
 All notable changes to Shipwright. Format follows [Keep a Changelog](https://keepachangelog.com/); the project adheres to [Semantic Versioning](https://semver.org/). Versions track the `version` field in `.claude-plugin/plugin.json`.
 
+## [3.22.0] — 2026-09-10
+
+- **Queue mode** (`shipwright:run --queue`): takes the next open GitHub issue labeled `queue.label` (default `shipwright`) instead of a typed task and delivers a PR carrying `Closes #<n>`; `queue.maxIssues` per invocation (default 1), repeated unattended with `/loop` or `/schedule` — no daemon. Red CI on the default branch is filed first as a `shipwright:incident` issue (`queue.incidents`). **Trust gate:** anyone can open an issue and issue forms can label their own, so an issue is taken only when whoever applied the label has write access (issue events + collaborator permission), and only comments from owners, members, and collaborators count as task words. Outcomes land as labels — `in-progress`, `pr-open`, `needs-info` (not actionable), `needs-attention` (FAILED, PARTIAL, CI_RED); a stuck `in-progress` is reclaimed after 24 h. Queue runs ask nothing: skill-library candidates become a report line.
+- **Model metrics:** run records subagent dispatches per model tier and each escalation with the failure behind it; auto-eval's Efficiency score checks that every escalation follows a failure.
+- **Software Factory Scoreboard:** 54/90 (60%), Δ +5 — Stuff to do 2→3, Complaints 0→2, Incidents 1→2, Model 3→4; the skill-library question no longer reaches queue runs.
+
 ## [3.21.0] — 2026-09-10
 
 - **UI test levels** (new `_shared/ui-tests.md`): a UI defect found by an E2E sweep or a reviewer lands with a committed test that fails without the fix, at the level the defect calls for — role and accessible-name queries for missing semantics and repeated controls, a non-color cue for color-only states, real-browser geometry at the failing viewport for layout (never pixel screenshot baselines), exact formatter strings (with `Intl`'s no-break spaces), and axe in a real browser for contrast. A red test must fail on its assertion, not a timeout. Linked from auto-test, auto-e2e, and auto-debug Layer 1; pasted into the implementer, test-writer, and debug dispatch prompts, since subagents can't resolve `_shared/`. Prompted by a run whose reviewer found mobile overlap, unclear currency text, won/lost states that look alike, missing tab semantics, and row buttons without row names.
