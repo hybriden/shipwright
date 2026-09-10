@@ -2,6 +2,12 @@
 
 All notable changes to Shipwright. Format follows [Keep a Changelog](https://keepachangelog.com/); the project adheres to [Semantic Versioning](https://semver.org/). Versions track the `version` field in `.claude-plugin/plugin.json`.
 
+## [3.20.0] — 2026-09-10
+
+- **Deliver phase** (run Phase 8, new `auto-deliver` skill): pushes the branch, opens a PR whose body carries the implementation report (draft when readiness is PARTIAL), watches CI with `gh pr checks --watch`, and fixes failures in up to `delivery.ciFixRounds` rounds — code failures through auto-debug and a Post-Review Fixes round, one re-run for a flaky check, a stop-and-report when a secret or permission is missing. Never merges on red or pending; merges on green only with `branch.autoMerge`. Without `gh` or a GitHub remote it degrades to local delivery. New `.shipwright.json` `delivery` block; `skipPhases: deliver`.
+- **Shipwright's own CI:** `.github/workflows/ci.yml` syntax-checks the hooks, validates the manifests, and runs offline `node --test` hook tests (`hooks/test/`).
+- **Software Factory Scoreboard:** 49/90 (54%), Δ +5 — Pull request 1→3, CI/CD checks 1→4; the merge/keep/discard offer shrinks to merging the PR.
+
 ## [3.19.0] — 2026-09-10
 
 - **JS stack coverage:** new packs `nextjs` (vercel/next.js), `react-router` (remix-run/react-router), `vite` (antfu/skills — Vite, Vitest, Vue, Nuxt, from a Vite/Vue/Nuxt core team member), and `hono` (honojs/skills); React stays on `vercel`. Astro has no maintainer skill — its pack fetches nothing and points at the official Astro Docs MCP server. Axios has no skill from anyone, so nothing is imported for it. Pack index headers link each framework's `llms.txt` where one exists.

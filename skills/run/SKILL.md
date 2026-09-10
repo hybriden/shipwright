@@ -5,7 +5,7 @@ description: Use when given a development task to implement autonomously with fu
 
 # Run
 
-Master orchestrator. Takes a development task and delivers production-grade code with zero human interaction, chaining every sub-skill in strict sequence: triage, map + setup, stack skills, plan, implement, unit test, review, E2E test, readiness.
+Master orchestrator. Takes a development task and delivers production-grade code with zero human interaction, chaining every sub-skill in strict sequence: triage, map + setup, stack skills, plan, implement, unit test, review, E2E test, readiness, deliver.
 
 **Core principle:** Task in, production-grade system out. Every phase passes before the next begins. Evidence before claims — and evidence already gathered is reused, never re-proven (`../_shared/pace.md`).
 
@@ -24,7 +24,7 @@ A passing phase is the gate to the next. Map and setup form one parallel step: b
 - **Never skip a phase** (unless `.shipwright.json` `skipPhases` allows). Size tiers scale a phase's depth, never whether it runs.
 - **Never ask the user for input mid-run** — decide autonomously, document why. The one exception is asked before planning starts: the skill-library offer in Phase 1.75.
 - **Never stop between phases.** Emit the progress line AND start the next phase in the same turn. The only valid stopping points are the final report (success) or a failure report (recovery exhausted).
-- **Never declare completion** without all production-readiness gates passing.
+- **Never declare completion** without all production-readiness gates passing — and, when delivering, CI green or honestly reported (auto-deliver).
 
 ## When to Use
 
@@ -47,10 +47,11 @@ Each phase is invoked via the **Skill tool**, gated, and checkpointed. Any failu
 | 5 | Review | auto-review |
 | 6 | E2E test | auto-e2e |
 | 7 | Production readiness | production-readiness |
+| 8 | Deliver (PR + CI) | auto-deliver |
 
 Review precedes E2E so E2E proves the final, reviewed code — review fixes can't leave its evidence stale.
 
-Then: final report → offer merge / keep branch for PR / discard.
+Then: the final report, with the PR URL and CI verdict. When delivery is skipped or unavailable (no `gh`, no GitHub remote), offer merge / keep branch for PR / discard instead.
 
 ## Phase Tracking (mandatory, every phase)
 
@@ -63,9 +64,9 @@ Then: final report → offer merge / keep branch for PR / discard.
 Emit a plain-text line at every transition; the user should see continuous progress, not silence:
 
 ```
-[shipwright] Phase 3/8: Implementing task 2/5 — AuthService
-[shipwright] Phase 4/8: Testing (coverage 62% → 84%)
-[shipwright] COMPLETE: all gates passed. Branch: shipwright/add-user-auth
+[shipwright] Phase 3/9: Implementing task 2/5 — AuthService
+[shipwright] Phase 8/9: CI round 1/3 — fixing failing check "test (ubuntu)"
+[shipwright] COMPLETE: all gates passed, CI green. PR: https://github.com/org/repo/pull/42
 ```
 
 ## Pace
@@ -99,11 +100,13 @@ Don't invoke skills blindly — pass forward what each phase learned:
 | Review | Categorized quality findings | readiness | Gates 5, 6, 8, 9, 10 start from them |
 | Review | Fidelity + plan retrospective | readiness, plan (next run) | quality signals, feedback loop |
 | E2E | Evidence verdicts | readiness | Gate 3: proven vs superficial |
-| All | Evidence ledger | readiness | Gates 1-2 reuse results on an unchanged commit |
+| All | Evidence ledger | readiness, deliver | Gates 1-2 reuse results on an unchanged commit; CI failure baselines |
+| Readiness | Implementation Report + status | deliver | PR body; draft PR when PARTIAL |
+| Deliver | PR URL, CI verdicts, CI rounds | run, auto-eval | final report; Efficiency score |
 
 ## Phase 0: Branch Isolation
 
-Require a clean tree (`git status`; if dirty, report and abort). Note the current branch as `originalBranch`. Create `shipwright/<task-slug>` (lowercase, hyphens, ≤50 chars; prefix from `.shipwright.json` `branch.prefix`) and check it out. **On failure:** all commits stay on the feature branch, original untouched — report the branch name. **On success:** offer merge / keep for PR / discard (unless `branch.autoMerge`).
+Require a clean tree (`git status`; if dirty, report and abort). Note the current branch as `originalBranch`. Create `shipwright/<task-slug>` (lowercase, hyphens, ≤50 chars; prefix from `.shipwright.json` `branch.prefix`) and check it out. **On failure:** all commits stay on the feature branch, original untouched — report the branch name. **On success:** Phase 8 delivers the branch as a PR; if delivery is skipped or unavailable, offer merge / keep for PR / discard (unless `branch.autoMerge`).
 
 ## Phase 1: Context, Config + Size Triage
 
@@ -126,7 +129,7 @@ Make project- and task-matched skills available on demand — never vendored. Pr
 
 Progress line: `[shipwright] Phase 1.75: stack skills — 7 matched (aws 5, dotnet 2); library: 1 added` (or `— none matched`).
 
-## Phases 2–7
+## Phases 2–8
 
 Invoke each sub-skill via the Skill tool, passing the signals above plus profile, tier, and ledger. Each skill owns its own process — the orchestrator's job is to feed context in and gate the output:
 
@@ -136,13 +139,14 @@ Invoke each sub-skill via the Skill tool, passing the signals above plus profile
 - **5 Review** (auto-review) → spec + quality reviewers in parallel with the inline lenses (fidelity, architecture, React, over-engineering); batched fix rounds (≤3).
 - **6 E2E** (auto-e2e) → detect app type, run diff-targeted scenarios with evidence on the reviewed code. Skip for libraries or `skipPhases: e2e`, with justification.
 - **7 Readiness** (production-readiness) → 11 gates from the ledger, review findings, and deterministic checks + final report.
+- **8 Deliver** (auto-deliver) → push, open a PR carrying the report (draft when PARTIAL), watch CI, fix CI failures (≤ `delivery.ciFixRounds`); merge only on green with `branch.autoMerge`. Skip with `skipPhases: deliver` or `delivery.pr: false`.
 
 ## Error Recovery
 
 On any phase failure, invoke **auto-debug** with full error context (command, output, stack trace, files) plus the profile, the ledger baseline, and the project-tool inventory from any earlier invocation.
 
 - **RESOLVED** → resume at the failed phase; a fix made after Phase 5 first gets auto-review's Post-Review Fixes round.
-- **UNRESOLVED** → one manual recovery attempt appropriate to the phase (setup: alt install; plan: broaden context; impl: re-plan the task; test: check assumptions; review: fix + re-review; e2e: fix startup/interaction; readiness: address the failing gate).
+- **UNRESOLVED** → one manual recovery attempt appropriate to the phase (setup: alt install; plan: broaden context; impl: re-plan the task; test: check assumptions; review: fix + re-review; e2e: fix startup/interaction; readiness: address the failing gate; deliver: re-run a flaky check once, else report CI_RED).
 - **Recovery fails** → roll back to the last checkpoint (`git reset --hard <tag>` — preserves completed phases) and write a failure report: phases completed (with tags), auto-debug evidence, exact failure, what would need to change, the branch name, and the rollback point.
 
 ## Autonomous Decision Defaults
@@ -154,20 +158,21 @@ Naming/architecture: match existing conventions, else language idiom / simplest 
 Before the final report, one honest self-assessment (documentation, not a gate — becomes the report's "Pipeline Quality" section):
 
 1. **Real quality or box-ticking?** Did any phase rubber-stamp — review approved first pass with zero findings, everything passed first try, E2E only proved pages load?
-2. **Where did it struggle, and why?** Repeated auto-debug → wrong plan. Many review findings → underpowered implementer. Hard-won coverage → testability problems. Did pace cut too deep — a regression first caught at a phase-end suite, a fast-path fix that fell through, a load test N/A'd on a diff that reached the request path?
+2. **Where did it struggle, and why?** Repeated auto-debug → wrong plan. Many review findings → underpowered implementer. Hard-won coverage → testability problems. CI failing on what local gates passed → environment drift the ledger didn't see. Did pace cut too deep — a regression first caught at a phase-end suite, a fast-path fix that fell through, a load test N/A'd on a diff that reached the request path?
 3. **Would I ship this with my name on it?** Re-read the diff for overall coherence — one author's voice, an approach a senior engineer would approve?
 
 ## Retrospective (feedback loop)
 
-Append to `.shipwright-retrospective.md` (read by auto-plan next run). Per run: status, task size, what went well/wrong per phase, plan-quality notes (from review), and **actionable** signals for future runs ("tasks touching src/utils always conflict"; "this codebase needs a mocking library"). Append-only, ≤15 lines/entry, patterns not session specifics; summarize the oldest 50 if it exceeds 100 entries. The outer eval loop (`shipwright:auto-eval`) scores completed runs and appends cross-run improvement signals to the same file — closing the loop into planning.
+Append to `.shipwright-retrospective.md` (read by auto-plan next run). Per run: status, task size, what went well/wrong per phase, plan-quality notes (from review), and **actionable** signals for future runs ("tasks touching src/utils always conflict"; "this codebase needs a mocking library"; "CI runs Node 20 — pin it locally"). Append-only, ≤15 lines/entry, patterns not session specifics; summarize the oldest 50 if it exceeds 100 entries. The outer eval loop (`shipwright:auto-eval`) scores completed runs and appends cross-run improvement signals to the same file — closing the loop into planning.
 
 ## Report Format
 
 Use the production-readiness Implementation Report (task, status, changes, gate table, evidence) plus these run-specific sections:
 
 - **Branch** — feature + original.
+- **Delivery** — PR URL (draft or ready), CI verdict per check, CI rounds used, and anything waiting on a person — or why delivery was skipped.
 - **Pace** — profile; size tier, and any upgrade after planning.
-- **Pipeline Results** — per-phase table: status, key metric, wall-clock (Map/Setup/Stack skills/Plan/Impl/Tests/Review/E2E/Readiness); run totals: full-suite runs, affected-test runs, ledger reuses, subagent dispatches, auto-debug fast/full.
+- **Pipeline Results** — per-phase table: status, key metric, wall-clock (Map/Setup/Stack skills/Plan/Impl/Tests/Review/E2E/Readiness/Deliver); run totals: full-suite runs, affected-test runs, ledger reuses, subagent dispatches, auto-debug fast/full, CI rounds.
 - **Pipeline Quality** — the integrity-reflection findings: phases that flagged issues vs passed first try, model escalations, dishonest tests dropped, fidelity concerns, plan-retrospective highlights, symptomatic fixes, Definition-of-Done verdict.
 - **Principle Deviations** — grep the final diff for `ponytail:` markers; list each with the law/ceiling it names and why, or `None`.
 - **Commits** — list.
@@ -183,6 +188,7 @@ Use the production-readiness Implementation Report (task, status, changes, gate 
 | "This community skill looks useful, I'll install it" | Only after the user picks it from a gated `library.js` search. |
 | "Recovery failed, try again" | One attempt, then report failure. |
 | "I'll work on main" | Never. Feature branch first. |
+| "Merge it, CI is still running" | Never merge on red or pending (auto-deliver's Iron Law). |
 | "I'll copy the skill's content into the repo" | Never. Read the cached SKILL.md on demand; it stays out-of-repo and refreshes from upstream. |
 | "Every phase passed first try" | Perfect code, or a pipeline not probing hard enough? Reflect. |
 | "I'll update the user, then continue" | No. Emit the progress line and start the next phase in the same turn. |
